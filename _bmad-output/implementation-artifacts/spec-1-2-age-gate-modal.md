@@ -19,8 +19,8 @@ context: []
 </frozen-after-approval>
 
 ## Implementation Notes
-- Created `src/lib/cookies.ts` providing `hasAgeVerifiedCookie` and `setAgeVerifiedCookie` utilities with 30-day max-age, Lax, and Secure flags.
-- Created `src/components/age-gate-dialog.tsx` implementing a mandatory Radix UI `Dialog` modal with focus trap, backdrop blur (`backdrop-blur-xl`), dark obsidian card design token styling (`#121522` / `bg-card`), glowing crimson top border (`border-t-2 border-t-primary`), Lucide `ShieldAlert` icon, Cinzel typography, and >=44px touch targets.
+- Created `src/lib/cookies.ts` providing `hasAgeVerifiedCookie` and `setAgeVerifiedCookie` utilities with 5-day max-age, Lax, and Secure flags.
+- Created `src/components/age-gate-dialog.tsx` implementing a mandatory Radix UI `Dialog` modal with focus trap, explicit cookie disclosure notice, backdrop blur (`backdrop-blur-xl`), dark obsidian card design token styling (`#121522` / `bg-card`), glowing crimson top border (`border-t-2 border-t-primary`), Lucide `ShieldAlert` icon, Cinzel typography, and >=44px touch targets.
 - Updated `src/app/globals.css` with dedicated keyframe animations and exact center translation for `.age-gate-content` and `.age-gate-overlay` ensuring smooth 200ms ease-out dissolution.
 - Mounted `<AgeGateDialog />` inside `src/app/(portal)/layout.tsx` to protect all public portal pages.
 - Verified via headless browser automation: initial visit blocking, focus trap on primary CTA, cookie setting and smooth dissolution on confirmation, automatic bypass on page reload with cookie, and immediate redirection to `https://google.com` on exit.

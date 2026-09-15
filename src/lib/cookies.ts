@@ -1,5 +1,5 @@
 export const AGE_VERIFIED_COOKIE_NAME = "ropoductions_age_verified";
-export const AGE_VERIFIED_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+export const AGE_VERIFIED_COOKIE_MAX_AGE = 5 * 24 * 60 * 60; // 5 days in seconds
 
 /**
  * Check if the visitor has confirmed the 21+ age verification gate.
@@ -20,7 +20,7 @@ export function hasAgeVerifiedCookie(): boolean {
 }
 
 /**
- * Sets the 30-day persistent age verification cookie.
+ * Sets the 5-day persistent age verification cookie.
  */
 export function setAgeVerifiedCookie(): void {
   if (typeof document === "undefined") {

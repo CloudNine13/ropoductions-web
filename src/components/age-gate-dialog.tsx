@@ -62,11 +62,19 @@ export function AgeGateDialog({
               21+ Age Verification Required
             </Dialog.Title>
 
-            <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              This website hosts adult indie game content, explicit visual
-              novels, and mature themes intended strictly for individuals aged
-              21 or older. By entering, you confirm that you meet the legal age
-              requirement in your jurisdiction.
+            <Dialog.Description asChild>
+              <div className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                <p>
+                  This website hosts adult indie game content, explicit visual
+                  novels, and mature themes intended strictly for individuals aged
+                  21 or older. By entering, you confirm that you meet the legal age
+                  requirement in your jurisdiction.
+                </p>
+                <p className="text-xs text-muted-foreground/80 sm:text-sm">
+                  We use an essential cookie to remember your verification on this
+                  device for 5 days so you do not have to confirm on every visit.
+                </p>
+              </div>
             </Dialog.Description>
 
             <div className="mt-6 flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
