@@ -10,16 +10,19 @@ export default function PortalPage() {
       {/* Sticky Studio Brand Header */}
       <StudioHeader />
 
-      {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 py-6 sm:py-10">
-        {/* Studio Hero with Key Art Banner and Play Now CTA */}
+      {/* Main Content Area with Full-Bleed Hero and Constrained Content Sections */}
+      <main className="flex-1 w-full flex flex-col">
+        {/* Full-width 100% Edge-to-Edge Hero with Atmospheric Background Key Art Banner */}
         <HeroSection />
 
-        {/* Project Media Cards & Screenshots Lightbox */}
-        <ProjectShowcase />
+        {/* Constrained Media Cards Showcase & Social Hub */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 py-12 sm:py-16">
+          {/* Project Media Cards & Screenshots Lightbox */}
+          <ProjectShowcase />
 
-        {/* Verified Community & Social Hub Links */}
-        <SocialHub />
+          {/* Verified Community & Social Hub Links */}
+          <SocialHub />
+        </div>
       </main>
 
       {/* Studio Compliance & Brand Footer */}
