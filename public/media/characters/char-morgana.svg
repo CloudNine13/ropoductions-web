@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="100%" height="100%" style="image-rendering: pixelated; font-family: monospace;">
+  <defs>
+    <linearGradient id="charBg3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#581C87" />
+      <stop offset="100%" stop-color="#090A0F" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" rx="12" fill="url(#charBg3)" stroke="#A855F7" stroke-width="2" />
+  <circle cx="200" cy="200" r="130" fill="#A855F7" opacity="0.15" />
+
+  <!-- Sorceress Figure -->
+  <path d="M120,120 Q200,60 280,120 Q340,240 310,390 Q200,430 90,390 Z" fill="#2E1065" />
+  <path d="M90,350 Q200,310 310,350 L360,500 L40,500 Z" fill="#4C1D95" stroke="#A855F7" stroke-width="2" />
+  <polygon points="170,270 230,270 210,330 190,330" fill="#FBCFE8" />
+  <path d="M140,190 Q200,165 260,190 Q270,260 200,285 Q130,260 140,190 Z" fill="#FBCFE8" />
+  <!-- Witch Hat -->
+  <polygon points="70,170 330,170 200,40" fill="#1E1B4B" stroke="#A855F7" stroke-width="2" />
+  <ellipse cx="200" cy="170" rx="130" ry="25" fill="#2E1065" stroke="#A855F7" stroke-width="2" />
+  <!-- Eyes -->
+  <ellipse cx="170" cy="225" rx="11" ry="8" fill="#701A75" />
+  <circle cx="173" cy="223" r="3" fill="#FFFFFF" />
+  <ellipse cx="230" cy="225" rx="11" ry="8" fill="#701A75" />
+  <circle cx="233" cy="223" r="3" fill="#FFFFFF" />
+  <path d="M185,255 Q200,265 215,255" stroke="#9333EA" stroke-width="2" fill="none" />
+
+  <!-- Name Badge Overlay -->
+  <rect x="20" y="420" width="360" height="60" rx="8" fill="#121522" fill-opacity="0.95" stroke="#23283E" stroke-width="1.5" />
+  <text x="40" y="445" fill="#C084FC" font-size="16" font-weight="bold">MORGANA</text>
+  <text x="40" y="465" fill="#94A3B8" font-size="12">ROLE: SHADOWWEAVER • VOID ENCHANTRESS</text>
+</svg>

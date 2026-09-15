@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${chakraPetch.variable} ${geistSans.variable} ${geistMono.variable} dark`}>
+    <html lang="en" className={`${chakraPetch.variable} ${geistSans.variable} ${geistMono.variable} dark scroll-smooth`}>
       <body className="min-h-screen bg-background text-foreground antialiased font-body selection:bg-primary selection:text-white">
         {children}
       </body>

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="100%" height="100%" style="image-rendering: pixelated; font-family: monospace;">
+  <defs>
+    <linearGradient id="tavernBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1A1528" />
+      <stop offset="100%" stop-color="#0F0C17" />
+    </linearGradient>
+  </defs>
+
+  <!-- Tavern / Citadel Interior Background -->
+  <rect width="960" height="540" fill="url(#tavernBg)" />
+  <!-- Stained Glass Window -->
+  <g transform="translate(480, 120)">
+    <path d="M-90,100 L-90,0 Q0,-120 90,0 L90,100 Z" fill="#2E1065" stroke="#F59E0B" stroke-width="3" />
+    <line x1="0" y1="-120" x2="0" y2="100" stroke="#F59E0B" stroke-width="2" />
+    <line x1="-90" y1="0" x2="90" y2="0" stroke="#F59E0B" stroke-width="2" />
+    <circle cx="0" cy="-20" r="40" fill="#7C3AED" opacity="0.6" />
+  </g>
+
+  <!-- Character Bust Art (Lyra - Elf Sybarite) -->
+  <g transform="translate(620, 70)">
+    <!-- Aura / Shadow -->
+    <circle cx="150" cy="180" r="160" fill="#22C55E" opacity="0.1" />
+    <!-- Hair (Back) -->
+    <path d="M70,80 Q140,20 220,70 Q270,160 250,300 Q150,330 60,290 Z" fill="#34D399" />
+    <!-- Shoulders & Outfit -->
+    <path d="M60,290 Q150,250 240,290 L270,400 L30,400 Z" fill="#14532D" stroke="#22C55E" stroke-width="2" />
+    <path d="M110,270 L190,270 L170,360 L130,360 Z" fill="#FBBF24" />
+    <!-- Neck & Face -->
+    <polygon points="125,230 175,230 160,270 140,270" fill="#FED7AA" />
+    <path d="M100,140 Q150,110 200,140 Q210,210 150,240 Q90,210 100,140 Z" fill="#FED7AA" />
+    <!-- Pointed Elf Ears -->
+    <polygon points="95,160 30,125 90,185" fill="#FED7AA" stroke="#FDBA74" stroke-width="1.5" />
+    <polygon points="205,160 270,125 210,185" fill="#FED7AA" stroke="#FDBA74" stroke-width="1.5" />
+    <!-- Eyes & Expression -->
+    <ellipse cx="125" cy="175" rx="10" ry="7" fill="#064E3B" />
+    <circle cx="127" cy="173" r="3" fill="#FFFFFF" />
+    <ellipse cx="175" cy="175" rx="10" ry="7" fill="#064E3B" />
+    <circle cx="177" cy="173" r="3" fill="#FFFFFF" />
+    <!-- Smirk -->
+    <path d="M140,205 Q152,215 162,205" stroke="#E11D48" stroke-width="2" fill="none" />
+    <!-- Hair (Front Bangs) -->
+    <path d="M85,110 Q145,90 215,110 Q190,160 175,170 Q145,130 125,170 Q105,150 85,110 Z" fill="#6EE7B7" />
+  </g>
+
+  <!-- RPG Dialogue Box Overlay (Bottom) -->
+  <g transform="translate(40, 340)">
+    <!-- Main Box Container -->
+    <rect width="880" height="165" rx="10" fill="#121522" fill-opacity="0.95" stroke="#23283E" stroke-width="2" />
+    <!-- Glowing Accent Top Line -->
+    <line x1="10" y1="2" x2="870" y2="2" stroke="#22C55E" stroke-width="3" />
+
+    <!-- Speaker Nameplate -->
+    <g transform="translate(25, -20)">
+      <rect width="220" height="40" rx="6" fill="#161B2E" stroke="#22C55E" stroke-width="2" />
+      <text x="110" y="25" text-anchor="middle" fill="#FBBF24" font-size="16" font-weight="bold" letter-spacing="1">LYRA THE SYBARITE</text>
+    </g>
+
+    <!-- Dialogue Text -->
+    <text x="40" y="55" fill="#F8FAFC" font-size="18" font-family="'Geist Sans', sans-serif" font-weight="500">
+      "You fought well in the sunken ruins, stranger. But don't assume my gratitude comes cheap."
+    </text>
+    <text x="40" y="90" fill="#94A3B8" font-size="16" font-family="'Geist Sans', sans-serif">
+      "The sanctum seal is already cracking. If you truly wish to survive what lies beyond... stay close to me."
+    </text>
+
+    <!-- Flashing Prompt Indicator -->
+    <polygon points="840,135 855,135 847,147" fill="#22C55E" />
+    <text x="760" y="142" fill="#94A3B8" font-size="12">PRESS [ENTER]</text>
+  </g>
+</svg>

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-15-2026 14:00
+last_updated: 09-15-2026 16:30
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -37,8 +37,8 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
   1-1-project-scaffolding-opennext-runtime-design-system-tokens: done
-  1-2-mandatory-21-age-gate-modal-with-cookie-persistence: review
-  1-3-responsive-studio-showcase-project-media-cards-social-hub: backlog
+  1-2-mandatory-21-age-gate-modal-with-cookie-persistence: done
+  1-3-responsive-studio-showcase-project-media-cards-social-hub: review
   1-4-multilanguage-web-shell-accessible-language-selector: backlog
   epic-1-retrospective: optional
 

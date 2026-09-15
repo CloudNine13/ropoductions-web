@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="100%" height="100%" style="image-rendering: pixelated; font-family: monospace;">
+  <defs>
+    <linearGradient id="charBg2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7F1D1D" />
+      <stop offset="100%" stop-color="#090A0F" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" rx="12" fill="url(#charBg2)" stroke="#E11D48" stroke-width="2" />
+  <circle cx="200" cy="200" r="130" fill="#E11D48" opacity="0.15" />
+
+  <!-- Swordsman Figure -->
+  <path d="M130,130 Q200,80 270,130 Q300,220 280,360 Q200,390 120,360 Z" fill="#1E293B" />
+  <path d="M90,340 Q200,300 310,340 L350,500 L50,500 Z" fill="#991B1B" stroke="#E11D48" stroke-width="2" />
+  <rect x="160" y="320" width="80" height="120" fill="#475569" stroke="#94A3B8" stroke-width="2" />
+  <polygon points="170,260 230,260 215,310 185,310" fill="#FED7AA" />
+  <path d="M145,180 Q200,160 255,180 Q265,250 200,280 Q135,250 145,180 Z" fill="#FED7AA" />
+  <!-- Scarf / Headband -->
+  <rect x="135" y="180" width="130" height="16" rx="2" fill="#E11D48" />
+  <!-- Hair Spikes -->
+  <polygon points="140,180 120,130 160,150" fill="#FDE047" />
+  <polygon points="160,160 180,110 200,150" fill="#FDE047" />
+  <polygon points="200,150 220,115 240,160" fill="#FDE047" />
+  <polygon points="240,160 270,130 260,180" fill="#FDE047" />
+  <!-- Eyes -->
+  <ellipse cx="175" cy="220" rx="10" ry="6" fill="#0F172A" />
+  <ellipse cx="225" cy="220" rx="10" ry="6" fill="#0F172A" />
+  <line x1="165" y1="210" x2="185" y2="215" stroke="#0F172A" stroke-width="2" />
+  <line x1="235" y1="210" x2="215" y2="215" stroke="#0F172A" stroke-width="2" />
+
+  <!-- Name Badge Overlay -->
+  <rect x="20" y="420" width="360" height="60" rx="8" fill="#121522" fill-opacity="0.95" stroke="#23283E" stroke-width="1.5" />
+  <text x="40" y="445" fill="#E11D48" font-size="16" font-weight="bold">KAEL</text>
+  <text x="40" y="465" fill="#94A3B8" font-size="12">ROLE: CRIMSON VAGABOND • EXILED BLADEMASTER</text>
+</svg>
