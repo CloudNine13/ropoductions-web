@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="100%" height="100%" style="image-rendering: pixelated; font-family: monospace;">
+  <defs>
+    <pattern id="stoneFloor" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#121522" stroke="#1A1E2F" stroke-width="1" />
+      <rect x="2" y="2" width="18" height="18" fill="#161B2E" />
+      <rect x="20" y="20" width="18" height="18" fill="#161B2E" />
+    </pattern>
+    <radialGradient id="torchGlow1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.5" />
+      <stop offset="60%" stop-color="#F59E0B" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#121522" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="torchGlow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.5" />
+      <stop offset="60%" stop-color="#22C55E" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#121522" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Floor -->
+  <rect width="960" height="540" fill="url(#stoneFloor)" />
+
+  <!-- Dungeon Stone Walls (Top) -->
+  <rect x="0" y="0" width="960" height="140" fill="#090A0F" stroke="#23283E" stroke-width="3" />
+  <!-- Wall Bricks Pattern -->
+  <g fill="#1A1D2B">
+    <rect x="40" y="20" width="90" height="25" />
+    <rect x="150" y="20" width="120" height="25" />
+    <rect x="300" y="20" width="100" height="25" />
+    <rect x="430" y="20" width="130" height="25" />
+    <rect x="580" y="20" width="110" height="25" />
+    <rect x="710" y="20" width="120" height="25" />
+    <rect x="850" y="20" width="80" height="25" />
+    
+    <rect x="80" y="55" width="110" height="25" />
+    <rect x="220" y="55" width="130" height="25" />
+    <rect x="370" y="55" width="100" height="25" />
+    <rect x="500" y="55" width="120" height="25" />
+    <rect x="640" y="55" width="130" height="25" />
+    <rect x="800" y="55" width="100" height="25" />
+    
+    <rect x="40" y="90" width="140" height="25" />
+    <rect x="200" y="90" width="90" height="25" />
+    <rect x="320" y="90" width="140" height="25" />
+    <rect x="480" y="90" width="110" height="25" />
+    <rect x="620" y="90" width="140" height="25" />
+    <rect x="780" y="90" width="140" height="25" />
+  </g>
+
+  <!-- Left Wall & Right Wall Pillars -->
+  <rect x="0" y="140" width="60" height="400" fill="#090A0F" stroke="#23283E" stroke-width="2" />
+  <rect x="900" y="140" width="60" height="400" fill="#090A0F" stroke="#23283E" stroke-width="2" />
+
+  <!-- Wall Torches with Glow -->
+  <!-- Left Amber Torch -->
+  <circle cx="200" cy="110" r="140" fill="url(#torchGlow1)" />
+  <rect x="195" y="115" width="10" height="25" fill="#78350F" />
+  <polygon points="192,115 208,115 200,95" fill="#F59E0B" />
+  <polygon points="196,112 204,112 200,100" fill="#FEF08A" />
+
+  <!-- Right Emerald Torch -->
+  <circle cx="760" cy="110" r="140" fill="url(#torchGlow2)" />
+  <rect x="755" y="115" width="10" height="25" fill="#78350F" />
+  <polygon points="752,115 768,115 760,95" fill="#22C55E" />
+  <polygon points="756,112 764,112 760,100" fill="#86EFAC" />
+
+  <!-- Mysterious Locked Dungeon Vault Door -->
+  <g transform="translate(430, 40)">
+    <rect x="0" y="0" width="100" height="100" rx="50" fill="#180B26" stroke="#22C55E" stroke-width="3" />
+    <rect x="25" y="45" width="50" height="55" fill="#090A0F" />
+    <circle cx="50" cy="65" r="8" fill="#FBBF24" />
+    <text x="50" y="28" text-anchor="middle" fill="#22C55E" font-size="11" font-weight="bold">SANCTUM</text>
+  </g>
+
+  <!-- Treasure Chest -->
+  <g transform="translate(680, 240)">
+    <rect x="0" y="10" width="50" height="35" rx="4" fill="#78350F" stroke="#FBBF24" stroke-width="2" />
+    <rect x="0" y="0" width="50" height="14" rx="4" fill="#92400E" stroke="#FBBF24" stroke-width="2" />
+    <rect x="21" y="12" width="8" height="10" fill="#FBBF24" />
+    <circle cx="25" cy="5" r="12" fill="#FBBF24" opacity="0.2" />
+  </g>
+
+  <!-- Player Character Party Sprites (16-bit retro style) -->
+  <!-- Hero Sprite (Center) -->
+  <g transform="translate(460, 310)">
+    <!-- Shadow -->
+    <ellipse cx="20" cy="55" rx="22" ry="8" fill="#000000" opacity="0.6" />
+    <!-- Cloak & Body -->
+    <rect x="8" y="18" width="24" height="32" rx="4" fill="#E11D48" />
+    <!-- Armor Plate -->
+    <rect x="12" y="22" width="16" height="18" fill="#94A3B8" />
+    <!-- Head / Hair -->
+    <rect x="10" y="4" width="20" height="16" rx="3" fill="#FCD34D" />
+    <!-- Face -->
+    <rect x="13" y="9" width="14" height="10" fill="#FED7AA" />
+    <!-- Sword -->
+    <line x1="34" y1="12" x2="34" y2="44" stroke="#CBD5E1" stroke-width="3" />
+    <rect x="30" y="24" width="8" height="3" fill="#F59E0B" />
+  </g>
+
+  <!-- Companion Sprite (Lyra - Elf) -->
+  <g transform="translate(390, 320)">
+    <ellipse cx="18" cy="52" rx="18" ry="7" fill="#000000" opacity="0.6" />
+    <rect x="8" y="16" width="20" height="30" rx="3" fill="#15803D" />
+    <rect x="9" y="3" width="18" height="15" rx="4" fill="#6EE7B7" />
+    <rect x="11" y="8" width="14" height="9" fill="#FED7AA" />
+    <polygon points="6,6 10,11 6,14" fill="#FED7AA" />
+    <!-- Staff -->
+    <line x1="28" y1="8" x2="28" y2="48" stroke="#78350F" stroke-width="3" />
+    <circle cx="28" cy="8" r="5" fill="#22C55E" />
+  </g>
+
+  <!-- HUD In-Game Mini-Map & Stats Overlay -->
+  <g transform="translate(30, 30)">
+    <rect width="180" height="70" rx="6" fill="#121522" fill-opacity="0.9" stroke="#23283E" stroke-width="1.5" />
+    <text x="15" y="24" fill="#22C55E" font-size="12" font-weight="bold">THE LOWER CRYPTS</text>
+    <text x="15" y="44" fill="#F8FAFC" font-size="11">PARTY HP: 840 / 840</text>
+    <rect x="15" y="50" width="150" height="6" rx="2" fill="#1A1D2B" />
+    <rect x="15" y="50" width="150" height="6" rx="2" fill="#22C55E" />
+  </g>
+</svg>
