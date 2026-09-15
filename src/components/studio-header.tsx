@@ -4,9 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Menu, X, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export function StudioHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const t = useTranslations("header");
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/90 backdrop-blur-md">
@@ -23,11 +26,11 @@ export function StudioHeader() {
             width={36}
             height={36}
             unoptimized
-            className="pixelated drop-shadow-[0_0_10px_rgba(34,197,94,0.6)]"
+            className="pixelated drop-shadow-[0_0_12px_rgba(34,197,94,0.7)]"
             priority
           />
           <span className="font-display text-xl sm:text-2xl font-bold tracking-wider text-foreground">
-            ROPODUCTIONS
+            {t("brand")}
           </span>
         </Link>
 
@@ -37,13 +40,13 @@ export function StudioHeader() {
             href="#showcase"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] inline-flex items-center"
           >
-            Showcase
+            {t("navShowcase")}
           </a>
           <a
             href="#community"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] inline-flex items-center"
           >
-            Community
+            {t("navCommunity")}
           </a>
           <a
             href="https://www.patreon.com/ropoductions"
@@ -51,26 +54,29 @@ export function StudioHeader() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px]"
           >
-            <span>Patreon</span>
+            <span>{t("navPatreon")}</span>
             <ExternalLink className="h-3.5 w-3.5 opacity-70" />
           </a>
         </nav>
 
-        {/* Action Button & Mobile Toggle */}
-        <div className="flex items-center gap-3">
+        {/* Action Button & Language Switcher & Mobile Toggle */}
+        <div className="flex items-center gap-2.5">
+          {/* Header Language Switcher */}
+          <LanguageSwitcher placement="bottom" />
+
           <Link
             href="/play"
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-display text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-primary-hover min-h-[44px] cursor-pointer"
           >
             <Play className="h-4 w-4 fill-current" />
-            <span className="hidden sm:inline">Play Now</span>
+            <span className="hidden sm:inline">{t("playNow")}</span>
           </Link>
 
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="inline-flex items-center justify-center rounded-lg border border-border bg-card h-11 w-11 shrink-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden cursor-pointer"
-            aria-label="Toggle mobile navigation menu"
+            aria-label={t("toggleMenu")}
             aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -87,14 +93,14 @@ export function StudioHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px]"
             >
-              Showcase
+              {t("navShowcase")}
             </a>
             <a
               href="#community"
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px]"
             >
-              Community
+              {t("navCommunity")}
             </a>
             <a
               href="https://www.patreon.com/ropoductions"
@@ -103,9 +109,19 @@ export function StudioHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px]"
             >
-              <span>Patreon</span>
+              <span>{t("navPatreon")}</span>
               <ExternalLink className="h-4 w-4" />
             </a>
+            <div className="pt-2 border-t border-border/60">
+              <Link
+                href="/play"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 w-full rounded-md bg-primary py-3 font-display text-sm font-bold text-primary-foreground min-h-[44px]"
+              >
+                <Play className="h-4 w-4 fill-current" />
+                <span>{t("playNow")}</span>
+              </Link>
+            </div>
           </nav>
         </div>
       )}

@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { hasAgeVerifiedCookie, setAgeVerifiedCookie } from "@/lib/cookies";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface AgeGateDialogProps {
   isServerVerified?: boolean;
@@ -15,6 +17,7 @@ export function AgeGateDialog({
   redirectUrl = "https://google.com",
 }: AgeGateDialogProps) {
   const [isOpen, setIsOpen] = useState(!isServerVerified);
+  const t = useTranslations("ageGate");
 
   useEffect(() => {
     // Client-side cookie check synchronizes local storage state
@@ -54,25 +57,24 @@ export function AgeGateDialog({
           onInteractOutside={(e) => e.preventDefault()}
         >
           <div className="flex flex-col items-center text-center">
+            {/* Top Language Switcher bar */}
+            <div className="w-full flex justify-end mb-2">
+              <LanguageSwitcher />
+            </div>
+
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/30">
               <ShieldAlert className="h-6 w-6" aria-hidden="true" />
             </div>
 
             <Dialog.Title className="font-display text-2xl font-bold tracking-wide text-foreground sm:text-3xl">
-              21+ Age Verification Required
+              {t("title")}
             </Dialog.Title>
 
             <Dialog.Description asChild>
               <div className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                <p>
-                  This website hosts adult indie game content, explicit visual
-                  novels, and mature themes intended strictly for individuals aged
-                  21 or older. By entering, you confirm that you meet the legal age
-                  requirement in your jurisdiction.
-                </p>
-                <p className="text-xs text-muted-foreground/80 sm:text-sm">
-                  We use an essential cookie to remember your verification on this
-                  device for 5 days so you do not have to confirm on every visit.
+                <p>{t("description")}</p>
+                <p className="text-xs text-muted-foreground/80 sm:text-sm font-medium">
+                  {t("warning")}
                 </p>
               </div>
             </Dialog.Description>
@@ -82,18 +84,22 @@ export function AgeGateDialog({
                 type="button"
                 autoFocus
                 onClick={handleConfirm}
-                className="inline-flex min-h-[44px] min-w-[44px] flex-1 items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                className="inline-flex min-h-[44px] min-w-[44px] flex-1 items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card cursor-pointer"
               >
-                I am 21 or older — Enter Studio
+                {t("confirmButton")}
               </button>
               <button
                 type="button"
                 onClick={handleExit}
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card cursor-pointer"
               >
-                Exit
+                {t("exitButton")}
               </button>
             </div>
+
+            <p className="mt-4 text-[11px] text-muted-foreground/70">
+              {t("disclaimer")}
+            </p>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

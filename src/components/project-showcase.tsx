@@ -1,93 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Sparkles, Maximize2, Shield, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ScreenshotLightbox, type ScreenshotItem } from "@/components/screenshot-lightbox";
 
-const SCREENSHOTS: ScreenshotItem[] = [
-  {
-    id: "title",
-    src: "/media/screenshots/fo-title.svg",
-    alt: "Final Orginity Title Screen",
-    title: "Title Screen & Main Menu",
-    caption: "Official Title Screen: nostalgic pixel sunset, CRT aesthetic, and direct web save management.",
-    badge: "TITLE SCREEN",
-  },
-  {
-    id: "dungeon",
-    src: "/media/screenshots/fo-dungeon.svg",
-    alt: "Dungeon Exploration & Vaults",
-    title: "Labyrinth Exploration",
-    caption: "The Lower Crypts: atmospheric dungeon exploration featuring ambient torches, secret vault doors, and 16-bit party sprites.",
-    badge: "EXPLORATION",
-  },
-  {
-    id: "battle",
-    src: "/media/screenshots/fo-battle.svg",
-    alt: "Tactical Turn-Based Combat",
-    title: "Side-View Turn-Based Combat",
-    caption: "Archdemon Malakor encounter: classic side-view battles with dynamic TP meters, tactical spell command windows, and boss mechanics.",
-    badge: "COMBAT",
-  },
-  {
-    id: "dialogue",
-    src: "/media/screenshots/fo-dialogue.svg",
-    alt: "Branching Dialogue & Character Encounters",
-    title: "Doujin Narrative Cutscenes",
-    caption: "Lyra the Sybarite dialogue cutscene: detailed anime character portraits, glowing nameplates, and cheeky doujin storytelling.",
-    badge: "NARRATIVE",
-  },
-];
-
-interface Character {
-  name: string;
-  role: string;
-  archetype: string;
-  description: string;
-  portrait: string;
-  badge: string;
-}
-
-const CHARACTERS: Character[] = [
-  {
-    name: "Lyra",
-    role: "High-Elf Sybarite",
-    archetype: "Arcane Archer",
-    description: "Hedonistic marksman who wields enchanted emerald arrows with sensual nonchalance and lethal precision.",
-    portrait: "/media/characters/char-lyra.svg",
-    badge: "ELF SYBARITE",
-  },
-  {
-    name: "Kael",
-    role: "Crimson Vagabond",
-    archetype: "Exiled Blademaster",
-    description: "Cynical sellsword armed with dual shortswords, driven by a sharp tongue and an instinct for survival.",
-    portrait: "/media/characters/char-kael.svg",
-    badge: "BLADEMASTER",
-  },
-  {
-    name: "Morgana",
-    role: "Shadowweaver",
-    archetype: "Void Enchantress",
-    description: "Forbidden mystic who weaves astral shadows and eldritch charms to warp enemy formations.",
-    portrait: "/media/characters/char-morgana.svg",
-    badge: "VOID ENCHANTRESS",
-  },
-  {
-    name: "Goruk",
-    role: "Ironhide",
-    archetype: "Ork Juggernaut",
-    description: "Brawny powerhouse who shields the party from heavy assaults while crushing foes with unyielding fury.",
-    portrait: "/media/characters/char-goruk.svg",
-    badge: "ORK PROTECTOR",
-  },
-];
-
 export function ProjectShowcase() {
+  const t = useTranslations("showcase");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeScreenshotIndex, setActiveScreenshotIndex] = useState(0);
+
+  const screenshots: ScreenshotItem[] = useMemo(
+    () => [
+      {
+        id: "title",
+        src: "/media/screenshots/fo-title.svg",
+        alt: t("screenshots.title.title"),
+        title: t("screenshots.title.title"),
+        caption: t("screenshots.title.caption"),
+        badge: t("screenshots.title.badge"),
+      },
+      {
+        id: "dungeon",
+        src: "/media/screenshots/fo-dungeon.svg",
+        alt: t("screenshots.dungeon.title"),
+        title: t("screenshots.dungeon.title"),
+        caption: t("screenshots.dungeon.caption"),
+        badge: t("screenshots.dungeon.badge"),
+      },
+      {
+        id: "battle",
+        src: "/media/screenshots/fo-battle.svg",
+        alt: t("screenshots.battle.title"),
+        title: t("screenshots.battle.title"),
+        caption: t("screenshots.battle.caption"),
+        badge: t("screenshots.battle.badge"),
+      },
+      {
+        id: "dialogue",
+        src: "/media/screenshots/fo-dialogue.svg",
+        alt: t("screenshots.dialogue.title"),
+        title: t("screenshots.dialogue.title"),
+        caption: t("screenshots.dialogue.caption"),
+        badge: t("screenshots.dialogue.badge"),
+      },
+    ],
+    [t]
+  );
+
+  const characters = useMemo(
+    () => [
+      {
+        id: "lyra",
+        name: t("characters.lyra.name"),
+        role: t("characters.lyra.role"),
+        archetype: t("characters.lyra.archetype"),
+        description: t("characters.lyra.description"),
+        portrait: "/media/characters/char-lyra.svg",
+        badge: t("characters.lyra.badge"),
+      },
+      {
+        id: "kael",
+        name: t("characters.kael.name"),
+        role: t("characters.kael.role"),
+        archetype: t("characters.kael.archetype"),
+        description: t("characters.kael.description"),
+        portrait: "/media/characters/char-kael.svg",
+        badge: t("characters.kael.badge"),
+      },
+      {
+        id: "morgana",
+        name: t("characters.morgana.name"),
+        role: t("characters.morgana.role"),
+        archetype: t("characters.morgana.archetype"),
+        description: t("characters.morgana.description"),
+        portrait: "/media/characters/char-morgana.svg",
+        badge: t("characters.morgana.badge"),
+      },
+      {
+        id: "goruk",
+        name: t("characters.goruk.name"),
+        role: t("characters.goruk.role"),
+        archetype: t("characters.goruk.archetype"),
+        description: t("characters.goruk.description"),
+        portrait: "/media/characters/char-goruk.svg",
+        badge: t("characters.goruk.badge"),
+      },
+    ],
+    [t]
+  );
 
   const openLightbox = (index: number) => {
     setActiveScreenshotIndex(index);
@@ -100,13 +103,13 @@ export function ProjectShowcase() {
       <div className="space-y-3 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
           <Sparkles className="h-3.5 w-3.5" />
-          Prestige Adult Indie Games
+          {t("prestigeBadge")}
         </div>
         <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-wide text-foreground">
-          PROJECT SHOWCASE
+          {t("sectionTitle")}
         </h2>
         <p className="mx-auto max-w-2xl text-sm sm:text-base text-muted-foreground">
-          Explore Ropoductions’ active browser RPG and preview upcoming standalone releases.
+          {t("sectionSubtitle")}
         </p>
       </div>
 
@@ -117,28 +120,28 @@ export function ProjectShowcase() {
             {/* Badges */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-primary/15 border border-primary/40 px-3 py-1 text-xs font-bold text-primary">
-                RPG MAKER MZ
+                {t("badgeRpgMaker")}
               </span>
               <span className="rounded-md bg-card border border-border px-3 py-1 text-xs font-semibold text-card-foreground">
-                HTML5 WEB CLIENT
+                {t("badgeHtml5")}
               </span>
               <span className="rounded-md bg-accent/15 border border-accent/40 px-3 py-1 text-xs font-semibold text-accent">
-                ACTIVE CHAPTER
+                {t("badgeActiveChapter")}
               </span>
               <span className="rounded-md bg-tier-gold/15 border border-tier-gold/40 px-3 py-1 text-xs font-semibold text-tier-gold">
-                PATRON ACCESS ($5–$50)
+                {t("badgePatronAccess")}
               </span>
             </div>
 
             {/* Game Title & Lore Teaser */}
             <h3 className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-wide text-foreground">
-              FINAL ORGINITY
+              {t("titleFinalOrginity")}
             </h3>
             <p className="text-base sm:text-lg text-foreground/90 font-medium">
-              A cheeky, narrative-driven fantasy RPG packed with classic turn-based tactics, doujin charm, and erotic comedy.
+              {t("foTagline")}
             </p>
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Descend into a cheeky fantasy labyrinth where perilous dungeon vaults meet provocative character encounters. Lead an eclectic party of exiled rogues, hedonistic elven archers, and void enchantresses as you break the Sanctum Seals. Playable directly in your browser with zero installation and seamless save backup persistence.
+              {t("foDescription")}
             </p>
           </div>
 
@@ -149,10 +152,10 @@ export function ProjectShowcase() {
               className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer"
             >
               <Play className="h-5 w-5 fill-current" />
-              Play in Browser
+              {t("playInBrowser")}
             </Link>
             <span className="text-xs text-center text-muted-foreground">
-              Verified 21+ & Active $5+ Patreon
+              {t("verifiedPatronHint")}
             </span>
           </div>
         </div>
@@ -162,14 +165,14 @@ export function ProjectShowcase() {
           <div className="flex items-center gap-2 border-b border-border/50 pb-3">
             <Users className="h-5 w-5 text-primary" />
             <h4 className="font-display text-lg sm:text-xl font-bold text-foreground">
-              PARTY MEMBERS & COMPANIONS
+              {t("partySectionTitle")}
             </h4>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {CHARACTERS.map((char) => (
+            {characters.map((char) => (
               <div
-                key={char.name}
+                key={char.id}
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/70 p-4 transition-all duration-200 hover:border-primary/50 hover:bg-background-secondary shadow-md"
               >
                 <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-card border border-border/60">
@@ -210,16 +213,16 @@ export function ProjectShowcase() {
             <div className="flex items-center gap-2">
               <Maximize2 className="h-5 w-5 text-primary" />
               <h4 className="font-display text-lg sm:text-xl font-bold text-foreground">
-                IN-GAME SCREENSHOT GALLERY
+                {t("screenshotsSectionTitle")}
               </h4>
             </div>
             <span className="text-xs text-muted-foreground hidden sm:inline">
-              Click any screenshot to view in full lightbox
+              {t("clickToExpandHint")}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {SCREENSHOTS.map((shot, idx) => (
+            {screenshots.map((shot, idx) => (
               <button
                 key={shot.id}
                 type="button"
@@ -239,7 +242,7 @@ export function ProjectShowcase() {
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                     <div className="flex items-center gap-1.5 rounded-md bg-card/90 px-3 py-1.5 text-xs font-bold text-primary border border-primary/40 shadow">
                       <Maximize2 className="h-3.5 w-3.5" />
-                      Expand
+                      {t("expandScreenshot")}
                     </div>
                   </div>
                   {shot.badge && (
@@ -280,28 +283,28 @@ export function ProjectShowcase() {
           <div className="w-full lg:w-1/2 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-accent/20 border border-accent/60 px-3 py-1 text-xs font-extrabold text-accent">
-                COMING SOON
+                {t("godotBadgeComingSoon")}
               </span>
               <span className="rounded-md bg-card border border-border px-3 py-1 text-xs font-semibold text-card-foreground">
-                GODOT 4 ENGINE
+                {t("godotBadgeEngine")}
               </span>
               <span className="rounded-md bg-muted border border-border px-3 py-1 text-xs font-semibold text-muted-foreground">
-                DESKTOP STANDALONE
+                {t("godotBadgeDesktop")}
               </span>
             </div>
 
             <h3 className="font-display text-2xl sm:text-3xl font-extrabold tracking-wide text-foreground">
-              PROJECT ORGINITY 2: THE FALLEN CITADEL
+              {t("godotTitle")}
             </h3>
 
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              The next ambitious evolution in the Ropoductions universe. Rebuilt from the ground up in the Godot 4 engine with high-framerate pixel art animations, expanded party combat systems, and a sprawling open-world narrative. Desktop standalone builds for PC, Mac, and Linux will be distributed exclusively to active patrons.
+              {t("godotDescription")}
             </p>
 
             <div className="pt-2">
               <div className="inline-flex items-center gap-2 rounded-md bg-muted/50 border border-border px-4 py-2.5 text-xs text-muted-foreground">
                 <Shield className="h-4 w-4 text-accent" />
-                Status: In active development • Download mirrors will be provided for studio patrons upon release.
+                {t("godotStatusNote")}
               </div>
             </div>
           </div>
@@ -312,7 +315,7 @@ export function ProjectShowcase() {
       <ScreenshotLightbox
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
-        screenshots={SCREENSHOTS}
+        screenshots={screenshots}
         currentIndex={activeScreenshotIndex}
         onNavigate={(idx) => setActiveScreenshotIndex(idx)}
       />

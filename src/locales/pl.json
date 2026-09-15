@@ -1,0 +1,151 @@
+{
+  "ageGate": {
+    "title": "WYMAGANA WERYFIKACJA WIEKU 21+",
+    "badge": "TREŚCI TYLKO DLA DOROSŁYCH (21+)",
+    "description": "Ta strona internetowa zawiera gry RPG w stylu anime dla dorosłych z jednoznacznymi treściami seksualnymi, przeznaczone wyłącznie dla osób mających ukończone 21 lat.",
+    "warning": "Dostęp dla osób niepełnoletnich jest surowo zabroniony. Wchodząc na stronę, oświadczasz pod rygorem odpowiedzialności karnej, że masz co najmniej 21 lat i wyrażasz zgodę na przeglądanie gier doujin dla dorosłych.",
+    "confirmButton": "MAM 21 LAT LUB WIĘCEJ - WEJDŹ",
+    "exitButton": "OPUŚĆ STRONĘ",
+    "disclaimer": "Wchodząc na stronę, potwierdzasz, że masz ukończone 21 lat i akceptujesz nasze zasady dotyczące treści."
+  },
+  "header": {
+    "brand": "ROPODUCTIONS",
+    "navHome": "Strona główna",
+    "navShowcase": "Projekty",
+    "navCommunity": "Społeczność",
+    "navPatreon": "Patreon",
+    "playNow": "Zagraj teraz",
+    "toggleMenu": "Przełącz menu nawigacji",
+    "selectLanguage": "Wybierz język"
+  },
+  "hero": {
+    "studioSubtitle": "Studio Gier RPG Doujin & Portal Web",
+    "studioBadge": "Niezależne Studio Gier dla Dorosłych",
+    "tagline": "Tworzymy zuchwałe, fabularne gry retro anime RPG i pikselowe przygody dla dojrzałych odbiorców.",
+    "supportedTiers": "Wspierane Progi",
+    "patronTiers": "Patroni $5–$50",
+    "playNowPatreon": "Zagraj przez Patreon",
+    "exploreProjects": "Odkryj Projekty",
+    "patreonRequirements": "Wymaga potwierdzenia wieku 21+ oraz aktywnej subskrypcji na Patreonie (próg min. $5)."
+  },
+  "showcase": {
+    "prestigeBadge": "Prestiżowe Gry Niezależne dla Dorosłych",
+    "sectionTitle": "KATALOG PROJEKTÓW",
+    "sectionSubtitle": "Poznaj aktywną przeglądarkową grę RPG studia Ropoductions i zobacz zapowiedzi nadchodzących samodzielnych wydań.",
+    "titleFinalOrginity": "FINAL ORGINITY",
+    "badgeRpgMaker": "RPG MAKER MZ",
+    "badgeHtml5": "KLIENT WEB HTML5",
+    "badgeActiveChapter": "AKTYWNY ROZDZIAŁ",
+    "badgePatronAccess": "DOSTĘP DLA PATRONÓW ($5–$50)",
+    "foTagline": "Zuchwałe, fabularne fantasy RPG z klasyczną taktyczną walką turową, urokiem doujin i humorem erotycznym.",
+    "foDescription": "Zstąp do intrygującego labiryntu fantasy, gdzie niebezpieczne lochy przeplatają się z prowokacyjnymi spotkaniami. Poprowadź barwną drużynę wygnanych łotrów, hedonistycznych elfich łuczniczek i czarodziejek pustki, łamiąc Pieczęcie Sanktuarium. Graj bezpośrednio w przeglądarce bez instalacji z bezpiecznym zapisem gry.",
+    "playInBrowser": "Graj w przeglądarce",
+    "verifiedPatronHint": "Zweryfikowany wiek 21+ i aktywny Patreon $5+",
+    "partySectionTitle": "CZŁONKOWIE DRUŻYNY I TOWARZYSZE",
+    "screenshotsSectionTitle": "GALERIA ZRZUTÓW EKRANU Z GRY",
+    "clickToExpandHint": "Kliknij dowolny zrzut ekranu, aby powiększyć",
+    "expandScreenshot": "Powiększ",
+    "godotBadgeComingSoon": "JUŻ WKRÓTCE",
+    "godotBadgeEngine": "SILNIK GODOT 4",
+    "godotBadgeDesktop": "WERSJA NA PULPIT",
+    "godotTitle": "PROJECT ORGINITY 2: THE FALLEN CITADEL",
+    "godotDescription": "Kolejny ambitny krok w uniwersum Ropoductions. Tworzony od podstaw na silniku Godot 4 z płynnymi animacjami pixel art, rozbudowaną walką drużynową i rozległym otwartym światem. Wersje na PC, Mac i Linux będą dostępne wyłącznie dla aktywnych patronów.",
+    "godotStatusNote": "Status: W aktywnym rozwoju • Linki do pobrania zostaną udostępnione patronom w momencie premiery.",
+    "characters": {
+      "lyra": {
+        "name": "Lyra",
+        "role": "Sybaritka Wysokich Elfów",
+        "archetype": "Mistyczna Łuczniczka",
+        "description": "Hedonistyczna strzelczyni władająca zaklętymi szmaragdowymi strzałami ze zmysłową nonszalancją i zabójczą precyzją.",
+        "badge": "ELFIA SYBARITKA"
+      },
+      "kael": {
+        "name": "Kael",
+        "role": "Szkarłatny Włóczęga",
+        "archetype": "Wygnany Mistrz Miecza",
+        "description": "Cyniczny najemnik uzbrojony w dwa krótkie miecze, kierujący się ciętym językiem i instynktem przetrwania.",
+        "badge": "MISTRZ MIECZA"
+      },
+      "morgana": {
+        "name": "Morgana",
+        "role": "Tkaczka Cieni",
+        "archetype": "Czarodziejka Pustki",
+        "description": "Zakazana mistyczka splatająca astralne cienie i tajemne uroki, by rozbijać szyki wroga.",
+        "badge": "CZARODZIEJKA PUSTKI"
+      },
+      "goruk": {
+        "name": "Goruk",
+        "role": "Żelaznoskóry",
+        "archetype": "Orkowy Juggernaut",
+        "description": "Potężny wojownik osłaniający drużynę przed ciężkimi atakami i miażdżący wrogów nieokiełznaną furią.",
+        "badge": "OBROŃCA ORKÓW"
+      }
+    },
+    "screenshots": {
+      "title": {
+        "title": "Ekran tytułowy i menu główne",
+        "caption": "Oficjalny ekran tytułowy: nostalgiczny pikselowy zachód słońca, estetyka CRT i bezpośrednie zarządzanie zapisami.",
+        "badge": "EKRAN TYTUŁOWY"
+      },
+      "dungeon": {
+        "title": "Eksploracja lochów",
+        "caption": "Dolne Krypty: nastrojowa eksploracja lochów z nastrojowymi pochodniami, sekretnymi komnatami i 16-bitowymi postaciami.",
+        "badge": "EKSPLORACJA"
+      },
+      "battle": {
+        "title": "Taktyczna walka turowa",
+        "caption": "Starcie z Arcydemonem Malakorem: klasyczne bitwy z widokiem z boku, dynamicznymi wskaźnikami TP i zaklęciami taktycznymi.",
+        "badge": "WALKA"
+      },
+      "dialogue": {
+        "title": "Sceny dialogowe doujin",
+        "caption": "Scena dialogowa z Lyrą: szczegółowe portrety postaci w stylu anime, podświetlane ramki i intrygująca narracja.",
+        "badge": "NARRACJA"
+      }
+    }
+  },
+  "lightbox": {
+    "counter": "Zrzut ekranu {current} z {total}",
+    "close": "Zamknij podgląd",
+    "previous": "Poprzedni zrzut",
+    "next": "Następny zrzut",
+    "navHint": "Użyj strzałek lewo/prawo lub przycisków, aby nawigować. Naciśnij ESC, aby zamknąć."
+  },
+  "social": {
+    "officialChannels": "Oficjalne Kanały",
+    "sectionTitle": "SPOŁECZNOŚĆ I SOCIAL HUB",
+    "sectionSubtitle": "Dołącz do społeczności Ropoductions na Patreonie, Discordzie i Twitterze/X, aby być w kontakcie z twórcami i graczami.",
+    "patreonTitle": "Patreon",
+    "patreonBadge": "DOSTĘP WEB I WYDANIA",
+    "patreonDesc": "Wspieraj Ropoductions na Patreonie na progach od $5 do $50, aby natychmiast odblokować grę w przeglądarce, wczesne wersje i kulisy powstawania gry.",
+    "patreonCta": "Wspieraj na Patreonie",
+    "discordTitle": "Discord",
+    "discordBadge": "CZAT SPOŁECZNOŚCI",
+    "discordDesc": "Rozmawiaj z innymi miłośnikami gier retro RPG, omawiaj taktyki walk z bossami, bierz udział w ankietach i przekazuj opinie twórcom.",
+    "discordCta": "Dołącz do Discorda",
+    "twitterTitle": "Twitter / X",
+    "twitterBadge": "OGŁOSZENIA STUDIA",
+    "twitterDesc": "Obserwuj oficjalne konto studia, aby na bieżąco otrzymywać informacje o premierach, animacjach pixel art i aktualizacjach.",
+    "twitterCta": "Obserwuj na Twitterze / X"
+  },
+  "footer": {
+    "studioSubtitle": "Studio Gier RPG Doujin & Portal Web",
+    "navHome": "Strona główna",
+    "navPlay": "Graj",
+    "navShowcase": "Projekty",
+    "navCommunity": "Społeczność",
+    "navPatreon": "Patreon",
+    "compliance21": "Zgodność 21+: Interaktywna gra wideo dla dorosłych. Wyłącznie dla osób powyżej 21. roku życia.",
+    "copyright": "© {year} Ropoductions. Wszelkie prawa zastrzeżone."
+  },
+  "language": {
+    "select": "Wybierz język",
+    "activeLanguage": "Język: {lang}",
+    "en": "English",
+    "es": "Español",
+    "ru": "Русский",
+    "pl": "Polski",
+    "ja": "日本語",
+    "zh": "简体中文"
+  }
+}

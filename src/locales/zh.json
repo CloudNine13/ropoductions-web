@@ -1,0 +1,151 @@
+{
+  "ageGate": {
+    "title": "21+ 年龄验证",
+    "badge": "成人游戏内容 (21+)",
+    "description": "本网站包含包含成人向性描写的动漫风格RPG游戏内容，仅面向21周岁以上的成年人开放。",
+    "warning": "严禁未成年人访问。进入网站即表示您在法律责任下确认自己已年满21岁，并同意浏览同人成人向游戏内容。",
+    "confirmButton": "我已年满21岁 - 进入网站",
+    "exitButton": "离开网站",
+    "disclaimer": "进入网站即代表您确认自己已年满21岁并遵守网站内容政策。"
+  },
+  "header": {
+    "brand": "ROPODUCTIONS",
+    "navHome": "首页",
+    "navShowcase": "作品展示",
+    "navCommunity": "社区",
+    "navPatreon": "Patreon",
+    "playNow": "立即游玩",
+    "toggleMenu": "切换导航菜单",
+    "selectLanguage": "选择语言"
+  },
+  "hero": {
+    "studioSubtitle": "同人RPG工作室与网页门户",
+    "studioBadge": "独立成人向游戏工作室",
+    "tagline": "为成熟玩家打造剧情丰富、充满同人魅力的复古动漫RPG与像素冒险游戏。",
+    "supportedTiers": "支持赞助档位",
+    "patronTiers": "$5–$50 赞助会员",
+    "playNowPatreon": "通过Patreon立即游玩",
+    "exploreProjects": "探索全部作品",
+    "patreonRequirements": "需要21岁以上年龄确认及有效的Patreon赞助资格（$5及以上档位）。"
+  },
+  "showcase": {
+    "prestigeBadge": "精品独立成人游戏",
+    "sectionTitle": "作品目录",
+    "sectionSubtitle": "探索Ropoductions正在运营的网页端RPG，抢先预览即将推出的独立新作。",
+    "titleFinalOrginity": "FINAL ORGINITY",
+    "badgeRpgMaker": "RPG MAKER MZ",
+    "badgeHtml5": "HTML5网页端",
+    "badgeActiveChapter": "最新章节开放中",
+    "badgePatronAccess": "赞助者专属 ($5–$50)",
+    "foTagline": "融合经典回合制战术、同人趣味与刺激互动的奇幻RPG冒险。",
+    "foDescription": "深入危机四伏又充满诱惑的奇幻地牢。率领流亡的游侠、享乐的高等精灵弓箭手和虚空女巫组成的冒险小队，解开圣所封印。无需下载安装，在浏览器中即可畅玩并安全备份存档。",
+    "playInBrowser": "在浏览器中游玩",
+    "verifiedPatronHint": "已验证21+ 且拥有$5+有效赞助",
+    "partySectionTitle": "冒险同伴与队伍成员",
+    "screenshotsSectionTitle": "游戏实机截图画廊",
+    "clickToExpandHint": "点击任意截图即可查看全屏高清画廊",
+    "expandScreenshot": "放大查看",
+    "godotBadgeComingSoon": "敬请期待",
+    "godotBadgeEngine": "GODOT 4 引擎",
+    "godotBadgeDesktop": "桌面独立版",
+    "godotTitle": "PROJECT ORGINITY 2: THE FALLEN CITADEL",
+    "godotDescription": "Ropoductions宇宙的全新雄心之作。使用Godot 4引擎全新打造，拥有高帧率像素动画、深化的团队战斗系统和辽阔的开放世界。PC、Mac及Linux桌面版将专供赞助者下载体验。",
+    "godotStatusNote": "状态：积极开发中 • 发布时将为赞助者提供专属下载镜像。",
+    "characters": {
+      "lyra": {
+        "name": "莱拉 (Lyra)",
+        "role": "高等精灵享乐主义者",
+        "archetype": "奥术弓箭手",
+        "description": "性格不羁的神射手，带着优雅从容与致命精准操控附魔的翡翠箭矢。",
+        "badge": "高等精灵"
+      },
+      "kael": {
+        "name": "凯尔 (Kael)",
+        "role": "绯红流浪者",
+        "archetype": "流亡剑圣",
+        "description": "手持双短剑的愤世佣兵，依靠毒舌与敏锐的求生本能穿梭于险境之中。",
+        "badge": "流亡剑士"
+      },
+      "morgana": {
+        "name": "摩根娜 (Morgana)",
+        "role": "织影者",
+        "archetype": "虚空魅惑法师",
+        "description": "掌握禁忌星界暗影与异界魅惑术的神秘女巫，能轻易打乱敌方阵型。",
+        "badge": "虚空法师"
+      },
+      "goruk": {
+        "name": "戈鲁克 (Goruk)",
+        "role": "铁皮勇士",
+        "archetype": "兽人先锋巨力士",
+        "description": "坚不可摧的队伍重盾，抵挡猛烈攻势的同时用狂暴怒火碾碎敌人。",
+        "badge": "兽人守护者"
+      }
+    },
+    "screenshots": {
+      "title": {
+        "title": "标题画面与主菜单",
+        "caption": "官方标题画面：怀旧像素落日、CRT复古滤镜与网页端存档直接管理。",
+        "badge": "标题画面"
+      },
+      "dungeon": {
+        "title": "迷宫探索",
+        "caption": "地下墓穴：点缀着火把光晕的幽深地牢、隐秘机关暗门与精致的16位像素精灵。",
+        "badge": "迷宫探索"
+      },
+      "battle": {
+        "title": "侧视战术回合制战斗",
+        "caption": "大战恶魔马拉科尔：经典侧视战斗视角，配合动态TP槽、法术指令菜单与首领战机制。",
+        "badge": "战斗系统"
+      },
+      "dialogue": {
+        "title": "同人剧情过场动画",
+        "caption": "莱拉的互动对话过场：细致的动漫人物立绘、发光名牌与趣味同人叙事。",
+        "badge": "剧情模式"
+      }
+    }
+  },
+  "lightbox": {
+    "counter": "截图 {current} / {total}",
+    "close": "关闭画廊",
+    "previous": "上一张截图",
+    "next": "下一张截图",
+    "navHint": "使用左右方向键或按钮切换截图。按 ESC 键退出。"
+  },
+  "social": {
+    "officialChannels": "官方频道",
+    "sectionTitle": "社区与社交网络",
+    "sectionSubtitle": "在Patreon、Discord和Twitter/X上加入Ropoductions社区，与制作团队及其他玩家交流。",
+    "patreonTitle": "Patreon",
+    "patreonBadge": "网页游玩与最新版本",
+    "patreonDesc": "在Patreon上支持$5至$50的活跃档位，即可直接解锁网页版即时游玩、测试版本及独家同人开发日志。",
+    "patreonCta": "在Patreon上赞助",
+    "discordTitle": "Discord",
+    "discordBadge": "玩家社区交流群",
+    "discordDesc": "与复古RPG同好交流战术攻略，参与角色设计投票，并将反馈直接提交给开发团队。",
+    "discordCta": "加入Discord频道",
+    "twitterTitle": "Twitter / X",
+    "twitterBadge": "工作室最新公告",
+    "twitterDesc": "关注工作室官方账号，获取即时更新公告、像素动态预告、补丁维护说明及独家设定画稿。",
+    "twitterCta": "关注 Twitter / X"
+  },
+  "footer": {
+    "studioSubtitle": "同人RPG工作室与网页门户",
+    "navHome": "首页",
+    "navPlay": "游玩",
+    "navShowcase": "作品展示",
+    "navCommunity": "社区",
+    "navPatreon": "Patreon",
+    "compliance21": "21+ 合规声明：本站包含成人互动游戏内容。严格仅限年满21周岁以上的成年人访问。",
+    "copyright": "© {year} Ropoductions. 保留所有权利。"
+  },
+  "language": {
+    "select": "选择语言",
+    "activeLanguage": "语言: {lang}",
+    "en": "English",
+    "es": "Español",
+    "ru": "Русский",
+    "pl": "Polski",
+    "ja": "日本語",
+    "zh": "简体中文"
+  }
+}
