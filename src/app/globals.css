@@ -11,18 +11,18 @@
   --color-card-foreground: #F1F5F9;
   --color-border: #23283E;
   --color-input: #1A1E2F;
-  --color-ring: #E11D48;
+  --color-ring: #22C55E;
   --color-destructive: #EF4444;
 
-  --color-primary: #E11D48;
-  --color-primary-foreground: #FFFFFF;
-  --color-primary-hover: #BE123C;
+  --color-primary: #22C55E;
+  --color-primary-foreground: #090A0F;
+  --color-primary-hover: #16A34A;
   --color-accent: #F59E0B;
   --color-accent-foreground: #090A0F;
   --color-tier-gold: #FBBF24;
   --color-tier-gold-foreground: #181204;
 
-  --font-display: var(--font-cinzel), Cinzel, serif;
+  --font-display: var(--font-chakra-petch), Chakra Petch, sans-serif;
   --font-body: var(--font-geist-sans), Inter, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 
@@ -45,11 +45,11 @@
   --card-foreground: #F1F5F9;
   --border: #23283E;
   --input: #1A1E2F;
-  --ring: #E11D48;
+  --ring: #22C55E;
   --destructive: #EF4444;
-  --primary: #E11D48;
-  --primary-foreground: #FFFFFF;
-  --primary-hover: #BE123C;
+  --primary: #22C55E;
+  --primary-foreground: #090A0F;
+  --primary-hover: #16A34A;
   --accent: #F59E0B;
   --accent-foreground: #090A0F;
   --tier-gold: #FBBF24;
@@ -128,4 +128,9 @@ body {
 .age-gate-content[data-state="closed"] {
   animation: ageGateContentHide 200ms ease-in forwards;
   pointer-events: none;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

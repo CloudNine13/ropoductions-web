@@ -74,6 +74,11 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 * **Interaction:** Opens Radix Dropdown menu. Selecting a language re-renders the web shell microcopy instantly without page reload.
 * **Persistence:** Writes selected locale code to `ropoductions_lang` cookie (valid 365 days).
 
+### 5. Studio Hero Banner & Brand Mark
+* **Brand Header Mark:** Displays the official pixel-art emerald leaf logo (`64x64`) next to the studio name in `font-display` (`Chakra Petch`).
+* **Hero Visual:** Centers the official 1500x500 banner with *Final Orginity* character art and sunset title, rendered with `image-rendering: pixelated` and an ambient green aura (`rgba(34, 197, 94, 0.12)`).
+* **Responsive Framing:** Preserves the 3:1 aspect ratio across viewports with subtle border radius and dark obsidian border stroke (`#23283E`).
+
 ---
 
 ## State Patterns

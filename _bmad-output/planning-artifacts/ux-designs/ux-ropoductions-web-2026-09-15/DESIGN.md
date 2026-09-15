@@ -1,6 +1,6 @@
 ---
 name: Ropoductions Studio
-description: Atmospheric, prestige dark aesthetic for adult indie game studio Ropoductions. shadcn/ui on Next.js + Tailwind CSS with custom obsidian, crimson, and gold brand tokens.
+description: Atmospheric dark retro aesthetic for adult indie game studio Ropoductions. shadcn/ui on Next.js + Tailwind CSS with custom obsidian, studio emerald, arcade sunset, and gold brand tokens.
 status: final
 sources:
   - ../../planning-artifacts/prds/prd-ropoductions-web-2026-09-15/prd.md
@@ -15,27 +15,27 @@ colors:
   card-foreground: '#F1F5F9'
   border: '#23283E'
   input: '#1A1E2F'
-  ring: '#E11D48'
+  ring: '#22C55E'
   destructive: '#EF4444'
 
   # Studio Accents
-  primary: '#E11D48'             # Crimson Flame
-  primary-foreground: '#FFFFFF'
-  primary-hover: '#BE123C'
-  accent: '#F59E0B'              # Blood Amber
+  primary: '#22C55E'             # Studio Emerald / Leaf Glow
+  primary-foreground: '#090A0F'
+  primary-hover: '#16A34A'
+  accent: '#F59E0B'              # Sunset Amber
   accent-foreground: '#090A0F'
   tier-gold: '#FBBF24'           # Patron Tier Badge Gold
   tier-gold-foreground: '#181204'
 
 typography:
   display:
-    fontFamily: 'Cinzel, serif'
+    fontFamily: 'Chakra Petch, sans-serif'
     fontSize: 44px
     fontWeight: '700'
     lineHeight: '1.15'
     letterSpacing: '0.04em'
   display-sm:
-    fontFamily: 'Cinzel, serif'
+    fontFamily: 'Chakra Petch, sans-serif'
     fontSize: 28px
     fontWeight: '600'
     lineHeight: '1.2'
@@ -67,7 +67,7 @@ components:
     background: '{colors.primary}'
     foreground: '{colors.primary-foreground}'
     radius: '{rounded.md}'
-    border: '1px solid #F43F5E'
+    border: '1px solid #4ADE80'
   button-patreon:
     background: '#FF424D'
     foreground: '#FFFFFF'
@@ -88,13 +88,12 @@ components:
 
 ## Brand & Style
 
-Ropoductions is an independent adult game studio crafting immersive, narrative-driven experiences. The visual identity breaks firmly away from the low-budget, noisy cliches of conventional adult web portals. Drawing inspiration from prestige creative studios like **Bungie**, **Annapurna Interactive**, and **Riot Games**, the aesthetic is mature, art-forward, and atmospheric.
+Ropoductions is an independent adult game studio crafting nostalgic, cheeky, and narrative-driven retro anime RPGs, headlined by *Final Orginity*. The visual identity blends 90s/00s 16-bit pixel art charm, arcade sunset chromes, and glowing emerald studio branding with a sleek, dark adult web portal.
 
-The experience feels like walking through a private, dimly lit digital exhibition:
-* **The Atmosphere:** Cosmic black and deep obsidian surfaces let character concept art and game visuals take center stage.
-* **The Voice:** Confident, polished, and direct. The studio takes its craft seriously.
-* **The Accent:** Crimson flame highlights convey passion, danger, and mature intensity, balanced by warm amber and gold accents reserved for patron supporters.
-
+The aesthetic balances retro doujin gaming soul with high-usability web execution:
+* **The Atmosphere:** Cosmic black (`#090A0F`) and deep obsidian card surfaces let colorful pixel character art and game viewports pop with maximum contrast.
+* **The Studio Emblem:** A vibrant, glowing pixel-art emerald crystal leaf (`#22C55E` / `#7BF53A`) symbolizing the studio's organic roots and creative spark.
+* **The Accent:** Studio Emerald Green highlights key interactive triggers, balanced by warm Patron Gold for supporter ranks, and sunset gradient chrome for retro game titles.
 ---
 
 ## Colors
@@ -105,8 +104,8 @@ The experience feels like walking through a private, dimly lit digital exhibitio
 | `background-secondary` | `#0F111A` | Surface | Secondary page sections, hero gradient underlays. |
 | `card` | `#121522` | Surface Raised | Game cards, paywall tier boxes, modal dialogs. |
 | `border` | `#23283E` | Structural Edge | Card borders, dividers, HUD outer strokes. |
-| `primary` | `#E11D48` | Crimson Brand | Primary CTAs ("Play Now"), key interactive triggers. |
-| `accent` | `#F59E0B` | Blood Amber | Highlight banners, secondary action indicators. |
+| `primary` | `#22C55E` | Studio Emerald | Primary CTAs ("Play Now"), active buttons, emerald brand accents. |
+| `accent` | `#F59E0B` | Sunset Amber | Highlight banners, secondary arcade accents. |
 | `tier-gold` | `#FBBF24` | Patron Honor | Tier status badges, supporter recognition elements. |
 | `foreground` | `#F8FAFC` | Text Primary | Headlines, active navigation links, modal body text. |
 | `muted-foreground` | `#94A3B8` | Text Secondary | Captions, metadata, changelogs, footer copyright. |
@@ -115,7 +114,7 @@ The experience feels like walking through a private, dimly lit digital exhibitio
 
 ## Typography
 
-* **Display (`Cinzel`):** Classical cinematic serif used for studio brand marks, section headlines, and modal titles. Conveys timeless fantasy, narrative gravitas, and luxury.
+* **Display (`Chakra Petch` / `Russo One`):** Bold, futuristic arcade/gaming display typography for studio brand headlines, banner accents, and modal titles. Conveys retro gaming energy while maintaining clean screen legibility.
 * **Body (`Geist Sans` / `Inter`):** Clean, neutral, high-legibility geometric sans-serif for UI labels, descriptive blurbs, HUD buttons, and system notices.
 * **Mono (`Geist Mono`):** Used strictly for version badges (`v1.2.0`), save file timestamps, and technical storage diagnostics.
 
@@ -154,7 +153,7 @@ The experience feels like walking through a private, dimly lit digital exhibitio
 
 ### 1. Age Gate Dialog (21+)
 * Full-screen blocking modal overlay (`z-50`).
-* Dark obsidian card (`#121522`) with subtle red glowing top border.
+* Dark obsidian card (`#121522`) with subtle emerald glowing top border (`border-t-primary`).
 * Title in `display-sm`: *"21+ Age Verification Required"*.
 * High-visibility Primary CTA: *"I am 21 or older — Enter Studio"* (`bg-primary`).
 * Secondary Exit Button: *"Exit"* (`text-muted-foreground hover:text-white`).
@@ -178,6 +177,11 @@ The experience feels like walking through a private, dimly lit digital exhibitio
 * Dropdown menu with frosted-glass panel (`bg-card/90 backdrop-blur-md border border-border`).
 * Hover states with 150ms smooth transition, showing active locale checkmark.
 * Touch target 44x44px for mobile header/footer placement.
+
+### 5. Studio Hero Banner & Pixel Art Assets
+* **Studio Emblem (`studio-logo.webp`):** 64x64 pixel-art crystal leaf mark. Scaled crisp using `image-rendering: pixelated` and `image-rendering: crisp-edges`. Used in header brand slot, favicon, and loading screens.
+* **Hero Banner (`studio-banner.jpeg`):** 1500x500 key art banner featuring the *Final Orginity* anime pixel cast, arcade sunset chrome logo, and `ROPODUCTIONS©` wordmark. Displayed prominently in the portal landing hero with responsive 3:1 aspect ratio, subtle dark ambient glow (`box-shadow: 0 0 50px rgba(34, 197, 94, 0.15)`), and `image-rendering: pixelated`.
+* **Pixel Asset Preservation:** All studio pixel art assets MUST avoid bilinear smoothing by applying utility `.pixelated` (`image-rendering: pixelated; image-rendering: crisp-edges;`).
 
 ---
 
