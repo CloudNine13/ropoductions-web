@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-15-2026 18:00
+last_updated: 09-16-2026 09:00
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -42,8 +42,8 @@ development_status:
   1-4-multilanguage-web-shell-accessible-language-selector: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-cloudflare-d1-sessions-database-schema-migration: backlog
+  epic-2: in-progress
+  2-1-cloudflare-d1-sessions-database-schema-migration: review
   2-2-patreon-oauth-2-0-pkce-authorization-callback-route-handlers: backlog
   2-3-active-tier-verification-5-threshold-secure-session-cookie-i: backlog
   2-4-paywall-interstitial-graceful-navigation-session-verificatio: backlog

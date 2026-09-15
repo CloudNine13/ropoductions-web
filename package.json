@@ -7,7 +7,9 @@
     "build": "opennextjs-cloudflare build",
     "build:next": "next build",
     "preview": "opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare deploy"
+    "deploy": "opennextjs-cloudflare deploy",
+    "test": "npx tsx tests/verify-d1-schema.ts",
+    "test:d1": "npx tsx tests/verify-d1-schema.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.6",
