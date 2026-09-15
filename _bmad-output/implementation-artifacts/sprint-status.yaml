@@ -60,6 +60,12 @@ development_status:
   4-3-client-side-zip-save-export-compression-via-jszip: backlog
   4-4-save-import-validation-dialog-safe-storage-reset-modal: backlog
   epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-restricted-admin-layout-authentication-guard: backlog
+  5-2-patron-override-directory-creation-interface: backlog
+  5-3-override-revocation-self-lockout-prevention: backlog
+  epic-5-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
     epic: 1
