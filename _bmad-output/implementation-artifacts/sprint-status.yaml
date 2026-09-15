@@ -29,18 +29,18 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-15-2026 17:30
+last_updated: 09-15-2026 18:00
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-project-scaffolding-opennext-runtime-design-system-tokens: done
   1-2-mandatory-21-age-gate-modal-with-cookie-persistence: done
-  1-3-responsive-studio-showcase-project-media-cards-social-hub: review
-  1-4-multilanguage-web-shell-accessible-language-selector: review
-  epic-1-retrospective: optional
+  1-3-responsive-studio-showcase-project-media-cards-social-hub: done
+  1-4-multilanguage-web-shell-accessible-language-selector: done
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-cloudflare-d1-sessions-database-schema-migration: backlog
@@ -60,3 +60,32 @@ development_status:
   4-3-client-side-zip-save-export-compression-via-jszip: backlog
   4-4-save-import-validation-dialog-safe-storage-reset-modal: backlog
   epic-4-retrospective: optional
+action_items:
+  - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
+    epic: 1
+    action: "Restore AGE_VERIFIED_COOKIE_MAX_AGE to 30 days (2592000 seconds) in src/lib/cookies.ts
+      per FR-2"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-2-align-src-middleware-ts-cookie-parsing-w"
+    epic: 1
+    action: "Align src/middleware.ts cookie parsing with cookies.ts to strip surrounding
+      quotes"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-3-update-planning-documents-architecture-s"
+    epic: 1
+    action: "Update planning documents (ARCHITECTURE-SPINE, DESIGN.md) to document
+      Studio Emerald (#22C55E) and Chakra Petch typography"
+    owner: "architect"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
+  - id: "epic-1-retro-item-4-configure-vitest-test-runner-and-add-uni"
+    epic: 1
+    action: "Configure Vitest test runner and add unit tests for cookie parsing, i18n
+      fallback merging, and edge route guards"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
