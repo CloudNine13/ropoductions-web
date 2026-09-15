@@ -1,0 +1,31 @@
+name = "ropoductions-web"
+main = ".open-next/worker.js"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+[assets]
+binding = "ASSETS"
+directory = ".open-next/assets"
+
+# Required by OpenNext for internal ISR / revalidation self-calls only.
+# SECURITY NOTICE: Do NOT expose or proxy arbitrary user-supplied requests to this binding (prevents SSRF/loops).
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "ropoductions-web"
+
+[observability]
+enabled = true
+
+# Cloudflare D1 Database binding
+# In local development (`wrangler dev`), Wrangler creates and uses a local SQLite database file in `.wrangler/`.
+# For production deployment (`wrangler deploy`), supply the real D1 UUID via environment or CI pipeline secret.
+[[d1_databases]]
+binding = "DB"
+database_name = "ropoductions-db"
+database_id = "00000000-0000-0000-0000-000000000000" # Local dev placeholder UUID; override per production environment
+migrations_dir = "migrations"
+
+# Cloudflare R2 Bucket binding for encrypted static game assets (zero public HTTP access)
+[[r2_buckets]]
+binding = "GAME_ASSETS"
+bucket_name = "ropoductions-game-assets"

@@ -1,0 +1,139 @@
+# =============================================================================
+# ropoductions-web — Next.js 15 (App Router) + Cloudflare Workers / R2 / D1
+# =============================================================================
+
+# --- Temp / scratch (explicitly requested) ---
+/tmp/
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# --- Secrets / environment — NEVER commit ---
+# Patreon OAuth, Cloudflare tokens, session secrets live here
+.env
+.env.*
+!.env.example
+!.env.sample
+*.env
+.dev.vars
+.dev.vars.*
+.wrangler/*.json
+wrangler.*.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.credentials/
+
+# NOTE: wrangler.toml itself IS committed (non-secret bindings: D1, R2, compat).
+# Only local overrides / secret values above are ignored.
+!wrangler.toml
+
+# --- Cloudflare / OpenNext / Wrangler build state ---
+.wrangler/
+.mf/
+.open-next/
+.worker/
+workers/.wrangler/
+
+# --- D1 / SQLite local state (migrations/ IS committed) ---
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.db
+*.db-*
+.d1/
+!migrations/
+!migrations/**/*.sql
+
+# --- Dependencies ---
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+.pnpm-store/
+.pnpm-debug.log*
+
+# --- Next.js / TypeScript build output ---
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# --- Package manager logs / lock-debug ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Testing / coverage / QA ---
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+cypress/screenshots/
+cypress/videos/
+.vitest-cache/
+
+# --- Game runtime local artifacts (RPG Maker MZ) ---
+# Compiled engine in public/engine IS committed; player exports are not.
+*.rpgsave
+*.rmmzsave
+*.zip.save
+save-exports/
+game-saves/
+rpgmvp-*.log
+
+# --- OS junk ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- Editors / IDEs ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.default
+.idea/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+.vim/
+viminfo
+
+# --- BMAD / agent personal overrides (team config IS committed) ---
+*.user.toml
+.bmad-*.local
+_bmad-output/party-mode/memories/
+**/.memlog.md.bak
+
+# --- Misc ---
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.turbo

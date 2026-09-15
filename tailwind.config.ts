@@ -1,0 +1,63 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background: {
+          DEFAULT: "#090A0F",
+          secondary: "#0F111A",
+        },
+        foreground: "#F8FAFC",
+        muted: {
+          DEFAULT: "#1A1D2B",
+          foreground: "#94A3B8",
+        },
+        card: {
+          DEFAULT: "#121522",
+          foreground: "#F1F5F9",
+        },
+        border: "#23283E",
+        input: "#1A1E2F",
+        ring: "#E11D48",
+        destructive: "#EF4444",
+        primary: {
+          DEFAULT: "#E11D48",
+          foreground: "#FFFFFF",
+          hover: "#BE123C",
+        },
+        accent: {
+          DEFAULT: "#F59E0B",
+          foreground: "#090A0F",
+        },
+        "tier-gold": {
+          DEFAULT: "#FBBF24",
+          foreground: "#181204",
+        },
+      },
+      fontFamily: {
+        display: ["var(--font-cinzel)", "Cinzel", "serif"],
+        body: ["var(--font-geist-sans)", "Inter", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "monospace"],
+      },
+      borderRadius: {
+        sm: "4px",
+        md: "8px",
+        lg: "12px",
+        full: "9999px",
+      },
+      spacing: {
+        "touch-target": "44px",
+        "hud-dock": "64px",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
