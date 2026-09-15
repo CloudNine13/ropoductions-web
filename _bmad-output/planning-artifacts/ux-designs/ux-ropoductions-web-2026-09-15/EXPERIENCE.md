@@ -52,7 +52,7 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 ### 1. 21+ Age Gate Modal
 * **Behavior:** Appears immediately on first visit if `ropoductions_age_verified` cookie is missing.
 * **Focus Trap:** Background page content is set to `aria-hidden="true"` and blurred with CSS `backdrop-blur-xl`. Focus is locked to the primary confirmation button.
-* **Confirmation Action:** Clicking *"I am 21 or older"* sets a 30-day cookie and smoothly dissolves the modal (200ms ease-out).
+* **Confirmation Action:** Clicking *"I am 21 or older"* sets a 5-day cookie (with explicit cookie disclosure) and smoothly dissolves the modal (200ms ease-out).
 * **Decline Action:** Clicking *"Exit"* immediately redirects the browser window to `https://google.com`.
 
 ### 2. Save HUD Dock (Bottom Floating Bar)
@@ -73,6 +73,11 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 * **Trigger:** Accessible button with Lucide globe SVG icon showing active language code (`EN`, `JA`, `ES`, `RU`, `ZH`).
 * **Interaction:** Opens Radix Dropdown menu. Selecting a language re-renders the web shell microcopy instantly without page reload.
 * **Persistence:** Writes selected locale code to `ropoductions_lang` cookie (valid 365 days).
+
+### 5. Studio Hero Banner & Brand Mark
+* **Brand Header Mark:** Displays the official pixel-art emerald leaf logo (`64x64`) next to the studio name in `font-display` (`Chakra Petch`).
+* **Hero Visual:** Centers the official 1500x500 banner with *Final Orginity* character art and sunset title, rendered with `image-rendering: pixelated` and an ambient green aura (`rgba(34, 197, 94, 0.12)`).
+* **Responsive Framing:** Preserves the 3:1 aspect ratio across viewports with subtle border radius and dark obsidian border stroke (`#23283E`).
 
 ---
 

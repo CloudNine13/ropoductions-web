@@ -1,11 +1,14 @@
-import { Cinzel, Geist, Geist_Mono } from "next/font/google";
+import { Chakra_Petch, Geist, Geist_Mono } from "next/font/google";
 
-export const cinzel = Cinzel({
+export const chakraPetch = Chakra_Petch({
   subsets: ["latin"],
-  variable: "--font-cinzel",
+  variable: "--font-chakra-petch",
   display: "swap",
-  weight: ["400", "600", "700"],
+  weight: ["400", "500", "600", "700"],
 });
+
+// Backward-compatible alias for any legacy imports
+export const cinzel = chakraPetch;
 
 export const geistSans = Geist({
   subsets: ["latin"],

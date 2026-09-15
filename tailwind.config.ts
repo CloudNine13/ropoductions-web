@@ -24,12 +24,12 @@ const config: Config = {
         },
         border: "#23283E",
         input: "#1A1E2F",
-        ring: "#E11D48",
+        ring: "#22C55E",
         destructive: "#EF4444",
         primary: {
-          DEFAULT: "#E11D48",
-          foreground: "#FFFFFF",
-          hover: "#BE123C",
+          DEFAULT: "#22C55E",
+          foreground: "#090A0F",
+          hover: "#16A34A",
         },
         accent: {
           DEFAULT: "#F59E0B",
@@ -41,7 +41,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["var(--font-cinzel)", "Cinzel", "serif"],
+        display: ["var(--font-chakra-petch)", "Chakra Petch", "sans-serif"],
         body: ["var(--font-geist-sans)", "Inter", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
       },
