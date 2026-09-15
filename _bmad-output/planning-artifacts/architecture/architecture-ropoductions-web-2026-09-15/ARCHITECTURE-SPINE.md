@@ -172,6 +172,7 @@ ropoductions-web/
   .open-next/                         # OpenNext compilation cache
   migrations/
     0001_initial_sessions.sql         # D1 initial schema for sessions and token storage
+    0002_patron_overrides.sql         # D1 schema for admin and comp role overrides
   public/
     engine/                           # Compiled RPG Maker MZ web export
       index.html                      # Engine bootstrap (sandboxed iframe entrypoint)
@@ -191,6 +192,11 @@ ropoductions-web/
         play/
           layout.tsx                  # Fullscreen locked layout
           page.tsx                    # Web Player container + Save HUD dock
+      (admin)/                        # Isolated studio administration group
+        admin/
+          overrides/
+            page.tsx                  # Override directory and pass creation form
+        layout.tsx                    # Minimal admin shell with anti-enumeration 404 guard
       api/
         auth/
           patreon/
@@ -224,6 +230,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   patron_id TEXT NOT NULL,
   email TEXT,
+  role TEXT DEFAULT 'patron' NOT NULL CHECK(role IN ('admin', 'comp', 'patron')),
   tier_id TEXT NOT NULL,
   tier_name TEXT NOT NULL,
   pledge_cents INTEGER NOT NULL,
@@ -237,9 +244,24 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_patron_id ON sessions(patron_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_role ON sessions(role);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at_sec ON sessions(expires_at_sec);
 CREATE INDEX IF NOT EXISTS idx_sessions_revoked ON sessions(revoked);
 ```
+
+### Patron Overrides D1 Database Schema (`migrations/0002_patron_overrides.sql`)
+
+```sql
+CREATE TABLE IF NOT EXISTS patron_overrides (
+  patron_id TEXT PRIMARY KEY,
+  role TEXT NOT NULL CHECK(role IN ('admin', 'comp')),
+  notes TEXT,
+  granted_by TEXT NOT NULL,
+  created_at_sec INTEGER NOT NULL,
+  updated_at_sec INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_patron_overrides_role ON patron_overrides(role);
 
 ---
 
@@ -256,6 +278,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_revoked ON sessions(revoked);
 | CAP-7 (Save HUD .zip Export/Import) | `src/components/save-hud-dock.tsx`, `Ropoductions_WebBridge.js` | AD-4, AD-6 |
 | CAP-8 (Encrypted R2 Asset Protection) | `src/app/api/game/[...asset]/route.ts` | AD-1, AD-3, AD-5 |
 | CAP-9 (Multilanguage Web Shell) | `src/components/language-switcher.tsx`, `src/lib/i18n.ts` | AD-1 |
+| CAP-10 (Studio Admin & Overrides Panel) | `src/app/(admin)/admin/overrides/page.tsx` | AD-1, AD-8 |
 
 ---
 

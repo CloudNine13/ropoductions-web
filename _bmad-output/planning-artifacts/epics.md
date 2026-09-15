@@ -37,6 +37,8 @@ This document provides the complete epic and story breakdown for ropoductions-we
 - **FR-17:** Encrypted Asset Runtime Support enabling the game engine to decrypt static assets in memory during execution.
 - **FR-18:** Authenticated Edge Asset Routing verifying active session cookies on `/api/game/*` requests and returning HTTP 403 for unauthorized requests.
 - **FR-19:** Multilanguage Web Shell & Language Selector providing an accessible language switcher supporting multiple locales (English default, plus e.g. Japanese, Spanish, Russian, Chinese) persisting locale selection in a 365-day cookie.
+- **FR-20:** Restricted Studio Admin Shell & Anti-Enumeration Guard providing an isolated `(admin)` layout restricted to `session.role === 'admin'` returning HTTP 404 for unauthorized visitors.
+- **FR-21:** Studio Patron Override Management & Lockout Protection providing an internal dashboard to register, list, and revoke Patreon ID access passes with sole-admin lockout prevention and audit metadata.
 
 ### NonFunctional Requirements
 
@@ -86,6 +88,8 @@ This document provides the complete epic and story breakdown for ropoductions-we
 * **FR-17:** Epic 3 — Encrypted Asset Runtime Support
 * **FR-18:** Epic 3 — Authenticated Edge Asset Routing (R2 streaming proxy)
 * **FR-19:** Epic 1 — Multilanguage Web Shell & Language Selector
+* **FR-20:** Epic 5 — Restricted Studio Admin Shell & Anti-Enumeration Guard
+* **FR-21:** Epic 5 — Studio Patron Override Management & Lockout Protection
 
 ## Epic List
 
@@ -112,6 +116,11 @@ Players can play with confidence knowing their saves persist across game patches
 **FRs covered:** FR-13, FR-14, FR-15, FR-16
 **UX-DRs covered:** UX-DR4, UX-DR5
 **Architecture & NFRs:** ARCH-3, ARCH-6, AD-4, AD-6, NFR-4
+
+### Epic 5: Internal Studio Administration & Access Controls
+Studio creators and administrators can manage persistent role overrides (admin/comp passes) via an internal, anti-enumerated dashboard with self-lockout safeguards and audit logs.
+**FRs covered:** FR-20, FR-21
+**Architecture & NFRs:** ARCH-5, AD-8, NFR-2, NFR-4
 
 ## Epic 1: Studio Presence, Multilanguage Web Shell & 21+ Age Compliance
 
@@ -182,25 +191,26 @@ So that all studio portal text, age gate notices, and microcopy are presented in
 
 Patrons can link their Patreon account, verify active campaign membership ($5+ tiers), and access secured portal features with graceful session management and paywall messaging.
 
-### Story 2.1: Cloudflare D1 Sessions Database & Schema Migration
+### Story 2.1: Cloudflare D1 Sessions & Overrides Schema Migration
 
 As an engineer,
-I want a Cloudflare D1 SQLite database table for managing user sessions and OAuth tokens,
-So that patron tokens are securely stored server-side with zero client exposure.
+I want Cloudflare D1 SQLite database tables for managing user sessions and persistent patron overrides,
+So that patron tokens and administrative access roles are securely stored server-side with zero client exposure.
 
 **Acceptance Criteria:**
 
 **Given** a Cloudflare D1 database binding named `DB` in `wrangler.toml`
 **When** executing `wrangler d1 migrations apply DB`
-**Then** the `sessions` table is created with columns for `id`, `patron_id`, `email`, `tier_id`, `tier_name`, `pledge_cents`, `access_token`, `refresh_token`, `token_expires_at`, `created_at`, and `last_verified_at`
-**And** an index on `patron_id` is created for rapid lookup
+**Then** the `sessions` table is created (`migrations/0001_initial_sessions.sql`) with columns for `id`, `patron_id`, `email`, `role` (`CHECK(role IN ('admin', 'comp', 'patron'))`, default `'patron'`), `tier_id`, `tier_name`, `pledge_cents`, `encrypted_access_token`, `encrypted_refresh_token`, `token_expires_at_sec`, `expires_at_sec`, `revoked`, `created_at_sec`, and `last_verified_at_sec`
+**And** indexes on `sessions` are created for `patron_id`, `role`, `expires_at_sec`, and `revoked`
+**And** the `patron_overrides` table is created (`migrations/0002_patron_overrides.sql`) with columns for `patron_id` (PK), `role` (`CHECK(role IN ('admin', 'comp'))`), `notes`, `granted_by`, `created_at_sec`, and `updated_at_sec` with an index on `role`
 **And** all SQL queries in the codebase utilize parameterized prepared statements (`db.prepare().bind()`).
 
-### Story 2.2: Patreon OAuth 2.0 PKCE Authorization & Callback Route Handlers
+### Story 2.2: Patreon OAuth 2.0 PKCE Authorization & Admin Secret Bootstrap
 
-As a patron,
-I want to log in using my Patreon account via a secure OAuth 2.0 flow,
-So that the portal can identify my account without requiring a separate password.
+As a patron or studio administrator,
+I want to log in using my Patreon account via a secure OAuth 2.0 flow and have initial studio admins auto-enrolled from secrets,
+So that the portal identifies my account securely and studio founders gain immediate administrative access without manual database seeding.
 
 **Acceptance Criteria:**
 
@@ -208,36 +218,39 @@ So that the portal can identify my account without requiring a separate password
 **When** the request reaches `/api/auth/patreon`
 **Then** the route generates a cryptographic state and PKCE code challenge, sets a temporary verification cookie, and redirects to Patreon's authorization endpoint requesting `identity` and `campaigns.members` scopes
 **And** upon successful authorization, Patreon redirects back to `/api/auth/callback` with a code and state
-**And** the callback handler validates the state token, exchanges the authorization code for access and refresh tokens, and handles errors with user-friendly error banners.
+**And** the callback handler validates the state token, exchanges the authorization code for access and refresh tokens, and queries `/api/oauth2/v2/identity` to extract `patron_id`
+**And** if `patron_id` strictly matches an ID in `env.INITIAL_ADMIN_PATREON_IDS` (parsed as an exact trimmed `Set`), the handler upserts a record into `patron_overrides` with `role = 'admin'`, `granted_by = 'system_bootstrap'`, and `notes = 'Initial Env Admin'`.
 
-### Story 2.3: Active Tier Verification ($5+ Threshold) & Secure Session Cookie Issuance
+### Story 2.3: Active Tier Verification ($5+ Threshold) & Override Short-Circuit Evaluation
 
-As an authenticated patron,
-I want the portal to verify my active pledge against Ropoductions' $5+ tiers and issue my session,
-So that I am recognized as an active backer and granted access to the game player.
+As an authenticated patron or team member,
+I want the portal to verify my active pledge or bypass verification via persistent override,
+So that backers and team members are recognized and granted immediate access to the game player without unnecessary API latency.
 
 **Acceptance Criteria:**
 
-**Given** valid tokens received in the OAuth callback
-**When** the server queries the Patreon API v2 `/campaigns/{campaign_id}/members` endpoint
-**Then** it verifies if the user holds an active pledge matching Ork Patron ($5), Ogre Pimp ($10), Elf Sybarite ($15), Horseman Aesthete ($25), or Mind Fucker Avatar ($50)
-**And** if eligible, it generates a UUIDv4 session ID, stores the record in Cloudflare D1, and sets a signed, HTTP-only, `SameSite=Lax`, `Secure` cookie named `ropoductions_session`
-**And** redirects the patron directly to `/play`.
+**Given** an authenticated user in the OAuth callback handler
+**When** the handler queries `patron_overrides` for `patron_id`
+**Then** if an override record exists (`role IN ('admin', 'comp')`), it skips the Patreon `/campaigns/{campaign_id}/members` API call entirely
+**And** it generates a UUIDv4 session ID, stores the record in Cloudflare D1 with `role = override.role`, `tier_id = 'override_' || override.role`, `tier_name = (role === 'admin' ? 'Studio Admin' : 'Complimentary Pass')`, and `pledge_cents = 0`
+**And** if no override exists, it queries Patreon API v2 `/campaigns/{campaign_id}/members` and verifies if the user holds an active pledge matching Ork Patron ($5), Ogre Pimp ($10), Elf Sybarite ($15), Horseman Aesthete ($25), or Mind Fucker Avatar ($50)
+**And** authorization evaluation is centralized in a pure `isAccessAuthorized(session)` policy function
+**And** upon successful authorization, it sets a signed, HTTP-only, `SameSite=Lax`, `Secure` cookie named `ropoductions_session` and redirects directly to `/play`.
 
-### Story 2.4: Paywall Interstitial & Graceful Navigation Session Verification
+### Story 2.4: Paywall Interstitial & Transactional Override Revocation
 
-As an unpledged or lapsed visitor,
+As an unpledged visitor or revoked tester,
 I want a clear, informative paywall card when attempting to access `/play`,
-So that I understand subscription requirements and can easily pledge or renew.
+So that I understand subscription requirements and revoked passes are immediately and transactionally invalidated.
 
 **Acceptance Criteria:**
 
 **Given** an unauthenticated visitor or patron without an active $5+ tier navigating to `/play`
-**When** middleware checks the session cookie
+**When** middleware or route guards check the session cookie
 **Then** the user is redirected to the home page or paywall interstitial displaying the 5 patron tiers and a direct checkout link
-**And** if a patron's pledge lapses while actively playing in an open tab, the active session is not abruptly terminated
-**And** on the user's next navigation or page reload, the lapsed status is detected and redirected with a polite renewal notice.
-
+**And** if `session.role IN ('admin', 'comp')`, the server performs a point lookup against `patron_overrides`
+**And** if the override row has been deleted, it executes a transactional revocation: sets `revoked = 1` in `sessions`, clears `ropoductions_session` (`Max-Age: 0`), and redirects to `/?paywall=revoked`
+**And** if a patron's pledge lapses while actively playing in an open tab, the active session is not abruptly terminated, detecting lapsed status on the next navigation or reload.
 ---
 
 ## Epic 3: Web Game Client & Protected Asset Streaming
@@ -335,3 +348,55 @@ So that I can migrate progress between browsers or start completely fresh with s
 **Then** the dialog unzips and validates save headers, sends the slots through the postMessage bridge, and refreshes the in-game load menu
 **And** selecting an invalid or corrupt file displays a clear error alert: "Invalid save file format. Please upload a valid .zip archive or .rpgsave file."
 **And** clicking "Reset" displays a destructive confirmation dialog with a prominent warning before purging local game storage.
+
+---
+
+## Epic 5: Internal Studio Administration & Access Controls
+
+Studio creators and administrators can manage persistent role overrides (admin/comp passes) via an internal, anti-enumerated dashboard with self-lockout safeguards and audit logs.
+
+### Story 5.1: Restricted Admin Layout & Authentication Guard
+
+As a studio administrator,
+I want a secure `/admin` route shell that blocks non-admin users,
+So that internal controls are inaccessible to regular patrons and visitors.
+
+**Acceptance Criteria:**
+
+**Given** an unauthorized visitor or regular patron navigating to `/admin` or any `/admin/*` subroute
+**When** middleware and the `(admin)/layout.tsx` Server Component evaluate session state
+**Then** if `session.role !== 'admin'`, the request returns a standard Next.js `notFound()` (HTTP 404) to prevent route enumeration
+**And** if `session.role === 'admin'`, the page renders the isolated `(admin)` layout with dark studio theme (`#090A0F` background, `#121522` card surface)
+**And** displays an admin status badge (`#FBBF24` Gold) and a direct navigation link back to `/play`.
+
+### Story 5.2: Patron Override Directory & Creation Interface
+
+As a studio administrator,
+I want a visual dashboard to grant `'admin'` or `'comp'` passes by Patreon ID,
+So that I can grant playtest and team access without asking developers to run manual SQL commands.
+
+**Acceptance Criteria:**
+
+**Given** an authorized administrator on `/admin/overrides`
+**When** the page loads
+**Then** it displays an active overrides table showing Patreon ID, Role badge (`#FBBF24` for Admin, `#38BDF8` for Comp), Notes, Granted By, and Date Added
+**And** a registration form with inputs for Patreon ID (text), Role (dropdown select), and Notes (optional text)
+**And** submitting the form validates the Patreon ID against the numeric regex `^\d{1,20}$` (rejecting non-digits and whitespace)
+**And** executes a Next.js Server Action inserting or updating `patron_overrides` with `granted_by = session.patron_id` and refreshes the table via `revalidatePath('/admin/overrides')`
+**And** all inputs and interactive buttons adhere to the 44x44px minimum touch target size.
+
+### Story 5.3: Override Revocation & Self-Lockout Prevention
+
+As a studio administrator,
+I want to revoke existing access passes with confirmation and lockout protection,
+So that I can easily manage access while preventing accidental removal of all administrators.
+
+**Acceptance Criteria:**
+
+**Given** an authorized administrator viewing the overrides table
+**When** reviewing an override entry
+**Then** each row provides a "Revoke" button triggering an accessible Radix Dialog confirmation modal
+**And** the modal displays a clear warning and a `#E11D48` crimson confirmation button
+**And** if the target entry is the administrator's own ID and `COUNT(*) FROM patron_overrides WHERE role = 'admin'` is 1, the Revoke action is disabled with the warning "Cannot revoke the sole remaining administrator"
+**And** upon confirming a valid revocation, a Server Action deletes the row from `patron_overrides` and revalidates the path
+**And** any active session belonging to the revoked user is invalidated on their next navigation per Story 2.4.
