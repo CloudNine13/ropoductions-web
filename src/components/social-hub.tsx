@@ -1,82 +1,72 @@
 "use client";
 
 import { ExternalLink, Heart, MessageSquare, Sparkles } from "lucide-react";
-
-interface SocialChannel {
-  name: string;
-  handle: string;
-  badge: string;
-  description: string;
-  href: string;
-  ctaText: string;
-  accentBorder: string;
-  accentText: string;
-  iconBg: string;
-  icon: typeof Heart;
-}
-
-const CHANNELS: SocialChannel[] = [
-  {
-    name: "Patreon",
-    handle: "ropoductions",
-    badge: "WEB ACCESS & BUILDS",
-    description: "Support Ropoductions on Patreon across active $5–$50 tiers to instantly unlock in-browser web play, early patch builds, and exclusive doujin development logs.",
-    href: "https://www.patreon.com/ropoductions",
-    ctaText: "Pledge on Patreon",
-    accentBorder: "hover:border-[#FF424D]",
-    accentText: "text-[#FF424D]",
-    iconBg: "bg-[#FF424D]/10 text-[#FF424D] border-[#FF424D]/30",
-    icon: Heart,
-  },
-  {
-    name: "Discord",
-    handle: "discord.gg/ropoductions",
-    badge: "COMMUNITY CHAT",
-    description: "Connect with fellow retro RPG enthusiasts, discuss tactical boss strategies, vote on character design polls, and share feedback directly with the development team.",
-    href: "https://discord.gg/ropoductions",
-    ctaText: "Join Discord Server",
-    accentBorder: "hover:border-[#5865F2]",
-    accentText: "text-[#5865F2]",
-    iconBg: "bg-[#5865F2]/10 text-[#5865F2] border-[#5865F2]/30",
-    icon: MessageSquare,
-  },
-  {
-    name: "Twitter / X",
-    handle: "@Ropoductions",
-    badge: "STUDIO ANNOUNCEMENTS",
-    description: "Follow the official studio handle for real-time release announcements, animated pixel art teasers, patch maintenance notices, and behind-the-scenes artwork.",
-    href: "https://x.com/ropoductions",
-    ctaText: "Follow on Twitter / X",
-    accentBorder: "hover:border-primary",
-    accentText: "text-primary",
-    iconBg: "bg-primary/10 text-primary border-primary/30",
-    icon: Sparkles,
-  },
-];
+import { useTranslations } from "next-intl";
 
 export function SocialHub() {
+  const t = useTranslations("social");
+
+  const channels = [
+    {
+      name: t("patreonTitle"),
+      handle: "ropoductions",
+      badge: t("patreonBadge"),
+      description: t("patreonDesc"),
+      href: "https://www.patreon.com/ropoductions",
+      ctaText: t("patreonCta"),
+      accentBorder: "hover:border-[#FF424D]",
+      accentText: "text-[#FF424D]",
+      iconBg: "bg-[#FF424D]/10 text-[#FF424D] border-[#FF424D]/30",
+      icon: Heart,
+    },
+    {
+      name: t("discordTitle"),
+      handle: "discord.gg/ropoductions",
+      badge: t("discordBadge"),
+      description: t("discordDesc"),
+      href: "https://discord.gg/ropoductions",
+      ctaText: t("discordCta"),
+      accentBorder: "hover:border-[#5865F2]",
+      accentText: "text-[#5865F2]",
+      iconBg: "bg-[#5865F2]/10 text-[#5865F2] border-[#5865F2]/30",
+      icon: MessageSquare,
+    },
+    {
+      name: t("twitterTitle"),
+      handle: "@Ropoductions",
+      badge: t("twitterBadge"),
+      description: t("twitterDesc"),
+      href: "https://x.com/ropoductions",
+      ctaText: t("twitterCta"),
+      accentBorder: "hover:border-primary",
+      accentText: "text-primary",
+      iconBg: "bg-primary/10 text-primary border-primary/30",
+      icon: Sparkles,
+    },
+  ];
+
   return (
     <section id="community" className="w-full space-y-12 py-8">
       {/* Heading */}
       <div className="space-y-3 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1 text-xs font-semibold uppercase tracking-wider text-foreground/80">
-          Official Channels
+          {t("officialChannels")}
         </div>
         <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-wide text-foreground">
-          COMMUNITY & SOCIAL HUB
+          {t("sectionTitle")}
         </h2>
         <p className="mx-auto max-w-2xl text-sm sm:text-base text-muted-foreground">
-          Join the Ropoductions network across Patreon, Discord, and Twitter/X to connect with creators and players.
+          {t("sectionSubtitle")}
         </p>
       </div>
 
       {/* Grid of 3 Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {CHANNELS.map((ch) => {
+        {channels.map((ch) => {
           const IconComponent = ch.icon;
           return (
             <div
-              key={ch.name}
+              key={ch.handle}
               className={`flex flex-col justify-between rounded-2xl border border-border bg-card p-6 sm:p-8 transition-all duration-200 shadow-xl ${ch.accentBorder}`}
             >
               <div className="space-y-5">

@@ -4,6 +4,7 @@ import { useEffect, useCallback } from "react";
 import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export interface ScreenshotItem {
   id: string;
@@ -29,19 +30,18 @@ export function ScreenshotLightbox({
   currentIndex,
   onNavigate,
 }: ScreenshotLightboxProps) {
+  const t = useTranslations("lightbox");
   const total = screenshots.length;
   const current = screenshots[currentIndex] || screenshots[0];
 
   const handlePrev = useCallback(() => {
     if (total === 0) return;
-    const prevIndex = (currentIndex - 1 + total) % total;
-    onNavigate(prevIndex);
+    onNavigate((currentIndex - 1 + total) % total);
   }, [currentIndex, total, onNavigate]);
 
   const handleNext = useCallback(() => {
     if (total === 0) return;
-    const nextIndex = (currentIndex + 1) % total;
-    onNavigate(nextIndex);
+    onNavigate((currentIndex + 1) % total);
   }, [currentIndex, total, onNavigate]);
 
   useEffect(() => {
@@ -86,14 +86,14 @@ export function ScreenshotLightbox({
 
               <div className="flex items-center gap-3">
                 <span className="font-mono text-xs text-muted-foreground">
-                  {currentIndex + 1} / {total}
+                  {t("counter", { current: (currentIndex + 1).toString(), total: total.toString() })}
                 </span>
                 <Dialog.Close asChild>
                   <button
                     type="button"
                     onClick={onClose}
                     className="inline-flex items-center justify-center rounded-md border border-border bg-muted/60 p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer"
-                    aria-label="Close screenshot preview"
+                    aria-label={t("close")}
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -120,7 +120,7 @@ export function ScreenshotLightbox({
                     type="button"
                     onClick={handlePrev}
                     className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full border border-border/80 bg-card/80 p-2.5 text-foreground backdrop-blur-md transition-all hover:bg-card hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer shadow-lg"
-                    aria-label="Previous screenshot"
+                    aria-label={t("previous")}
                   >
                     <ChevronLeft className="h-6 w-6" />
                   </button>
@@ -128,7 +128,7 @@ export function ScreenshotLightbox({
                     type="button"
                     onClick={handleNext}
                     className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full border border-border/80 bg-card/80 p-2.5 text-foreground backdrop-blur-md transition-all hover:bg-card hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer shadow-lg"
-                    aria-label="Next screenshot"
+                    aria-label={t("next")}
                   >
                     <ChevronRight className="h-6 w-6" />
                   </button>

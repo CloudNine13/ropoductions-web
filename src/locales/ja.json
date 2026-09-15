@@ -1,0 +1,151 @@
+{
+  "ageGate": {
+    "title": "21歳以上 年齢確認が必要です",
+    "badge": "成人向けコンテンツ (21歳以上)",
+    "description": "当ウェブサイトには、21歳以上の成人を対象とした性的な表現を含む成人向けアニメRPGゲームコンテンツが含まれています。",
+    "warning": "未成年者のアクセスは固く禁じられています。入場することにより、お客様は21歳以上であることを誓約し、成人向け同人ゲームの閲覧に同意したものとみなされます。",
+    "confirmButton": "21歳以上です — 入場する",
+    "exitButton": "サイトを離れる",
+    "disclaimer": "入場することにより、21歳以上であることを確認し、利用規約に同意したものとみなされます。"
+  },
+  "header": {
+    "brand": "ROPODUCTIONS",
+    "navHome": "ホーム",
+    "navShowcase": "作品紹介",
+    "navCommunity": "コミュニティ",
+    "navPatreon": "Patreon",
+    "playNow": "今すぐプレイ",
+    "toggleMenu": "メニュー切替",
+    "selectLanguage": "言語を選択"
+  },
+  "hero": {
+    "studioSubtitle": "同人RPGスタジオ＆Webポータル",
+    "studioBadge": "インディーズ成人向けゲームスタジオ",
+    "tagline": "大人のための刺激的な物語とドット絵アニメーションが織りなすレトロRPG。",
+    "supportedTiers": "対応支援プラン",
+    "patronTiers": "$5–$50 プラン",
+    "playNowPatreon": "Patreonで今すぐプレイ",
+    "exploreProjects": "作品一覧を見る",
+    "patreonRequirements": "21歳以上の年齢確認およびPatreon支援（$5以上プラン）が必要です。"
+  },
+  "showcase": {
+    "prestigeBadge": "高品質成人向けインディーRPG",
+    "sectionTitle": "作品ラインナップ",
+    "sectionSubtitle": "RopoductionsのブラウザRPGを体験し、開発中の最新作をチェックしよう。",
+    "titleFinalOrginity": "FINAL ORGINITY",
+    "badgeRpgMaker": "RPG MAKER MZ",
+    "badgeHtml5": "HTML5ブラウザ版",
+    "badgeActiveChapter": "最新チャプター公開中",
+    "badgePatronAccess": "パトロン限定 ($5–$50)",
+    "foTagline": "王道ターン制バトル、同人らしい魅力、エロティックコメディが融合したファンタジーRPG。",
+    "foDescription": "危険なダンジョンと刺激的な出会いが交錯する迷宮へ。追放された戦士、享楽的なエルフの射手、虚無の妖術師たちと共に聖域の封印を解き放て。インストール不要、ブラウザ上で快適セーブ対応。",
+    "playInBrowser": "ブラウザでプレイ",
+    "verifiedPatronHint": "21歳以上確認済 ＆ $5以上パトロン",
+    "partySectionTitle": "パーティーメンバー＆仲間たち",
+    "screenshotsSectionTitle": "ゲーム内スクリーンショット",
+    "clickToExpandHint": "クリックして全画面プレビューを表示",
+    "expandScreenshot": "拡大",
+    "godotBadgeComingSoon": "近日公開",
+    "godotBadgeEngine": "GODOT 4 エンジン",
+    "godotBadgeDesktop": "デスクトップ版",
+    "godotTitle": "PROJECT ORGINITY 2: THE FALLEN CITADEL",
+    "godotDescription": "Ropoductionsユニバースの野心的な新章。Godot 4エンジンでゼロから再構築され、滑らかなドット絵アニメーションと広大なオープンワールドを展開。PC、Mac、Linux対応版をパトロン向けに限定先行配信予定。",
+    "godotStatusNote": "ステータス：開発進行中 • リリース時にパトロン向けダウンロードリンクを提供予定。",
+    "characters": {
+      "lyra": {
+        "name": "リラ",
+        "role": "ハイエルフの享楽者",
+        "archetype": "秘術の射手",
+        "description": "妖艶な身のこなしと冷徹な射撃の腕前を併せ持つ、エメラルドの矢を操る快楽主義者。",
+        "badge": "エルフの享楽者"
+      },
+      "kael": {
+        "name": "カエル",
+        "role": "深紅の放浪者",
+        "archetype": "亡命の剣客",
+        "description": "二刀流の短剣を操り、鋭い毒舌と優れた生存本能を持つ皮肉屋の傭兵。",
+        "badge": "亡命剣客"
+      },
+      "morgana": {
+        "name": "モルガナ",
+        "role": "影紡ぎ",
+        "archetype": "虚無の妖術師",
+        "description": "星界の影と異形の秘術を操り、敵の陣形を惑わす禁断の魔女。",
+        "badge": "虚無の妖術師"
+      },
+      "goruk": {
+        "name": "ゴルク",
+        "role": "鉄皮の豪腕",
+        "archetype": "オークの重戦士",
+        "description": "仲間を敵の猛攻から守り抜き、怒涛の力で敵を粉砕する頼れる巨漢の盾役。",
+        "badge": "オークの守護者"
+      }
+    },
+    "screenshots": {
+      "title": {
+        "title": "タイトル画面＆メインメニュー",
+        "caption": "公式タイトル画面：夕暮れのノスタルジックなドット絵とCRT風エフェクト、直感的なWebセーブ管理。",
+        "badge": "タイトル画面"
+      },
+      "dungeon": {
+        "title": "迷宮探索",
+        "caption": "地下霊廟：薄暗い松明の灯り、隠し扉、16ビットのドット絵スプライトが彩るダンジョン探索。",
+        "badge": "迷宮探索"
+      },
+      "battle": {
+        "title": "サイドビュー・コマンドバトル",
+        "caption": "大悪魔マラコール戦：動的なTPゲージと多彩な呪文ウィンドウを備えたクラシックなサイドビューバトル。",
+        "badge": "バトル"
+      },
+      "dialogue": {
+        "title": "同人ストーリーイベント",
+        "caption": "リラの会話イベント：描き下ろしアニメ調ポートレートとドキドキの同人シナリオ展開。",
+        "badge": "ストーリー"
+      }
+    }
+  },
+  "lightbox": {
+    "counter": "スクリーンショット {current} / {total}",
+    "close": "閉じる",
+    "previous": "前のスクリーンショット",
+    "next": "次のスクリーンショット",
+    "navHint": "左右の矢印キーまたはボタンで移動できます。ESCキーで閉じます。"
+  },
+  "social": {
+    "officialChannels": "公式チャンネル",
+    "sectionTitle": "コミュニティ＆ソーシャル",
+    "sectionSubtitle": "Patreon、Discord、Twitter/XでRopoductionsと繋がり、制作チームやプレイヤーと交流しよう。",
+    "patreonTitle": "Patreon",
+    "patreonBadge": "Web版＆先行プレイ",
+    "patreonDesc": "月額$5〜$50のプランでRopoductionsを支援し、ブラウザ即時プレイ権や先行アップデート、開発ログを楽しもう。",
+    "patreonCta": "Patreonで支援する",
+    "discordTitle": "Discord",
+    "discordBadge": "公式チャット",
+    "discordDesc": "レトロRPGファン同士で攻略法を話し合ったり、キャラクターデザインの投票に参加して開発陣に感想を伝えよう。",
+    "discordCta": "Discordに参加",
+    "twitterTitle": "Twitter / X",
+    "twitterBadge": "最新情報",
+    "twitterDesc": "スタジオの公式アカウントをフォローして、リアルタイムのリリース情報やアニメーションドット絵をチェック。",
+    "twitterCta": "Twitter / Xでフォロー"
+  },
+  "footer": {
+    "studioSubtitle": "同人RPGスタジオ＆Webポータル",
+    "navHome": "ホーム",
+    "navPlay": "プレイ",
+    "navShowcase": "作品紹介",
+    "navCommunity": "コミュニティ",
+    "navPatreon": "Patreon",
+    "compliance21": "21+ コンプライアンス：成人向けインタラクティブゲームコンテンツ。21歳未満の利用は固く禁止されています。",
+    "copyright": "© {year} Ropoductions. All rights reserved."
+  },
+  "language": {
+    "select": "言語を選択",
+    "activeLanguage": "言語: {lang}",
+    "en": "English",
+    "es": "Español",
+    "ru": "Русский",
+    "pl": "Polski",
+    "ja": "日本語",
+    "zh": "简体中文"
+  }
+}

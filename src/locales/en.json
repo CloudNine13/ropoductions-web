@@ -1,0 +1,151 @@
+{
+  "ageGate": {
+    "title": "21+ AGE VERIFICATION REQUIRED",
+    "badge": "MATURE ADULT CONTENT (21+)",
+    "description": "This website contains mature, sexually explicit anime-style RPG gaming content strictly reserved for consenting adults aged 21 and older.",
+    "warning": "Underage access is strictly prohibited. By entering, you affirm under penalty of perjury that you are at least 21 years of age and consent to viewing sexually explicit doujin video games.",
+    "confirmButton": "I AM 21 OR OLDER - ENTER",
+    "exitButton": "EXIT SITE",
+    "disclaimer": "By entering, you confirm you are at least 21 years old and agree to our content policies."
+  },
+  "header": {
+    "brand": "ROPODUCTIONS",
+    "navHome": "Home",
+    "navShowcase": "Showcase",
+    "navCommunity": "Community",
+    "navPatreon": "Patreon",
+    "playNow": "Play Now",
+    "toggleMenu": "Toggle navigation menu",
+    "selectLanguage": "Select language"
+  },
+  "hero": {
+    "studioSubtitle": "Doujin RPG Studio & Web Portal",
+    "studioBadge": "Independent Adult Game Studio",
+    "tagline": "Crafting cheeky, narrative-driven retro anime RPGs and pixel adventures for mature audiences.",
+    "supportedTiers": "Supported Tiers",
+    "patronTiers": "$5–$50 Patrons",
+    "playNowPatreon": "Play Now with Patreon",
+    "exploreProjects": "Explore Projects",
+    "patreonRequirements": "Requires 21+ age confirmation and active Patreon campaign membership ($5+ tier)."
+  },
+  "showcase": {
+    "prestigeBadge": "Prestige Adult Indie Games",
+    "sectionTitle": "PROJECT SHOWCASE",
+    "sectionSubtitle": "Explore Ropoductions’ active browser RPG and preview upcoming standalone releases.",
+    "titleFinalOrginity": "FINAL ORGINITY",
+    "badgeRpgMaker": "RPG MAKER MZ",
+    "badgeHtml5": "HTML5 WEB CLIENT",
+    "badgeActiveChapter": "ACTIVE CHAPTER",
+    "badgePatronAccess": "PATRON ACCESS ($5–$50)",
+    "foTagline": "A cheeky, narrative-driven fantasy RPG packed with classic turn-based tactics, doujin charm, and erotic comedy.",
+    "foDescription": "Descend into a cheeky fantasy labyrinth where perilous dungeon vaults meet provocative character encounters. Lead an eclectic party of exiled rogues, hedonistic elven archers, and void enchantresses as you break the Sanctum Seals. Playable directly in your browser with zero installation and seamless save backup persistence.",
+    "playInBrowser": "Play in Browser",
+    "verifiedPatronHint": "Verified 21+ & Active $5+ Patreon",
+    "partySectionTitle": "PARTY MEMBERS & COMPANIONS",
+    "screenshotsSectionTitle": "IN-GAME SCREENSHOT GALLERY",
+    "clickToExpandHint": "Click any screenshot to view in full lightbox",
+    "expandScreenshot": "Expand",
+    "godotBadgeComingSoon": "COMING SOON",
+    "godotBadgeEngine": "GODOT 4 ENGINE",
+    "godotBadgeDesktop": "DESKTOP STANDALONE",
+    "godotTitle": "PROJECT ORGINITY 2: THE FALLEN CITADEL",
+    "godotDescription": "The next ambitious evolution in the Ropoductions universe. Rebuilt from the ground up in the Godot 4 engine with high-framerate pixel art animations, expanded party combat systems, and a sprawling open-world narrative. Desktop standalone builds for PC, Mac, and Linux will be distributed exclusively to active patrons.",
+    "godotStatusNote": "Status: In active development • Download mirrors will be provided for studio patrons upon release.",
+    "characters": {
+      "lyra": {
+        "name": "Lyra",
+        "role": "High-Elf Sybarite",
+        "archetype": "Arcane Archer",
+        "description": "Hedonistic marksman who wields enchanted emerald arrows with sensual nonchalance and lethal precision.",
+        "badge": "ELF SYBARITE"
+      },
+      "kael": {
+        "name": "Kael",
+        "role": "Crimson Vagabond",
+        "archetype": "Exiled Blademaster",
+        "description": "Cynical sellsword armed with dual shortswords, driven by a sharp tongue and an instinct for survival.",
+        "badge": "BLADEMASTER"
+      },
+      "morgana": {
+        "name": "Morgana",
+        "role": "Shadowweaver",
+        "archetype": "Void Enchantress",
+        "description": "Forbidden mystic who weaves astral shadows and eldritch charms to warp enemy formations.",
+        "badge": "VOID ENCHANTRESS"
+      },
+      "goruk": {
+        "name": "Goruk",
+        "role": "Ironhide",
+        "archetype": "Ork Juggernaut",
+        "description": "Brawny powerhouse who shields the party from heavy assaults while crushing foes with unyielding fury.",
+        "badge": "ORK PROTECTOR"
+      }
+    },
+    "screenshots": {
+      "title": {
+        "title": "Title Screen & Main Menu",
+        "caption": "Official Title Screen: nostalgic pixel sunset, CRT aesthetic, and direct web save management.",
+        "badge": "TITLE SCREEN"
+      },
+      "dungeon": {
+        "title": "Labyrinth Exploration",
+        "caption": "The Lower Crypts: atmospheric dungeon exploration featuring ambient torches, secret vault doors, and 16-bit party sprites.",
+        "badge": "EXPLORATION"
+      },
+      "battle": {
+        "title": "Side-View Turn-Based Combat",
+        "caption": "Archdemon Malakor encounter: classic side-view battles with dynamic TP meters, tactical spell command windows, and boss mechanics.",
+        "badge": "COMBAT"
+      },
+      "dialogue": {
+        "title": "Doujin Narrative Cutscenes",
+        "caption": "Lyra the Sybarite dialogue cutscene: detailed anime character portraits, glowing nameplates, and cheeky doujin storytelling.",
+        "badge": "NARRATIVE"
+      }
+    }
+  },
+  "lightbox": {
+    "counter": "Screenshot {current} of {total}",
+    "close": "Close lightbox",
+    "previous": "Previous screenshot",
+    "next": "Next screenshot",
+    "navHint": "Use left/right arrow keys or buttons to navigate. Press ESC to close."
+  },
+  "social": {
+    "officialChannels": "Official Channels",
+    "sectionTitle": "COMMUNITY & SOCIAL HUB",
+    "sectionSubtitle": "Join the Ropoductions network across Patreon, Discord, and Twitter/X to connect with creators and players.",
+    "patreonTitle": "Patreon",
+    "patreonBadge": "WEB ACCESS & BUILDS",
+    "patreonDesc": "Support Ropoductions on Patreon across active $5–$50 tiers to instantly unlock in-browser web play, early patch builds, and exclusive doujin development logs.",
+    "patreonCta": "Pledge on Patreon",
+    "discordTitle": "Discord",
+    "discordBadge": "COMMUNITY CHAT",
+    "discordDesc": "Connect with fellow retro RPG enthusiasts, discuss tactical boss strategies, vote on character design polls, and share feedback directly with the development team.",
+    "discordCta": "Join Discord Server",
+    "twitterTitle": "Twitter / X",
+    "twitterBadge": "STUDIO ANNOUNCEMENTS",
+    "twitterDesc": "Follow the official studio handle for real-time release announcements, animated pixel art teasers, patch maintenance notices, and behind-the-scenes artwork.",
+    "twitterCta": "Follow on Twitter / X"
+  },
+  "footer": {
+    "studioSubtitle": "Doujin RPG Studio & Web Portal",
+    "navHome": "Home",
+    "navPlay": "Play Game",
+    "navShowcase": "Showcase",
+    "navCommunity": "Community",
+    "navPatreon": "Patreon",
+    "compliance21": "21+ Compliance: Adult interactive gaming content. Strictly intended for mature audiences aged 21 and older.",
+    "copyright": "© {year} Ropoductions. All rights reserved."
+  },
+  "language": {
+    "select": "Select language",
+    "activeLanguage": "Language: {lang}",
+    "en": "English",
+    "es": "Español",
+    "ru": "Русский",
+    "pl": "Polski",
+    "ja": "日本語",
+    "zh": "简体中文"
+  }
+}
