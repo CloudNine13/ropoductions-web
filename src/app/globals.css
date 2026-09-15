@@ -64,3 +64,68 @@ body {
   margin: 0;
   padding: 0;
 }
+
+.age-gate-content {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}
+
+@keyframes ageGateFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ageGateFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ageGateContentShow {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes ageGateContentHide {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+.age-gate-overlay[data-state="open"] {
+  animation: ageGateFadeIn 200ms ease-out forwards;
+}
+
+.age-gate-overlay[data-state="closed"] {
+  animation: ageGateFadeOut 200ms ease-in forwards;
+  pointer-events: none;
+}
+
+.age-gate-content[data-state="open"] {
+  animation: ageGateContentShow 200ms ease-out forwards;
+}
+
+.age-gate-content[data-state="closed"] {
+  animation: ageGateContentHide 200ms ease-in forwards;
+  pointer-events: none;
+}
