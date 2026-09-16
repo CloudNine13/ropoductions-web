@@ -101,7 +101,8 @@ function createMockDb(): D1Database {
             return;
           }
           if (sql === "UPDATE sessions SET revoked = 1 WHERE id = ?") {
-            sessions.get(stmt.params[0] as string)!.revoked = 1;
+            const target = sessions.get(stmt.params[0] as string);
+            if (target) target.revoked = 1;
             return;
           }
           if (sql === "UPDATE sessions SET revoked = 1 WHERE patron_id = ?") {
@@ -194,6 +195,11 @@ describe("sessions data entry points", () => {
     await revokeSession(db, "sess-revoke");
 
     assert.equal((await getSessionById(db, "sess-revoke"))!.revoked, 1);
+  });
+
+  it("treats revoking an unknown session as a no-op", async () => {
+    await assert.doesNotReject(() => revokeSession(db, "sess-missing"));
+    assert.equal(await getSessionById(db, "sess-missing"), null);
   });
 
   it("deletes a session so subsequent lookups miss", async () => {
