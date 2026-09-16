@@ -57,3 +57,9 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - Asset auth MUST NOT add more than 300ms to initial bundle load; landing LCP target is under 1.8s, title interactive under 5s on 25Mbps.
 
 <!-- /bmad:context -->
+
+## MUST rules
+
+- When working with github repos not related to the project's one, you are operating in READ-ONLY mode. You are PROHIBITED to write in the repos, not related to the project. The only repo you can write is the local project's repo: https://github.com/CloudNine13/ropoductions-web
+- Never use emojis.
+- Don't comment your code. Only in the case of really hard to understand piece of code. 

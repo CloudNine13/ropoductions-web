@@ -22,12 +22,30 @@
 ## 3. Web Shell Save Management HUD
 The web game wrapper must provide an accessible, responsive HUD outside or overlaid on the game canvas:
 * **Export Save Action:**
-  * Extracts the active save slot (or bundle of all slots) from browser storage.
-  * Triggers an immediate browser file download of the raw `.rpgsave` binary file.
+  * Triggers postMessage `{ type: 'ROPODUCTIONS_GET_SAVES' }` to the game iframe.
+  * Packages all populated save files (`file1.rpgsave` ... `file20.rpgsave`, `global.rpgsave`, `config.rpgsave`) client-side using `jszip`.
+  * Triggers an immediate browser file download named `ropoductions_saves_{YYYY-MM-DD}.zip`.
 * **Import Save Action:**
-  * Provides a file picker accepting `.rpgsave` files.
-  * Validates file format integrity.
-  * Writes the imported save data into the target browser storage slot (`rmmz_save`).
-  * Signals the MZ engine or reloads the iframe/canvas to refresh the in-game save/load index.
+  * Provides a drag-and-drop modal accepting `.zip` archives or individual `.rpgsave` files.
+  * Validates file format integrity and RPG Maker MZ header signatures client-side.
+  * If valid, sends save payloads via postMessage `{ type: 'ROPODUCTIONS_SET_SAVES', payload }` to the game iframe.
+  * Signals the MZ engine to write data to IndexedDB (`rmmz_save`) and invokes `DataManager.loadGlobalInfo()` to refresh in-game title and load screens instantly without an iframe reload.
+  * If invalid or corrupt, displays an inline red error banner without mutating storage.
 * **Storage Diagnostics:**
-  * Clear/Reset storage option with a confirmation modal (for troubleshooting or starting fresh).
+  * Clear/Reset storage option with a destructive confirmation modal (for troubleshooting or starting fresh).
+
+## 4. In-Game Bridge Plugin (`Ropoductions_WebBridge.js`) Contract
+* **Plugin Location:** `public/engine/js/plugins/Ropoductions_WebBridge.js` (registered in `plugins.js`).
+* **Origin Verification:** Every incoming message MUST strictly verify `event.origin === window.location.origin` to block cross-origin script injection and save data theft.
+* **Message Protocol:**
+  * **Outbound Save Request:**
+    - Inbound: `{ type: 'ROPODUCTIONS_GET_SAVES' }`
+    - Outbound to Parent: `{ type: 'ROPODUCTIONS_SAVES_DATA', payload: { slots: Record<string, string>, global: string, config: string } }`
+  * **Inbound Save Injection:**
+    - Inbound: `{ type: 'ROPODUCTIONS_SET_SAVES', payload: Record<string, string> }`
+    - Action: Iterates payload keys, executes `StorageManager.saveObject(key, data)`, then calls `DataManager.loadGlobalInfo()`.
+    - Outbound to Parent: `{ type: 'ROPODUCTIONS_SET_SAVES_SUCCESS' }`
+  * **Safe Storage Reset:**
+    - Inbound: `{ type: 'ROPODUCTIONS_RESET_SAVES' }`
+    - Action: Clears IndexedDB `rmmz_save` table via `StorageManager`, re-invokes `DataManager.loadGlobalInfo()`.
+    - Outbound to Parent: `{ type: 'ROPODUCTIONS_RESET_SAVES_SUCCESS' }`

@@ -109,7 +109,7 @@ Patrons can link their Patreon account, verify active campaign membership ($5+ t
 Authorized patrons can launch and play the embedded RPG Maker MZ game in an aspect-ratio-locked, responsive canvas with mobile touch/desktop parity, fed by session-authenticated streaming from the existing private R2 bucket.
 **FRs covered:** FR-10, FR-11, FR-12, FR-17, FR-18
 **UX-DRs covered:** UX-DR6
-**Architecture & NFRs:** ARCH-2, ARCH-4 (existing R2 bucket), AD-2, AD-5, NFR-1
+**Architecture & NFRs:** ARCH-2, ARCH-4 (existing R2 bucket), AD-2, AD-5, AD-9, NFR-1
 
 ### Epic 4: Origin-Stable Save Persistence & Backup HUD
 Players can play with confidence knowing their saves persist across game patches, and can export/import all save slots as a bundled .zip archive or reset local storage via a dedicated HUD dock.
@@ -286,6 +286,23 @@ So that unauthorized visitors and web scrapers cannot rip or hotlink our encrypt
 **And** sets `Cache-Control: private, max-age=86400` so legitimate clients cache encrypted assets locally
 **And** any request without a valid session cookie returns `HTTP 403 Forbidden` with zero asset data streamed.
 
+### Story 3.3: Upstream Game Release Ingestion & R2 Sync Workflow
+
+As a project maintainer,
+I want an on-demand GitHub Action in `ropoductions-web` that pulls release snapshots from `salamin888/Final_Orginity`,
+So that verified game assets are automatically validated, injected with our web bridge, and synced to private R2 without manual upload errors or edge isolate overhead.
+
+**Acceptance Criteria:**
+
+**Given** a project maintainer triggering `.github/workflows/sync-game-release.yml` via `workflow_dispatch`
+**When** the workflow executes with input `branch` (defaulting to `auto`)
+**Then** if `auto`, the runner queries `salamin888/Final_Orginity:main`'s `tools/release.json` to extract the active `base` version string and target branch
+**And** shallow-clones the target release branch using a read-only upstream GitHub PAT
+**And** validates file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`)
+**And** injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers the plugin in `js/plugins.js`
+**And** transfers static media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 (`GAME_ASSETS`) using AWS CLI S3 sync (`--endpoint-url`)
+**And** commits the lightweight HTML5 engine shell (`index.html`, `js/`, `css/`, `fonts/`) into `public/engine/` of `ropoductions-web`.
+
 ---
 
 ## Epic 4: Origin-Stable Save Persistence & Backup HUD
@@ -304,7 +321,7 @@ So that my save files can be backed up and restored without exposing storage key
 **When** the `Ropoductions_WebBridge.js` plugin loads
 **Then** it registers a message listener strictly checking `event.origin === window.location.origin`
 **And** upon receiving `{ type: 'ROPODUCTIONS_GET_SAVES' }`, it iterates populated save slots via `StorageManager`, gathers their contents, and posts `{ type: 'ROPODUCTIONS_SAVES_DATA', payload }` back to the parent window
-**And** upon receiving `{ type: 'ROPODUCTIONS_SET_SAVES', payload }`, it validates payload structure, writes to `StorageManager`, and signals the engine to refresh the save index.
+**And** upon receiving `{ type: 'ROPODUCTIONS_SET_SAVES', payload }`, it validates payload structure, writes to `StorageManager`, and triggers `DataManager.loadGlobalInfo()` to refresh in-game title and load screens immediately without page refresh.
 
 ### Story 4.2: Floating Frosted-Glass Save HUD Dock with Auto-Dimming
 
