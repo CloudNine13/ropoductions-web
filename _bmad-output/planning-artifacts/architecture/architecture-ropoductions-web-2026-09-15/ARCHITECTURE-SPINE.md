@@ -108,6 +108,12 @@ graph TD
 - **Binds:** CAP-3, FR-7, Architecture Evolution (v2)
 - **Prevents:** SQL injection vulnerabilities and uncoordinated database schema drift.
 - **Rule:** All database interactions with Cloudflare D1 must execute parameterized prepared statements (`db.prepare().bind()`). Direct string concatenation into SQL statements is prohibited. Database schema changes must be versioned as sequential SQL files under `migrations/` and deployed via Wrangler.
+### AD-9 — Upstream Game Ingestion & R2 Asset Synchronization Pipeline [ADOPTED]
+
+- **Binds:** CAP-5, CAP-8, CAP-11, FR-17, FR-18
+- **Prevents:** Cloudflare Edge worker memory exhaustion from Git operations, accidental auto-deployments of broken development assets, and game engine JSON database corruption.
+- **Rule:** Cloudflare Edge Workers and Pages functions MUST NEVER interact with Git repositories or execute asset ingestion at runtime. Upstream game assets from `salamin888/Final_Orginity` are ingested exclusively via a manual `workflow_dispatch` GitHub Action in `ropoductions-web` (`.github/workflows/sync-game-release.yml`). The workflow reads the release version from `tools/release.json` on `main` (or accepts a manual branch override), clones the target release branch, injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers it in `js/plugins.js`, synchronizes media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 via AWS CLI S3 sync, and commits the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) to `public/engine/`.
+
 
 ```mermaid
 graph LR
@@ -279,6 +285,7 @@ CREATE INDEX IF NOT EXISTS idx_patron_overrides_role ON patron_overrides(role);
 | CAP-8 (Encrypted R2 Asset Protection) | `src/app/api/game/[...asset]/route.ts` | AD-1, AD-3, AD-5 |
 | CAP-9 (Multilanguage Web Shell) | `src/components/language-switcher.tsx`, `src/lib/i18n.ts` | AD-1 |
 | CAP-10 (Studio Admin & Overrides Panel) | `src/app/(admin)/admin/overrides/page.tsx` | AD-1, AD-8 |
+| CAP-11 (Game Ingestion & R2 Sync Pipeline) | `.github/workflows/sync-game-release.yml` | AD-9 |
 
 ---
 
