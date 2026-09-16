@@ -33,7 +33,8 @@ export async function GET(request: Request): Promise<Response> {
   const state = generateRandomString(32);
   const pkce = await generatePkcePair(64);
 
-  const payload = `${state}:${pkce.verifier}`;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const payload = `${state}:${pkce.verifier}:${nowSec}`;
   const signedPayload = await signValue(payload, authEnv.sessionSecret);
 
   const authorizeUrl = buildPatreonAuthorizeUrl({

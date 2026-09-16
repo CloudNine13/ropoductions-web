@@ -8,7 +8,11 @@ import type {
 export const PATREON_AUTHORIZE_URL = "https://www.patreon.com/oauth2/authorize";
 export const PATREON_TOKEN_URL = "https://www.patreon.com/api/oauth2/token";
 export const PATREON_IDENTITY_URL = "https://www.patreon.com/api/oauth2/v2/identity";
-export const DEFAULT_PATREON_SCOPES = ["identity", "campaigns.members"];
+export const DEFAULT_PATREON_SCOPES = [
+  "identity",
+  "identity[email]",
+  "campaigns.members",
+];
 
 export interface BuildAuthorizeUrlParams {
   clientId: string;
@@ -68,6 +72,7 @@ export async function exchangeAuthorizationCode({
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "ropoductions-web/0.1.0",
     },
     body: body.toString(),
   });
@@ -90,6 +95,7 @@ export async function getPatronIdentity(
   const response = await fetchFn(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      "User-Agent": "ropoductions-web/0.1.0",
     },
   });
 
@@ -101,7 +107,10 @@ export async function getPatronIdentity(
   }
 
   const payload = (await response.json()) as PatreonIdentityResponse;
-  const data = payload.data;
+  const data = payload?.data;
+  if (!data?.id) {
+    throw new Error("Patreon identity response missing data object");
+  }
 
   return {
     patronId: data.id,

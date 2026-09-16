@@ -58,3 +58,17 @@ context:
 - `src/app/api/auth/patreon/route.ts` -- Route handler initiating OAuth 2.0 PKCE flow and setting temporary verification cookie.
 - `src/app/api/auth/callback/route.ts` -- Route handler processing OAuth callback, validating state and PKCE, fetching identity, and bootstrapping admin.
 - `tests/patreon-oauth.test.ts` -- Test suite verifying PKCE math, state validation, admin bootstrap matching, and mock OAuth flow.
+
+## Tasks & Acceptance
+
+### Review Findings
+
+- [x] [Review][Patch] Safely handle base64 decoding errors in base64UrlToBuffer to prevent 500 crash on malformed cookie signatures [src/lib/crypto.ts:13]
+- [x] [Review][Patch] Add Secure flag to clearCookieHeader when request is HTTPS [src/app/api/auth/callback/route.ts:22]
+- [x] [Review][Patch] Log admin bootstrap success and errors instead of silent suppression [src/app/api/auth/callback/route.ts:121]
+- [x] [Review][Patch] Align state mismatch error code to invalid_state per spec [src/app/api/auth/callback/route.ts:98]
+- [x] [Review][Patch] Include identity[email] scope in default Patreon scopes [src/lib/patreon.ts:11]
+- [x] [Review][Patch] Truncate error message in callback Location header to avoid 431 header overflow [src/app/api/auth/callback/route.ts:145]
+- [x] [Review][Patch] Add User-Agent header to outgoing Patreon API requests [src/lib/patreon.ts:65]
+- [x] [Review][Patch] Include createdAtSec in verification payload for server-side expiry validation [src/app/api/auth/patreon/route.ts:35]
+- [x] [Review][Patch] Expand test coverage for malformed base64, admin bootstrap execution, and HTTPS cookie clearing [tests/verify-patreon-oauth.ts]

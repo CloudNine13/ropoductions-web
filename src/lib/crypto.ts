@@ -11,16 +11,20 @@ function bufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
 }
 
 function base64UrlToBuffer(base64url: string): Uint8Array {
-  const base64 = base64url
-    .replace(/-/g, "+")
-    .replace(/_/g, "/")
-    .padEnd(base64url.length + ((4 - (base64url.length % 4)) % 4), "=");
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  try {
+    const base64 = base64url
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(base64url.length + ((4 - (base64url.length % 4)) % 4), "=");
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    return new Uint8Array(0);
   }
-  return bytes;
 }
 
 export function generateRandomString(length: number = 32): string {
@@ -80,32 +84,40 @@ export async function verifySignedValue(
   signedValue: string,
   secret: string
 ): Promise<string | null> {
-  const lastDotIndex = signedValue.lastIndexOf(".");
-  if (lastDotIndex === -1) {
+  try {
+    const lastDotIndex = signedValue.lastIndexOf(".");
+    if (lastDotIndex === -1) {
+      return null;
+    }
+
+    const value = signedValue.slice(0, lastDotIndex);
+    const signature = signedValue.slice(lastDotIndex + 1);
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    const signatureBytes = base64UrlToBuffer(signature);
+    if (signatureBytes.length === 0) {
+      return null;
+    }
+
+    const isValid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBytes as unknown as BufferSource,
+      encoder.encode(value)
+    );
+
+    return isValid ? value : null;
+  } catch {
     return null;
   }
-
-  const value = signedValue.slice(0, lastDotIndex);
-  const signature = signedValue.slice(lastDotIndex + 1);
-
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["verify"]
-  );
-
-  const signatureBytes = base64UrlToBuffer(signature);
-  const isValid = await crypto.subtle.verify(
-    "HMAC",
-    key,
-    signatureBytes as unknown as BufferSource,
-    encoder.encode(value)
-  );
-
-  return isValid ? value : null;
 }
 
 async function deriveAesGcmKey(secret: string): Promise<CryptoKey> {

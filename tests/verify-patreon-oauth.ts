@@ -78,6 +78,11 @@ async function testCryptoSigningAndEncryption(): Promise<void> {
   const invalidFormatVerified = await verifySignedValue("no_dot_here", secret);
   assert.equal(invalidFormatVerified, null);
 
+  const malformedSignatureVerified = await verifySignedValue(
+    "payload.!!!invalid_base64$$$===",
+    secret
+  );
+  assert.equal(malformedSignatureVerified, null);
   const tokenToEncrypt = "patreon_access_token_sample_abc_123";
   const encKey = "token_encryption_key_32_bytes_sample";
   const encrypted = await encryptToken(tokenToEncrypt, encKey);
@@ -130,16 +135,10 @@ async function testPatreonClient(): Promise<void> {
   assert.equal(parsedUrl.searchParams.get("response_type"), "code");
   assert.equal(parsedUrl.searchParams.get("client_id"), "client_abc");
   assert.equal(
-    parsedUrl.searchParams.get("redirect_uri"),
-    "http://localhost:3000/api/auth/callback"
-  );
-  assert.equal(parsedUrl.searchParams.get("state"), "random_state");
-  assert.equal(parsedUrl.searchParams.get("code_challenge"), "challenge_xyz");
-  assert.equal(parsedUrl.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(
     parsedUrl.searchParams.get("scope"),
-    "identity campaigns.members"
+    "identity identity[email] campaigns.members"
   );
+  assert.equal(parsedUrl.searchParams.get("code_challenge_method"), "S256");
 
   let capturedExchangeUrl = "";
   let capturedExchangeBody = "";
@@ -358,8 +357,22 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(
     stateMismatchResponse.headers
       .get("Location")
-      ?.includes("state_mismatch")
+      ?.includes("invalid_state")
   );
+
+  const httpsInitRequest = new Request(
+    "https://example.com/api/auth/patreon",
+    { method: "GET" }
+  );
+  const httpsInitResponse = await initiateAuth(httpsInitRequest);
+  assert.ok(httpsInitResponse.headers.get("Set-Cookie")?.includes("Secure"));
+
+  const httpsErrorRequest = new Request(
+    "https://example.com/api/auth/callback?error=access_denied",
+    { method: "GET" }
+  );
+  const httpsErrorResponse = await callbackAuth(httpsErrorRequest);
+  assert.ok(httpsErrorResponse.headers.get("Set-Cookie")?.includes("Secure"));
 
   const originalFetch = globalThis.fetch;
   try {

@@ -19,11 +19,13 @@ export async function GET(request: Request): Promise<Response> {
   const state = requestUrl.searchParams.get("state");
   const error = requestUrl.searchParams.get("error");
 
+  const isSecure = requestUrl.protocol === "https:";
   const clearCookieHeader = serializeCookie(OAUTH_VERIFIER_COOKIE_NAME, "", {
     maxAge: 0,
     path: "/",
     httpOnly: true,
     sameSite: "Lax",
+    secure: isSecure,
   });
 
   if (error) {
@@ -78,8 +80,8 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const colonIndex = rawPayload.indexOf(":");
-  if (colonIndex === -1) {
+  const parts = rawPayload.split(":");
+  if (parts.length < 2) {
     return new Response(null, {
       status: 302,
       headers: {
@@ -90,14 +92,29 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const expectedState = rawPayload.slice(0, colonIndex);
-  const codeVerifier = rawPayload.slice(colonIndex + 1);
+  const expectedState = parts[0];
+  const codeVerifier = parts[1];
+  const createdAtSec = parts[2] ? parseInt(parts[2], 10) : null;
+
+  if (createdAtSec !== null && !isNaN(createdAtSec)) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (nowSec - createdAtSec > 600) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: "/?auth_error=expired_verifier",
+          "Set-Cookie": clearCookieHeader,
+          "Cache-Control": "no-store, max-age=0",
+        },
+      });
+    }
+  }
 
   if (expectedState !== state) {
     return new Response(null, {
       status: 302,
       headers: {
-        Location: "/?auth_error=state_mismatch",
+        Location: "/?auth_error=invalid_state",
         "Set-Cookie": clearCookieHeader,
         "Cache-Control": "no-store, max-age=0",
       },
@@ -120,14 +137,19 @@ export async function GET(request: Request): Promise<Response> {
 
     try {
       const db = await getDatabase();
-      await bootstrapInitialAdminIfEligible(
+      const bootstrapped = await bootstrapInitialAdminIfEligible(
         db,
         identity.patronId,
         authEnv.initialAdminPatreonIds
       );
-    } catch {
+      if (bootstrapped) {
+        console.log(
+          `[AUTH] Successfully bootstrapped initial admin for patron_id=${identity.patronId}`
+        );
+      }
+    } catch (dbErr) {
+      console.error("[AUTH] Database error during admin bootstrap:", dbErr);
     }
-
     return new Response(null, {
       status: 302,
       headers: {
@@ -137,11 +159,13 @@ export async function GET(request: Request): Promise<Response> {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "token_exchange_failed";
+    const rawMessage =
+      err instanceof Error ? err.message : "token_exchange_failed";
+    const sanitizedMessage = rawMessage.slice(0, 120);
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `/?auth_error=${encodeURIComponent(message)}`,
+        Location: `/?auth_error=${encodeURIComponent(sanitizedMessage)}`,
         "Set-Cookie": clearCookieHeader,
         "Cache-Control": "no-store, max-age=0",
       },
