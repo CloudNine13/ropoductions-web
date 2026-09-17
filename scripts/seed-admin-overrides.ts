@@ -29,22 +29,31 @@ function resolveInitialAdminIds(): string | undefined {
     return cliArgs.join(",");
   }
 
+  if (process.env.CREATOR_ADMIN_PATREON_IDS) {
+    return process.env.CREATOR_ADMIN_PATREON_IDS;
+  }
   if (process.env.INITIAL_ADMIN_PATREON_IDS) {
     return process.env.INITIAL_ADMIN_PATREON_IDS;
   }
 
   const rootDir = process.cwd();
-  const devVarsValue = extractEnvValueFromFile(resolve(rootDir, ".dev.vars"), "INITIAL_ADMIN_PATREON_IDS");
+  const devVarsValue =
+    extractEnvValueFromFile(resolve(rootDir, ".dev.vars"), "CREATOR_ADMIN_PATREON_IDS") ??
+    extractEnvValueFromFile(resolve(rootDir, ".dev.vars"), "INITIAL_ADMIN_PATREON_IDS");
   if (devVarsValue) {
     return devVarsValue;
   }
 
-  const envLocalValue = extractEnvValueFromFile(resolve(rootDir, ".env.local"), "INITIAL_ADMIN_PATREON_IDS");
+  const envLocalValue =
+    extractEnvValueFromFile(resolve(rootDir, ".env.local"), "CREATOR_ADMIN_PATREON_IDS") ??
+    extractEnvValueFromFile(resolve(rootDir, ".env.local"), "INITIAL_ADMIN_PATREON_IDS");
   if (envLocalValue) {
     return envLocalValue;
   }
 
-  const envValue = extractEnvValueFromFile(resolve(rootDir, ".env"), "INITIAL_ADMIN_PATREON_IDS");
+  const envValue =
+    extractEnvValueFromFile(resolve(rootDir, ".env"), "CREATOR_ADMIN_PATREON_IDS") ??
+    extractEnvValueFromFile(resolve(rootDir, ".env"), "INITIAL_ADMIN_PATREON_IDS");
   if (envValue) {
     return envValue;
   }
@@ -57,11 +66,10 @@ async function main() {
 
   if (!initialAdminIds) {
     console.error(
-      "No INITIAL_ADMIN_PATREON_IDS found in CLI arguments, process.env, .dev.vars, or .env.local.\n" +
+      "No CREATOR_ADMIN_PATREON_IDS (or INITIAL_ADMIN_PATREON_IDS) found in CLI arguments, process.env, .dev.vars, or .env.local.\n" +
       "Provide IDs via CLI: npm run db:seed:admins -- <id1,id2>\n" +
-      "Or set INITIAL_ADMIN_PATREON_IDS=id1,id2 in .dev.vars or .env.local."
+      "Or set CREATOR_ADMIN_PATREON_IDS=id1,id2 in .dev.vars or .env.local."
     );
-    process.exit(1);
   }
 
   const proxy = await getPlatformProxy();

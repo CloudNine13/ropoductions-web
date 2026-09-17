@@ -144,14 +144,20 @@ sequenceDiagram
     WebRepo->>R2: Sync media assets (audio, img, data) via AWS S3 CLI
     WebRepo->>EngineShell: Commit lightweight HTML5 shell (index.html, js, css)
 ```
-### AD-10 — System Bootstrap Admin Provisioning & Sealed Override Governance [ADOPTED]
+### AD-10 — Two-Tier Admin Architecture: Immutable Creator Admins & Panel-Assigned Overrides [ADOPTED]
 
 - **Binds:** CAP-3, CAP-10, FR-6, FR-20, FR-21
-- **Prevents:** Studio founder lockout, unrecorded administrative privilege escalation, and brittle manual production database seeding.
-- **Rule:** Initial founding studio administrators are configured strictly through the environment secret `INITIAL_ADMIN_PATREON_IDS` (comma-separated numeric string Patreon IDs) parsed as an exact trimmed Set.
-  - **Local Development Environment:** Configured in `.dev.vars` (for Cloudflare Wrangler / OpenNext edge runtime) and `.env.local` (for Next.js App Router development). An automated seeding CLI (`npm run db:seed:admins`) and runtime sync (`syncInitialAdminOverrides`) populate the D1 `patron_overrides` table with `role = 'admin'`, `granted_by = 'system_bootstrap'`, and `notes = 'Initial Env Admin'`.
-  - **Sealed Status & Administrative Panel Governance:** Overrides created with `granted_by = 'system_bootstrap'` are recognized by the application as sealed founding credentials. In the studio admin panel (Epic 5), sealed admin records are visually badged and require an explicit typed confirmation keyword to revoke, preventing accidental deletion. Sole-admin lockout safeguards strictly prevent revoking the final remaining administrator regardless of sealed status.
-
+- **Prevents:** Studio founder lockout, unrecorded administrative privilege escalation, accidental or malicious founder deletion via internal admin tools, and brittle manual production database seeding.
+- **Rule:** The portal strictly enforces a Two-Tier Administrative Access Model:
+  1. **Creator Admins (Permanently Sealed & Immutable):**
+     - A designated set of founding creator Patreon IDs (initially 1, scaling to 2-3) configured via `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`).
+     - Stored with `granted_by = 'creator_bootstrap'` and badged as "Creator Admin (Sealed)".
+     - **Immutability Invariant:** NOBODY can delete, modify, or downgrade a Creator Admin ID. The admin panel omits all delete/edit actions for these records, and database/Server Action mutation endpoints strictly reject modification attempts with HTTP 403 Forbidden.
+  2. **Panel-Assigned Admins (Mutable & Managed):**
+     - Additional team members or playtesters granted elevated roles (`admin` or `comp`) by active administrators through the `/admin/overrides` interface.
+     - Stored with `granted_by = session.patron_id`.
+     - Can be updated or revoked by other authorized administrators, protected by sole-admin lockout prevention (at least one active administrator must remain at all times).
+  - **Local Development Seeding:** The CLI command `npm run db:seed:admins` reads `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`) from `.dev.vars`, `.env.local`, `process.env`, or CLI arguments and ensures all creator admin passes are seeded into local D1 SQLite.
 ---
 
 ## Consistency Conventions

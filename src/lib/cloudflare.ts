@@ -170,6 +170,7 @@ export async function getAuthEnv(explicitEnv?: Record<string, unknown>): Promise
   sessionSecret: string;
   tokenEncryptionKey: string;
   initialAdminPatreonIds?: string;
+  creatorAdminPatreonIds?: string;
 }> {
   const clientId = (await getEnvVariable("PATREON_CLIENT_ID", explicitEnv)) ?? "";
   const clientSecret = (await getEnvVariable("PATREON_CLIENT_SECRET", explicitEnv)) ?? "";
@@ -179,10 +180,9 @@ export async function getAuthEnv(explicitEnv?: Record<string, unknown>): Promise
     (await getEnvVariable("SESSION_SECRET", explicitEnv)) ?? "";
   const tokenEncryptionKey =
     (await getEnvVariable("TOKEN_ENCRYPTION_KEY", explicitEnv)) ?? "";
-  const initialAdminPatreonIds = await getEnvVariable(
-    "INITIAL_ADMIN_PATREON_IDS",
-    explicitEnv
-  );
+  const creatorAdminPatreonIds =
+    (await getEnvVariable("CREATOR_ADMIN_PATREON_IDS", explicitEnv)) ??
+    (await getEnvVariable("INITIAL_ADMIN_PATREON_IDS", explicitEnv));
 
   return {
     clientId,
@@ -191,6 +191,7 @@ export async function getAuthEnv(explicitEnv?: Record<string, unknown>): Promise
     campaignId,
     sessionSecret,
     tokenEncryptionKey,
-    initialAdminPatreonIds,
+    initialAdminPatreonIds: creatorAdminPatreonIds,
+    creatorAdminPatreonIds,
   };
 }

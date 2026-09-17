@@ -4,8 +4,11 @@ import {
   parseInitialAdminPatreonIds,
   bootstrapInitialAdminIfEligible,
   syncInitialAdminOverrides,
+  isCreatorAdmin,
+  assertCanModifyOverride,
 } from "../src/lib/patreon";
 import { validateSessionAccess } from "../src/lib/auth";
+import { getAuthEnv } from "../src/lib/cloudflare";
 import { signValue } from "../src/lib/crypto";
 import type { SessionRecord, PatronOverrideRecord } from "../src/types/database";
 
@@ -175,6 +178,28 @@ describe("parseInitialAdminPatreonIds", () => {
   });
 });
 
+describe("isCreatorAdmin & assertCanModifyOverride (Creator Admin Immutability)", () => {
+  it("identifies creator admins from single or multiple configured IDs", () => {
+    assert.equal(isCreatorAdmin("12345678", "12345678"), true);
+    assert.equal(isCreatorAdmin("87654321", "12345678, 87654321"), true);
+    assert.equal(isCreatorAdmin("99999999", "12345678, 87654321"), false);
+    assert.equal(isCreatorAdmin("", "12345678"), false);
+    assert.equal(isCreatorAdmin("12345678", null), false);
+    assert.equal(isCreatorAdmin("12345678", undefined), false);
+  });
+
+  it("assertCanModifyOverride throws an error when attempting to modify a Creator Admin", () => {
+    assert.throws(
+      () => assertCanModifyOverride("12345678", "12345678, 87654321"),
+      /Creator Admin '12345678' is sealed and cannot be modified or deleted/
+    );
+  });
+
+  it("assertCanModifyOverride does not throw when target is not a Creator Admin", () => {
+    assert.doesNotThrow(() => assertCanModifyOverride("panel-admin-55", "12345678, 87654321"));
+  });
+});
+
 describe("bootstrapInitialAdminIfEligible", () => {
   it("returns false when patronId is not in initialAdminIds", async () => {
     const { db, overrides } = createMockD1();
@@ -183,7 +208,7 @@ describe("bootstrapInitialAdminIfEligible", () => {
     assert.equal(overrides.size, 0);
   });
 
-  it("returns true and writes override with system_bootstrap when patronId matches", async () => {
+  it("returns true and writes override with creator_bootstrap when patronId matches", async () => {
     const { db, overrides } = createMockD1();
     const bootstrapped = await bootstrapInitialAdminIfEligible(db, "12345678", "12345678,87654321");
     assert.equal(bootstrapped, true);
@@ -194,7 +219,7 @@ describe("bootstrapInitialAdminIfEligible", () => {
     assert.equal(record.patron_id, "12345678");
     assert.equal(record.role, "admin");
     assert.equal(record.granted_by, "system_bootstrap");
-    assert.equal(record.notes, "Initial Env Admin");
+    assert.equal(record.notes, "Creator Admin (Sealed)");
   });
 });
 
@@ -206,7 +231,7 @@ describe("syncInitialAdminOverrides", () => {
     assert.equal(overrides.size, 0);
   });
 
-  it("synchronizes all provided IDs into patron_overrides", async () => {
+  it("synchronizes all provided IDs into patron_overrides with creator_bootstrap role", async () => {
     const { db, overrides } = createMockD1();
     const synced = await syncInitialAdminOverrides(db, "10001, 10002, 10003");
     assert.equal(synced.length, 3);
@@ -218,7 +243,27 @@ describe("syncInitialAdminOverrides", () => {
       assert.ok(record);
       assert.equal(record.role, "admin");
       assert.equal(record.granted_by, "system_bootstrap");
+      assert.equal(record.notes, "Creator Admin (Sealed)");
     }
+  });
+});
+
+describe("getAuthEnv CREATOR_ADMIN_PATREON_IDS and fallback resolution", () => {
+  it("prefers CREATOR_ADMIN_PATREON_IDS over INITIAL_ADMIN_PATREON_IDS when both are present", async () => {
+    const env = await getAuthEnv({
+      CREATOR_ADMIN_PATREON_IDS: "creator-1,creator-2",
+      INITIAL_ADMIN_PATREON_IDS: "initial-1,initial-2",
+    });
+    assert.equal(env.creatorAdminPatreonIds, "creator-1,creator-2");
+    assert.equal(env.initialAdminPatreonIds, "creator-1,creator-2");
+  });
+
+  it("falls back to INITIAL_ADMIN_PATREON_IDS when CREATOR_ADMIN_PATREON_IDS is not provided", async () => {
+    const env = await getAuthEnv({
+      INITIAL_ADMIN_PATREON_IDS: "initial-1,initial-2",
+    });
+    assert.equal(env.creatorAdminPatreonIds, "initial-1,initial-2");
+    assert.equal(env.initialAdminPatreonIds, "initial-1,initial-2");
   });
 });
 
@@ -265,7 +310,6 @@ describe("validateSessionAccess with initialAdminIds and elevation", () => {
     assert.ok(overrideRecord);
     assert.equal(overrideRecord.role, "admin");
     assert.equal(overrideRecord.granted_by, "system_bootstrap");
-
     const updatedSession = sessions.get(sessionId);
     assert.equal(updatedSession?.role, "admin");
   });

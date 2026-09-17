@@ -304,6 +304,24 @@ export function parseInitialAdminPatreonIds(rawIds?: string | null): Set<string>
 
   return new Set(ids);
 }
+export function isCreatorAdmin(patronId: string, creatorAdminIds?: string | null): boolean {
+  if (!patronId || !creatorAdminIds) {
+    return false;
+  }
+  const creatorSet = parseInitialAdminPatreonIds(creatorAdminIds);
+  return creatorSet.has(patronId.trim());
+}
+
+export function assertCanModifyOverride(
+  targetPatronId: string,
+  creatorAdminIds?: string | null
+): void {
+  if (isCreatorAdmin(targetPatronId, creatorAdminIds)) {
+    throw new Error(
+      `Creator Admin '${targetPatronId}' is sealed and cannot be modified or deleted.`
+    );
+  }
+}
 
 export async function bootstrapInitialAdminIfEligible(
   db: D1Database,
@@ -319,7 +337,7 @@ export async function bootstrapInitialAdminIfEligible(
     patron_id: patronId,
     role: "admin",
     granted_by: "system_bootstrap",
-    notes: "Initial Env Admin",
+    notes: "Creator Admin (Sealed)",
   });
 
   return true;
@@ -337,7 +355,7 @@ export async function syncInitialAdminOverrides(
       patron_id: patronId,
       role: "admin",
       granted_by: "system_bootstrap",
-      notes: "Initial Env Admin",
+      notes: "Creator Admin (Sealed)",
     });
     synced.push(patronId);
   }
