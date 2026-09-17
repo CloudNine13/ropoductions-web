@@ -49,3 +49,24 @@ The web game wrapper must provide an accessible, responsive HUD outside or overl
     - Inbound: `{ type: 'ROPODUCTIONS_RESET_SAVES' }`
     - Action: Clears IndexedDB `rmmz_save` table via `StorageManager`, re-invokes `DataManager.loadGlobalInfo()`.
     - Outbound to Parent: `{ type: 'ROPODUCTIONS_RESET_SAVES_SUCCESS' }`
+
+## 5. Game Release Ingestion & Pipeline Invariant
+* **Pipeline Automation:** Game releases from upstream repository `salamin888/Final_Orginity` are ingested via `.github/workflows/sync-game-release.yml` in `CloudNine13/ropoductions-web`.
+* **Dual Trigger Mechanism:**
+  - **Manual Trigger:** Web portal maintainer triggers `workflow_dispatch` with input `branch` (default `auto`).
+  - **Remote Upstream Trigger:** Upstream game maintainers trigger `repository_dispatch` (event type `game_release_published`) directly from `salamin888/Final_Orginity` via a fine-grained GitHub PAT scoped strictly to dispatching workflows on `CloudNine13/ropoductions-web`.
+* **Credential Isolation:**
+  - Cloudflare R2 credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) and upstream clone credentials (`UPSTREAM_READ_TOKEN`) reside strictly within `ropoductions-web` GitHub Secrets.
+  - The upstream repository is NEVER given Cloudflare tokens or write access to the web repository.
+* **Validation & Shell Ingestion:**
+  - Pipeline verifies file structure (`data/System.json`, `index.html`) and injects `Ropoductions_WebBridge.js` before copying assets.
+  - Media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) sync to private Cloudflare R2 (`GAME_ASSETS`).
+  - Lightweight engine shell (`index.html`, `js/`, `css/`, `fonts/`) commits directly to `public/engine/`.
+
+## 6. Decoupled Mock Harness Testing Invariant
+* **Independent Container Verification:** The web game iframe container (`src/app/(game)/play/page.tsx`, Story 3.1) and Save HUD dock (`src/components/save-hud-dock.tsx`, Epic 4) are architecturally decoupled from upstream game download infrastructure.
+* **Local Canvas Test Harness:**
+  - The web client iframe targets same-origin `/engine/index.html`.
+  - For local development, integration, and E2E verification prior to upstream asset availability, `public/engine/index.html` can serve a lightweight HTML5 `<canvas>` mock harness.
+  - The harness renders a 16:9 canvas (1280x720) with active input visualization and implements the `postMessage` protocol defined in Section 4 (`ROPODUCTIONS_GET_SAVES`, `ROPODUCTIONS_SET_SAVES`, `ROPODUCTIONS_RESET_SAVES`).
+  - Replacing the mock canvas harness with the production engine shell requires zero modifications to the web wrapper container, layout, or postMessage handlers.
