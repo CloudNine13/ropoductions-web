@@ -20,20 +20,19 @@ test.describe("portal landing", () => {
 });
 
 test.describe("paywall interstitial", () => {
-  test("shows no banner or tier matrix on the plain landing page", async ({ page }) => {
+  test("shows no paywall window on the plain landing page", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByLabel("Access notification")).toHaveCount(0);
     await expect(page.locator("#paywall-section")).toHaveCount(0);
   });
 
   for (const paywall of ["revoked", "lapsed", "required"] as const) {
-    test(`renders the banner and five-tier matrix for ?paywall=${paywall}`, async ({
+    test(`renders the paywall window and five-tier matrix for ?paywall=${paywall}`, async ({
       page,
     }) => {
       await page.goto(`/?paywall=${paywall}`);
 
-      await expect(page.getByLabel("Access notification")).toBeVisible();
+      await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
       await expect(page.locator("#paywall-section")).toBeVisible();
       await expect(page.locator("#paywall-section")).toContainText("$5");
       await expect(page.locator("#paywall-section")).toContainText("$50");
@@ -53,18 +52,75 @@ test.describe("paywall interstitial", () => {
   }) => {
     await page.goto("/?auth_required=true");
 
-    await expect(page.getByLabel("Access notification")).toBeVisible();
+    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
     await expect(page.locator("#paywall-section")).toBeVisible();
   });
 
-  test("dismissing the banner keeps the tier matrix on the page", async ({
+  for (const paywall of ["revoked", "lapsed", "required"] as const) {
+    test(`closing the ${paywall} window returns to the landing page`, async ({
+      page,
+    }) => {
+      await page.goto(`/?paywall=${paywall}`);
+
+      await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
+      await expect(page.locator("#paywall-section")).toBeVisible();
+      await expect(page.locator("#paywall-section")).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(page.locator("#paywall-section")).toHaveCount(0);
+      await expect(page.getByText("PROJECT SHOWCASE")).toBeVisible();
+    });
+  }
+
+  test("preserves landing scroll position when opening and closing the paywall modal", async ({
     page,
   }) => {
-    await page.goto("/?paywall=lapsed");
-
+    await page.goto("/");
     await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
-    await page.getByLabel("Dismiss notification").click();
-    await expect(page.getByLabel("Access notification")).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await page.waitForTimeout(200);
+
+    const headerPlayLink = page.locator("header").getByRole("link", { name: "Play" });
+    await headerPlayLink.click();
+
     await expect(page.locator("#paywall-section")).toBeVisible();
+    const scrollYDuringModal = await page.evaluate(() => window.scrollY);
+    expect(scrollYDuringModal).toBe(400);
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#paywall-section")).toHaveCount(0);
+    const scrollYAfterClose = await page.evaluate(() => window.scrollY);
+    expect(scrollYAfterClose).toBe(400);
+  });
+
+  test("closing the modal via the dismiss button returns to landing page", async ({
+    page,
+  }) => {
+    await page.goto("/?paywall=required");
+    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
+    await expect(page.locator("#paywall-section")).toBeVisible();
+    await page.getByLabel("Dismiss notification").click();
+    await expect(page.locator("#paywall-section")).toHaveCount(0);
+    await expect(page.getByText("PROJECT SHOWCASE")).toBeVisible();
+  });
+
+  test("preserves landing scroll position when opening paywall from showcase play link", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
+    await page.evaluate(() => window.scrollTo(0, 1000));
+    await page.waitForTimeout(200);
+
+    const showcasePlay = page.getByRole("link", { name: "Play in Browser" });
+    await showcasePlay.click();
+
+    await expect(page.locator("#paywall-section")).toBeVisible();
+    const scrollYDuringModal = await page.evaluate(() => window.scrollY);
+    expect(scrollYDuringModal).toBe(1000);
+
+    await page.getByLabel("Dismiss notification").click();
+    await expect(page.locator("#paywall-section")).toHaveCount(0);
+    const scrollYAfterClose = await page.evaluate(() => window.scrollY);
+    expect(scrollYAfterClose).toBe(1000);
   });
 });

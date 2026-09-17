@@ -167,11 +167,9 @@ export async function getAuthEnv(explicitEnv?: Record<string, unknown>): Promise
   const redirectUri = (await getEnvVariable("PATREON_REDIRECT_URI", explicitEnv)) ?? "";
   const campaignId = await getEnvVariable("PATREON_CAMPAIGN_ID", explicitEnv);
   const sessionSecret =
-    (await getEnvVariable("SESSION_SECRET", explicitEnv)) ??
-    "dev_session_secret_change_in_production";
+    (await getEnvVariable("SESSION_SECRET", explicitEnv)) ?? "";
   const tokenEncryptionKey =
-    (await getEnvVariable("TOKEN_ENCRYPTION_KEY", explicitEnv)) ??
-    "dev_token_encryption_key_32_bytes_len";
+    (await getEnvVariable("TOKEN_ENCRYPTION_KEY", explicitEnv)) ?? "";
   const initialAdminPatreonIds = await getEnvVariable(
     "INITIAL_ADMIN_PATREON_IDS",
     explicitEnv

@@ -28,7 +28,8 @@ export default async function PlayPage() {
     db = await getDatabase();
     authEnv = await getAuthEnv();
   } catch {
-    redirect(sessionClearHref("required"));
+    // Infrastructure failure, not an invalid session: keep the cookie so retry works after recovery.
+    redirect("/?paywall=required");
   }
 
   let result;
@@ -39,7 +40,7 @@ export default async function PlayPage() {
       sessionSecret: authEnv.sessionSecret,
     });
   } catch {
-    redirect(sessionClearHref("required"));
+    redirect("/?paywall=required");
   }
 
   if (result.status !== "authorized") {

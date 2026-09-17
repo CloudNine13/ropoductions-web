@@ -274,7 +274,7 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
 
 #### FR-19: Multilanguage Web Shell & Language Selector
 * **Actor:** Visitor / Player.
-* **Capability:** The Web Shell provides an accessible language selector (header and footer) supporting multiple locales (English default, plus initial languages e.g. Japanese, Spanish, Russian, Chinese), dynamically localizing the age gate, landing page showcase, Patreon paywall card, and Save HUD controls.
+* **Capability:** The Web Shell provides an accessible language selector (header and footer) supporting multiple locales (English default, plus initial languages e.g. Japanese, Spanish, Russian, Chinese, Polish), dynamically localizing the age gate, landing page showcase, Patreon paywall card, and Save HUD controls.
 * **Consequences (testable):**
   - Selecting a language updates all portal text instantly without requiring a full page refresh.
   - Selected locale is stored in a `ropoductions_lang` cookie and persists across sessions.

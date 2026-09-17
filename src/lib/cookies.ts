@@ -76,3 +76,8 @@ export function setAgeVerifiedCookie(): void {
     httpOnly: false,
   });
 }
+
+export function isSecureCookieScope(requestUrl: URL): boolean {
+  const host = requestUrl.hostname;
+  return host !== "localhost" && host !== "127.0.0.1" && !host.endsWith(".localhost");
+}

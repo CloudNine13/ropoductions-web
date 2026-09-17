@@ -11,6 +11,8 @@ import {
   PAYWALL_CAMPAIGN_URL,
   PAYWALL_TIERS,
   resolvePaywallType,
+  restoreLandingScrollPosition,
+  saveLandingScrollPosition,
   SESSION_CLEAR_HREF,
   sessionClearHref,
 } from "../src/lib/paywall";
@@ -141,5 +143,65 @@ describe("paywall tier matrix and CTAs", () => {
   it("points login at the Patreon auth route and pledge at the campaign", () => {
     assert.equal(PATREON_LOGIN_HREF, "/api/auth/patreon");
     assert.equal(PAYWALL_CAMPAIGN_URL, "https://www.patreon.com/join/Ropoductions");
+  });
+});
+
+describe("landing scroll preservation across the play redirect", () => {
+  it("restores the saved position instantly without DOM-heavy moves", () => {
+    const store: Record<string, string> = {};
+    const scrolled: Array<[number, number]> = [];
+    const classes = new Set(["scroll-smooth"]);
+    (globalThis as Record<string, unknown>).sessionStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete store[k];
+      },
+    };
+    (globalThis as Record<string, unknown>).window = {
+      scrollY: 500,
+      scrollTo: (x: number, y: number) => {
+        scrolled.push([x, y]);
+      },
+    };
+    (globalThis as Record<string, unknown>).document = {
+      documentElement: {
+        classList: {
+          remove: (c: string) => {
+            classes.delete(c);
+          },
+          add: (c: string) => {
+            classes.add(c);
+          },
+        },
+      },
+    };
+
+    try {
+      saveLandingScrollPosition();
+      assert.equal(store["ropoductions:scrollY"], "500");
+      assert.ok(!classes.has("scroll-smooth"));
+
+      (globalThis as Record<string, unknown>).window = {
+        scrollY: 0,
+        scrollTo: (x: number, y: number) => {
+          scrolled.push([x, y]);
+        },
+      };
+      restoreLandingScrollPosition();
+      assert.deepEqual(scrolled, [[0, 500]]);
+      assert.ok(classes.has("scroll-smooth"));
+      assert.equal(store["ropoductions:scrollY"], undefined);
+    } finally {
+      delete (globalThis as Record<string, unknown>).sessionStorage;
+      delete (globalThis as Record<string, unknown>).window;
+      delete (globalThis as Record<string, unknown>).document;
+    }
+  });
+  it("stays inert without a DOM (SSR, private mode)", () => {
+    assert.doesNotThrow(() => saveLandingScrollPosition());
+    assert.doesNotThrow(() => restoreLandingScrollPosition());
   });
 });

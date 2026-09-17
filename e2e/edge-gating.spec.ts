@@ -33,7 +33,6 @@ test.describe("patron edge gating", () => {
 
     await page.goto("/play");
     expect(page.url()).toBe("http://127.0.0.1:3100/?paywall=required");
-    await expect(page.getByLabel("Access notification")).toBeVisible();
     await expect(page.locator("#paywall-section")).toBeVisible();
 
     const cookies = await page.context().cookies();

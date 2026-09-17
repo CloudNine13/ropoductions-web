@@ -1,12 +1,36 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { saveLandingScrollPosition } from "@/lib/paywall";
+
+const BACKDROP_SLIDES = [
+  "/branding/studio-banner.jpeg",
+  "/branding/studio-background.png",
+];
+
+const SLIDE_INTERVAL_MS = 5000;
 
 export function HeroSection() {
   const t = useTranslations("hero");
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [backgroundAvailable, setBackgroundAvailable] = useState(true);
+
+  useEffect(() => {
+    if (
+      !backgroundAvailable ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const id = setInterval(() => {
+      setActiveSlide((current) => (current + 1) % BACKDROP_SLIDES.length);
+    }, SLIDE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [backgroundAvailable]);
 
   return (
     <section className="relative isolate w-full overflow-hidden border-b border-border/40 py-16 sm:py-24 lg:py-32 flex items-center justify-center">
@@ -14,7 +38,7 @@ export function HeroSection() {
       <div className="absolute inset-0 -z-10 w-full h-full pointer-events-none select-none overflow-hidden">
         {/* Key Art Banner (1500x500 3:1) rendered full bleed with retro pixelated scaling */}
         <Image
-          src="/branding/studio-banner.jpeg"
+          src={BACKDROP_SLIDES[0]}
           alt=""
           aria-hidden="true"
           fill
@@ -22,6 +46,21 @@ export function HeroSection() {
           className="pixelated object-cover object-center"
           sizes="100vw"
         />
+
+        {/* Alternate studio backdrop crossfading in a slow loop */}
+        {backgroundAvailable && (
+          <Image
+            src={BACKDROP_SLIDES[1]}
+            alt=""
+            aria-hidden="true"
+            fill
+            onError={() => setBackgroundAvailable(false)}
+            className={`pixelated object-cover object-center transition-opacity duration-[2000ms] motion-reduce:transition-none ${
+              activeSlide === 1 ? "opacity-100" : "opacity-0"
+            }`}
+            sizes="100vw"
+          />
+        )}
 
         {/* Scrim Layer 1: Dark obsidian base tint */}
         <div className="absolute inset-0 bg-background/55" />
@@ -76,6 +115,8 @@ export function HeroSection() {
 
             <Link
               href="/play"
+              scroll={false}
+              onClick={saveLandingScrollPosition}
               className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-lg bg-primary hover:bg-primary-hover text-primary-foreground font-display font-bold text-base transition-all min-h-[44px] shadow-lg shadow-primary/25 hover:shadow-primary/40 cursor-pointer"
             >
               <Play className="h-5 w-5 fill-current" />

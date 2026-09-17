@@ -70,7 +70,7 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 * **Layout:** Centered elevated card displaying the studio emblem, a lock badge with gold glow, a summary of the 5 accessible tiers ($5 to $50), and a high-contrast primary CTA: *"Pledge on Patreon to Play"*.
 
 ### 4. Language Switcher
-* **Trigger:** Accessible button with Lucide globe SVG icon showing active language code (`EN`, `JA`, `ES`, `RU`, `ZH`).
+* **Trigger:** Accessible button with flag emoji icon showing active language code (`EN`, `JA`, `ES`, `RU`, `ZH`, `PL`).
 * **Interaction:** Opens Radix Dropdown menu. Selecting a language re-renders the web shell microcopy instantly without page reload.
 * **Persistence:** Writes selected locale code to `ropoductions_lang` cookie (valid 365 days).
 

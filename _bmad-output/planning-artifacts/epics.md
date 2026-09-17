@@ -36,7 +36,7 @@ This document provides the complete epic and story breakdown for ropoductions-we
 - **FR-16:** Safe Storage Reset / Wipe Option providing a two-step confirmation dialog to purge local game save data.
 - **FR-17:** Encrypted Asset Runtime Support enabling the game engine to decrypt static assets in memory during execution.
 - **FR-18:** Authenticated Edge Asset Routing verifying active session cookies on `/api/game/*` requests and returning HTTP 403 for unauthorized requests.
-- **FR-19:** Multilanguage Web Shell & Language Selector providing an accessible language switcher supporting multiple locales (English default, plus e.g. Japanese, Spanish, Russian, Chinese) persisting locale selection in a 365-day cookie.
+- **FR-19:** Multilanguage Web Shell & Language Selector providing an accessible language switcher supporting multiple locales (English default, plus e.g. Japanese, Spanish, Russian, Chinese, Polish) persisting locale selection in a 365-day cookie.
 - **FR-20:** Restricted Studio Admin Shell & Anti-Enumeration Guard providing an isolated `(admin)` layout restricted to `session.role === 'admin'` returning HTTP 404 for unauthorized visitors.
 - **FR-21:** Studio Patron Override Management & Lockout Protection providing an internal dashboard to register, list, and revoke Patreon ID access passes with sole-admin lockout prevention and audit metadata.
 
@@ -180,7 +180,7 @@ So that all studio portal text, age gate notices, and microcopy are presented in
 
 **Given** a visitor viewing any public page
 **When** clicking the language switcher dropdown in the header or footer
-**Then** a menu displays supported locales (`EN`, `JA`, `ES`, `RU`, `ZH`) with Lucide globe SVG icons
+**Then** a menu displays supported locales (`EN`, `JA`, `ES`, `RU`, `ZH`, `PL`) with flag emoji icons
 **And** selecting a language updates all portal text instantly without requiring a page reload
 **And** the selection is stored in a `ropoductions_lang` cookie (valid 365 days)
 **And** missing keys in any non-English dictionary fall back gracefully to English without rendering raw translation keys.

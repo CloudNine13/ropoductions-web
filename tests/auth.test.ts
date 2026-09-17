@@ -70,6 +70,12 @@ describe("approved campaign tiers and threshold", () => {
     assert.equal(unknown, undefined);
   });
 
+  it("rejects name matches when the pledge is below the tier minimum", () => {
+    assert.equal(findApprovedTier("Ork Patron", 100), undefined);
+    assert.ok(findApprovedTier("Ork Patron", 500));
+    assert.ok(findApprovedTier("Ork Patron"));
+  });
+
   it("resolves approved tiers by amount in cents", () => {
     const tier500 = findApprovedTier(null, 500);
     assert.ok(tier500);
@@ -427,6 +433,79 @@ describe("patreon campaign membership client getPatronCampaignMembership", () =>
     assert.ok(membership);
     assert.equal(membership.tierId, "tier_standalone_500");
   });
+
+  it("returns null when the campaign member identity does not match", async () => {
+    const mockFetch: typeof fetch = async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "member_other",
+              type: "member",
+              attributes: {
+                patron_status: "active_patron",
+                currently_entitled_amount_cents: 2500,
+              },
+              relationships: {
+                user: { data: { id: "user_other", type: "user" } },
+              },
+            },
+            {
+              id: "member_another",
+              type: "member",
+              attributes: {
+                patron_status: "active_patron",
+                currently_entitled_amount_cents: 500,
+              },
+              relationships: {
+                user: { data: { id: "user_another", type: "user" } },
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+
+    const membership = await getPatronCampaignMembership({
+      campaignId: "camp_123",
+      accessToken: "test_token",
+      patronId: "user_self",
+      fetchFn: mockFetch,
+    });
+
+    assert.equal(membership, null);
+  });
+
+  it("uses the single campaign member when user linkage is absent", async () => {
+    const mockFetch: typeof fetch = async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "member_solo",
+              type: "member",
+              attributes: {
+                patron_status: "active_patron",
+                currently_entitled_amount_cents: 500,
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+
+    const membership = await getPatronCampaignMembership({
+      campaignId: "camp_123",
+      accessToken: "test_token",
+      patronId: "user_self",
+      fetchFn: mockFetch,
+    });
+
+    assert.ok(membership);
+    assert.equal(membership.memberId, "member_solo");
+  });
 });
 
 describe("session access validation and transactional override revocation validateSessionAccess", () => {
@@ -485,6 +564,13 @@ describe("session access validation and transactional override revocation valida
     const signed = await signValue("session-1", SECRET);
     const tampered = signed.slice(0, -4) + "XXXX";
     const res = await validateSessionAccess({ db, sessionCookie: tampered, sessionSecret: SECRET });
+    assert.equal(res.status, "invalid_signature");
+  });
+
+  it("fails closed with invalid_signature when the session secret is missing", async () => {
+    const { db } = createTestDb([createSessionFixture({ id: "sess-live" })]);
+    const signed = await signValue("sess-live", SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed });
     assert.equal(res.status, "invalid_signature");
   });
 

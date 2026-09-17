@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { saveLandingScrollPosition } from "@/lib/paywall";
 
 export function StudioFooter() {
   const t = useTranslations("footer");
@@ -43,6 +44,8 @@ export function StudioFooter() {
             </Link>
             <Link
               href="/play"
+              scroll={false}
+              onClick={saveLandingScrollPosition}
               className="text-sm text-primary hover:text-primary-hover font-semibold transition-colors min-h-[44px] inline-flex items-center"
             >
               {t("navPlay")}

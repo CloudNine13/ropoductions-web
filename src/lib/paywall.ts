@@ -71,3 +71,30 @@ export function getPaywallBannerMessageKey(
       return "bannerAuthRequired";
   }
 }
+
+const LANDING_SCROLL_KEY = "ropoductions:scrollY";
+
+export function saveLandingScrollPosition(): void {
+  try {
+    sessionStorage.setItem(LANDING_SCROLL_KEY, String(window.scrollY));
+    document.documentElement.classList.remove("scroll-smooth");
+  } catch {
+    /* private mode: fall back to default navigation scrolling */
+  }
+}
+
+export function restoreLandingScrollPosition(): void {
+  try {
+    const saved = sessionStorage.getItem(LANDING_SCROLL_KEY);
+    sessionStorage.removeItem(LANDING_SCROLL_KEY);
+    if (saved !== null) {
+      const y = parseInt(saved, 10);
+      if (!isNaN(y)) {
+        window.scrollTo(0, Math.max(0, y));
+      }
+    }
+    document.documentElement.classList.add("scroll-smooth");
+  } catch {
+    /* private mode or no DOM: nothing stored, nothing to restore */
+  }
+}

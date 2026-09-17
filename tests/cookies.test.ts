@@ -4,6 +4,7 @@ import {
   AGE_VERIFIED_COOKIE_MAX_AGE,
   AGE_VERIFIED_COOKIE_NAME,
   hasAgeVerifiedCookie,
+  isSecureCookieScope,
   setAgeVerifiedCookie,
 } from "../src/lib/cookies";
 
@@ -70,5 +71,18 @@ describe("age-gate cookie entry point", () => {
     delete (globalThis as Record<string, unknown>).window;
     assert.equal(hasAgeVerifiedCookie(), false);
     assert.doesNotThrow(() => setAgeVerifiedCookie());
+  });
+});
+
+describe("secure cookie scope entry point", () => {
+  it("marks production hosts secure regardless of internal protocol", () => {
+    assert.equal(isSecureCookieScope(new URL("http://ropoductions.example/play")), true);
+    assert.equal(isSecureCookieScope(new URL("https://ropoductions.example/")), true);
+  });
+
+  it("leaves local development hosts non-secure", () => {
+    assert.equal(isSecureCookieScope(new URL("http://localhost:3000/")), false);
+    assert.equal(isSecureCookieScope(new URL("http://127.0.0.1:3100/")), false);
+    assert.equal(isSecureCookieScope(new URL("http://app.localhost:3000/")), false);
   });
 });

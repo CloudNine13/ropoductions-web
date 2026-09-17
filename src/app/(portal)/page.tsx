@@ -3,8 +3,7 @@ import { HeroSection } from "@/components/hero-section";
 import { ProjectShowcase } from "@/components/project-showcase";
 import { SocialHub } from "@/components/social-hub";
 import { StudioFooter } from "@/components/studio-footer";
-import { PaywallNotificationBanner } from "@/components/paywall-notification-banner";
-import { PatreonPaywallCard } from "@/components/patreon-paywall-card";
+import { PaywallModal } from "@/components/paywall-modal";
 import { resolvePaywallType } from "@/lib/paywall";
 
 interface PortalPageProps {
@@ -21,7 +20,7 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground overflow-x-clip">
       {/* Sticky Studio Brand Header */}
       <StudioHeader />
-      {paywallType && <PaywallNotificationBanner type={paywallType} />}
+      {paywallType && <PaywallModal />}
 
       {/* Main Content Area with Full-Bleed Hero and Constrained Content Sections */}
       <main className="flex-1 w-full flex flex-col">
@@ -35,13 +34,6 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
 
           {/* Verified Community & Social Hub Links */}
           <SocialHub />
-
-          {/* Patreon Supporter Access Paywall Matrix */}
-          {paywallType && (
-            <div id="paywall-section" className="pt-8">
-              <PatreonPaywallCard />
-            </div>
-          )}
         </div>
       </main>
       {/* Studio Compliance & Brand Footer */}
