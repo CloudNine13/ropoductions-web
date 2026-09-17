@@ -5,7 +5,7 @@
       <stop offset="100%" stop-color="#090A0F" />
     </linearGradient>
   </defs>
-  <rect width="400" height="500" rx="12" fill="url(#charBg3)" stroke="#A855F7" stroke-width="2" />
+  <rect width="400" height="500" fill="url(#charBg3)" />
   <circle cx="200" cy="200" r="130" fill="#A855F7" opacity="0.15" />
 
   <!-- Sorceress Figure -->

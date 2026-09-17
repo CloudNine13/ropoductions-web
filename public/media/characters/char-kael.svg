@@ -5,7 +5,7 @@
       <stop offset="100%" stop-color="#090A0F" />
     </linearGradient>
   </defs>
-  <rect width="400" height="500" rx="12" fill="url(#charBg2)" stroke="#E11D48" stroke-width="2" />
+  <rect width="400" height="500" fill="url(#charBg2)" />
   <circle cx="200" cy="200" r="130" fill="#E11D48" opacity="0.15" />
 
   <!-- Swordsman Figure -->
