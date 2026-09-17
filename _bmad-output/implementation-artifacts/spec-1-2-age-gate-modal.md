@@ -14,7 +14,7 @@ context: []
 
 **Problem:** Visitors arriving at the Ropoductions web portal can access public pages without age verification, creating legal and compliance exposure for mature indie gaming content.
 
-**Approach:** Implement a mandatory Radix UI `Dialog` modal in `src/components/age-gate-dialog.tsx` mounted within `src/app/(portal)/layout.tsx` that checks for the `ropoductions_age_verified=true` cookie (max-age 30 days, `SameSite=Lax`, `Secure`), traps focus with `backdrop-blur-xl`, sets the cookie and smoothly dissolves on "I am 21 or older — Enter Studio", immediately redirects to `https://google.com` on "Exit", and remains hidden for verified returning visitors.
+**Approach:** Implement a mandatory Radix UI `Dialog` modal in `src/components/age-gate-dialog.tsx` mounted within `src/app/(portal)/layout.tsx` that checks for the `ropoductions_age_verified=true` cookie (max-age 5 days / 432000s, locked per owner decision, `SameSite=Lax`, `Secure`), traps focus with `backdrop-blur-xl`, sets the cookie and smoothly dissolves on "I am 21 or older — Enter Studio", immediately redirects to `https://google.com` on "Exit", and remains hidden for verified returning visitors.
 
 </frozen-after-approval>
 

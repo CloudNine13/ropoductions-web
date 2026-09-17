@@ -171,6 +171,13 @@ graph LR
 | next-intl | 4.14.5 | Edge localization |
 ---
 
+## Design System & Theme Foundations
+
+The portal theme standardizes on:
+- **Surfaces:** `#090A0F` (Cosmic Black base), `#121522` (deep obsidian card surface), `#1A1D2B` (muted surface).
+- **Accents:** `#22C55E` (Studio Emerald primary glow), `#E11D48` (crimson alert/destructive accent), `#FBBF24` (Patron Gold tier badges).
+- **Typography:** Display headlines use `Chakra Petch` (Google Fonts; exported with a `cinzel` backward-compatibility alias in `src/lib/fonts.ts`), paired with `Geist Sans` for body copy and `Geist Mono` for system metadata and timestamps.
+
 ## Structural Seed
 
 ```text

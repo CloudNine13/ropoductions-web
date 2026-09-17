@@ -16,7 +16,7 @@ Establish the public web foundation, brand presence, and compliance infrastructu
 ## Requirements & Constraints
 
 - **Mandatory 21+ Age Verification Gate:** All visitors without an existing verified cookie must encounter a full-screen blocking modal immediately upon arrival. Access to underlying portal content, media, and interactive routes must remain blocked until the visitor self-attests they are 21 or older. Declining verification must immediately redirect the browser to a safe external site (such as Google).
-- **Age Gate Persistence:** Confirmed age status must be stored in a client-side cookie (`ropoductions_age_verified=true`) with a 30-day lifetime so that returning visitors are not repeatedly prompted. Clearing browser storage resets the gate.
+- **Age Gate Persistence:** Confirmed age status must be stored in a client-side cookie (`ropoductions_age_verified=true`) with a 5-day lifetime (432,000 seconds, locked per project owner decision) so that returning visitors are not repeatedly prompted. Clearing browser storage resets the gate.
 - **Responsive Studio Identity & Showcase:** The public home page (`/`) must showcase studio branding, key art banners, lore summaries, and prominent calls-to-action ("Play Now with Patreon" and "Enter Game"). The layout must adapt fluidly from mobile viewports (320px+) to desktop with zero horizontal overflow.
 - **Project Media Cards & Lightbox:** Showcase the studio's primary RPG Maker MZ title with character blurbs, story teasers, and a screenshot gallery where clicking any image opens an accessible, responsive modal lightbox. Future or non-playable projects (such as upcoming Godot titles) must display clear status badges (e.g., "Coming Soon").
 - **Community Hub Links:** Verified links to Patreon, Discord, and Twitter/X must open safely in a new browser tab with `rel="noopener noreferrer"` and `target="_blank"`.
@@ -43,7 +43,7 @@ Establish the public web foundation, brand presence, and compliance infrastructu
 - **UI Primitives & Iconography:** Radix UI primitives (`@radix-ui/react-dialog`, dropdown menu) paired with Lucide React SVG icons. Bare emojis as UI icons are prohibited.
 - **Localization Strategy:** Edge-compatible dictionary localization (`next-intl` or structured JSON dictionary files under `src/locales/[locale].json`) with automatic fallback to English.
 - **State & Cookie Conventions:**
-  - Age Verification: `ropoductions_age_verified` (valid 30 days, `SameSite=Lax`, `Secure`).
+  - Age Verification: `ropoductions_age_verified` (valid 5 days / 432000s, `SameSite=Lax`, `Secure`, locked per owner decision).
   - Language Selection: `ropoductions_lang` (valid 365 days, `SameSite=Lax`).
 - **File Organization:** Components, routes, and utilities use `kebab-case` naming (`age-gate-dialog.tsx`, `language-switcher.tsx`). Public studio pages reside within the route group `src/app/(portal)/`.
 
@@ -52,7 +52,7 @@ Establish the public web foundation, brand presence, and compliance infrastructu
 - **First-Time Arrival Flow (21+ Gate):**
   - Visitors arriving without a valid age verification cookie see the entire background page set to `aria-hidden="true"` behind a dark blurred overlay (`bg-black/80 backdrop-blur-xl`).
   - Focus is trapped strictly within the modal dialog (`role="dialog"`, `aria-modal="true"`), auto-focusing the primary confirmation button ("I am 21 or older — Enter Studio").
-  - Confirming triggers a smooth 200ms ease-out dissolution of the modal, sets the 30-day cookie, and restores user interaction with the page.
+  - Confirming triggers a smooth 200ms ease-out dissolution of the modal, sets the 5-day cookie, and restores user interaction with the page.
   - Declining triggers immediate window redirection to `https://google.com`.
 - **Studio Showcase Exploration:**
   - Hero banner with subtle radial lighting behind character artwork, framing the studio tagline and primary action button.

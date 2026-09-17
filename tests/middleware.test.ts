@@ -50,6 +50,15 @@ describe("edge gate entry points", () => {
     assert.equal(response.status, 200);
   });
 
+  it("lets verified patrons with quoted cookie values stream game assets", async () => {
+    const quotedPatron = {
+      ropoductions_session: '"session-uuid"',
+      ropoductions_age_verified: '"true"',
+    };
+    const response = middleware(mockRequest("/api/game/data/file1.rpgsave", quotedPatron) as never);
+    assert.equal(response.status, 200);
+  });
+
   it("redirects unverified play entry to landing with a renewal flag", async () => {
     const response = middleware(mockRequest("/play") as never);
 
@@ -62,6 +71,24 @@ describe("edge gate entry points", () => {
   it("lets verified patrons enter play without redirect", async () => {
     const response = middleware(mockRequest("/play", VERIFIED_PATRON) as never);
     assert.equal(response.status, 200);
+  });
+
+  it("lets verified patrons with quoted cookie values enter play without redirect", async () => {
+    const quotedPatron = {
+      ropoductions_session: '"session-uuid"',
+      ropoductions_age_verified: '"true"',
+    };
+    const response = middleware(mockRequest("/play", quotedPatron) as never);
+    assert.equal(response.status, 200);
+  });
+
+  it("rejects false quoted age verification values", async () => {
+    const invalidQuoted = {
+      ropoductions_session: '"session-uuid"',
+      ropoductions_age_verified: '"false"',
+    };
+    const response = middleware(mockRequest("/play", invalidQuoted) as never);
+    assert.equal(response.status, 307);
   });
 
   it("passes unrelated portal traffic through untouched", async () => {
