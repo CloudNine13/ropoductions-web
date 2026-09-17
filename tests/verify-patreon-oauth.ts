@@ -375,38 +375,40 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(httpsErrorResponse.headers.get("Set-Cookie")?.includes("Secure"));
 
   const originalFetch = globalThis.fetch;
-  try {
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const urlStr = input.toString();
-      if (urlStr === PATREON_TOKEN_URL) {
-        return new Response(
-          JSON.stringify({
-            access_token: "live_access_token_xyz",
-            refresh_token: "live_refresh_token_abc",
-            expires_in: 2592000,
-            scope: "identity campaigns.members",
-            token_type: "Bearer",
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
-      if (urlStr.startsWith(PATREON_IDENTITY_URL)) {
-        return new Response(
-          JSON.stringify({
-            data: {
-              id: "987654321",
-              type: "user",
-              attributes: {
-                email: "founder@ropoductions.com",
-                full_name: "Studio Founder",
-              },
+  const mockPatreonSuccessFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = input.toString();
+    if (urlStr === PATREON_TOKEN_URL) {
+      return new Response(
+        JSON.stringify({
+          access_token: "live_access_token_xyz",
+          refresh_token: "live_refresh_token_abc",
+          expires_in: 2592000,
+          scope: "identity campaigns.members",
+          token_type: "Bearer",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (urlStr.startsWith(PATREON_IDENTITY_URL)) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: "987654321",
+            type: "user",
+            attributes: {
+              email: "founder@ropoductions.com",
+              full_name: "Studio Founder",
             },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
-      return originalFetch(input, init);
-    }) as typeof fetch;
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    globalThis.fetch = mockPatreonSuccessFetch;
 
     const validCallbackRequest = new Request(
       `http://localhost:3000/api/auth/callback?code=valid_code_123&state=${state}`,
@@ -426,6 +428,27 @@ async function testRouteHandlers(): Promise<void> {
         .get("Set-Cookie")
         ?.includes("max-age=0")
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  logStep("Verifying admin bootstrap failure does not block authentication");
+  try {
+    globalThis.fetch = mockPatreonSuccessFetch;
+
+    const bootstrapFailureRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=auth_code_bootstrap_eligible&state=${state}`,
+      {
+        method: "GET",
+        headers: {
+          Cookie: `${OAUTH_VERIFIER_COOKIE_NAME}=${signedVerifier}`,
+        },
+      }
+    );
+
+    const bootstrapFailureResponse = await callbackAuth(bootstrapFailureRequest);
+    assert.equal(bootstrapFailureResponse.status, 302);
+    assert.equal(bootstrapFailureResponse.headers.get("Location"), "/play");
   } finally {
     globalThis.fetch = originalFetch;
   }
