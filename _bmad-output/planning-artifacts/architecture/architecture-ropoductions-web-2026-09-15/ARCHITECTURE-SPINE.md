@@ -120,6 +120,7 @@ graph TD
   - **Execution Protocol:** The runner resolves target branch (`client_payload.branch` if present, else manual input, falling back to `tools/release.json` `base` version if `auto`), shallow-clones the release branch using `UPSTREAM_READ_TOKEN`, validates the file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`), injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers it in `js/plugins.js`, synchronizes media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 (`GAME_ASSETS`) via AWS CLI S3 sync (`--endpoint-url`), and commits the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) to `public/engine/`.
   - **Decoupled Runtime Testing Invariant:** Development and testing of the web client iframe container (Story 3.1) and Save HUD postMessage bridge (Epic 4) are completely decoupled from upstream release availability. The web player container can be verified locally and in CI using a lightweight mock canvas harness in `public/engine/index.html` adhering to the identical origin and postMessage protocol.
 
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -143,6 +144,20 @@ sequenceDiagram
     WebRepo->>R2: Sync media assets (audio, img, data) via AWS S3 CLI
     WebRepo->>EngineShell: Commit lightweight HTML5 shell (index.html, js, css)
 ```
+### AD-10 — Two-Tier Admin Architecture: Immutable Creator Admins & Panel-Assigned Overrides [ADOPTED]
+
+- **Binds:** CAP-3, CAP-10, FR-6, FR-20, FR-21
+- **Prevents:** Studio founder lockout, unrecorded administrative privilege escalation, accidental or malicious founder deletion via internal admin tools, and brittle manual production database seeding.
+- **Rule:** The portal strictly enforces a Two-Tier Administrative Access Model:
+  1. **Creator Admins (Permanently Sealed & Immutable):**
+     - A designated set of founding creator Patreon IDs (initially 1, scaling to 2-3) configured via `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`).
+     - Stored with `granted_by = 'creator_bootstrap'` and badged as "Creator Admin (Sealed)".
+     - **Immutability Invariant:** NOBODY can delete, modify, or downgrade a Creator Admin ID. The admin panel omits all delete/edit actions for these records, and database/Server Action mutation endpoints strictly reject modification attempts with HTTP 403 Forbidden.
+  2. **Panel-Assigned Admins (Mutable & Managed):**
+     - Additional team members or playtesters granted elevated roles (`admin` or `comp`) by active administrators through the `/admin/overrides` interface.
+     - Stored with `granted_by = session.patron_id`.
+     - Can be updated or revoked by other authorized administrators, protected by sole-admin lockout prevention (at least one active administrator must remain at all times).
+  - **Local Development Seeding:** The CLI command `npm run db:seed:admins` reads `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`) from `.dev.vars`, `.env.local`, `process.env`, or CLI arguments and ensures all creator admin passes are seeded into local D1 SQLite.
 ---
 
 ## Consistency Conventions
@@ -297,7 +312,7 @@ CREATE INDEX IF NOT EXISTS idx_patron_overrides_role ON patron_overrides(role);
 | CAP-7 (Save HUD .zip Export/Import) | `src/components/save-hud-dock.tsx`, `Ropoductions_WebBridge.js` | AD-4, AD-6 |
 | CAP-8 (Encrypted R2 Asset Protection) | `src/app/api/game/[...asset]/route.ts` | AD-1, AD-3, AD-5 |
 | CAP-9 (Multilanguage Web Shell) | `src/components/language-switcher.tsx`, `src/lib/i18n.ts` | AD-1 |
-| CAP-10 (Studio Admin & Overrides Panel) | `src/app/(admin)/admin/overrides/page.tsx` | AD-1, AD-8 |
+| CAP-10 (Studio Admin & Overrides Panel) | `src/app/(admin)/admin/overrides/page.tsx` | AD-1, AD-8, AD-10 |
 | CAP-11 (Game Ingestion & R2 Sync Pipeline) | `.github/workflows/sync-game-release.yml` | AD-9 |
 
 ---

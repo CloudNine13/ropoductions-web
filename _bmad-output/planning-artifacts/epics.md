@@ -219,8 +219,8 @@ So that the portal identifies my account securely and studio founders gain immed
 **Then** the route generates a cryptographic state and PKCE code challenge, sets a temporary verification cookie, and redirects to Patreon's authorization endpoint requesting `identity` and `campaigns.members` scopes
 **And** upon successful authorization, Patreon redirects back to `/api/auth/callback` with a code and state
 **And** the callback handler validates the state token, exchanges the authorization code for access and refresh tokens, and queries `/api/oauth2/v2/identity` to extract `patron_id`
-**And** if `patron_id` strictly matches an ID in `env.INITIAL_ADMIN_PATREON_IDS` (parsed as an exact trimmed `Set`), the handler upserts a record into `patron_overrides` with `role = 'admin'`, `granted_by = 'system_bootstrap'`, and `notes = 'Initial Env Admin'`.
-
+**And** if `patron_id` strictly matches an ID in `env.CREATOR_ADMIN_PATREON_IDS` or `env.INITIAL_ADMIN_PATREON_IDS` (parsed as an exact trimmed `Set`), the handler upserts a record into `patron_overrides` with `role = 'admin'`, `granted_by = 'creator_bootstrap'`, and `notes = 'Creator Admin (Sealed)'`
+**And** developers configure `CREATOR_ADMIN_PATREON_IDS` (or alias `INITIAL_ADMIN_PATREON_IDS`) as comma-separated numeric Patreon IDs in `.env.local` (for Next.js dev) or `.dev.vars` (for Cloudflare Wrangler dev), with an automated seeding CLI (`npm run db:seed:admins`) available to sync sealed creator admin IDs directly to D1.
 ### Story 2.3: Active Tier Verification ($5+ Threshold) & Override Short-Circuit Evaluation
 
 As an authenticated patron or team member,
@@ -396,9 +396,12 @@ So that I can grant playtest and team access without asking developers to run ma
 
 **Given** an authorized administrator on `/admin/overrides`
 **When** the page loads
-**Then** it displays an active overrides table showing Patreon ID, Role badge (`#FBBF24` for Admin, `#38BDF8` for Comp), Notes, Granted By, and Date Added
-**And** a registration form with inputs for Patreon ID (text), Role (dropdown select), and Notes (optional text)
-**And** submitting the form validates the Patreon ID against the numeric regex `^\d{1,20}$` (rejecting non-digits and whitespace)
+**Then** it displays an active overrides table showing Patreon ID, Role badge (`#FBBF24` for Admin, `#38BDF8` for Comp), Admin Tier (`#FBBF24` "Creator Admin (Sealed)" lock badge for `granted_by = 'creator_bootstrap'`, or `#38BDF8` "Panel Admin" for runtime grants), Notes, Granted By, and Date Added
+**And** the Two-Tier Admin Model is strictly enforced:
+  1. **Creator Admins (`granted_by = 'creator_bootstrap'`):** Permanently sealed founding creator accounts (configured via `CREATOR_ADMIN_PATREON_IDS`). In the admin panel, Creator Admin rows are immutable: form updates to their role, notes, or status are strictly disabled.
+  2. **Panel-Assigned Admins (`granted_by = session.patron_id`):** Runtime administrators and complimentary playtesters created or managed by studio staff via the dashboard form.
+**And** a registration form with inputs for Patreon ID (text), Role (dropdown select), and Notes (optional text) allows creating new overrides or updating existing panel-assigned records
+**And** submitting the form validates the Patreon ID against the numeric regex `^\d{1,20}$` (rejecting non-digits and whitespace), rejecting any attempt to reassign or modify a sealed Creator Admin
 **And** executes a Next.js Server Action inserting or updating `patron_overrides` with `granted_by = session.patron_id` and refreshes the table via `revalidatePath('/admin/overrides')`
 **And** all inputs and interactive buttons adhere to the 44x44px minimum touch target size.
 
@@ -412,8 +415,9 @@ So that I can easily manage access while preventing accidental removal of all ad
 
 **Given** an authorized administrator viewing the overrides table
 **When** reviewing an override entry
-**Then** each row provides a "Revoke" button triggering an accessible Radix Dialog confirmation modal
+**Then** each panel-assigned row provides a "Revoke" button triggering an accessible Radix Dialog confirmation modal
 **And** the modal displays a clear warning and a `#E11D48` crimson confirmation button
-**And** if the target entry is the administrator's own ID and `COUNT(*) FROM patron_overrides WHERE role = 'admin'` is 1, the Revoke action is disabled with the warning "Cannot revoke the sole remaining administrator"
-**And** upon confirming a valid revocation, a Server Action deletes the row from `patron_overrides` and revalidates the path
+**And** for Creator Admins (`granted_by = 'creator_bootstrap'`): NOBODY can delete, revoke, or modify these records; the Revoke action is completely disabled and omitted in the UI with a permanent sealed lock indicator, and the server-side revocation action strictly rejects any deletion attempt with HTTP 403 Forbidden
+**And** for panel-assigned admins: if the target entry is the administrator's own ID and `COUNT(*) FROM patron_overrides WHERE role = 'admin'` is 1, the Revoke action is disabled with the warning "Cannot revoke the sole remaining administrator"
+**And** upon confirming a valid revocation of a panel-assigned pass, a Server Action deletes the row from `patron_overrides` and revalidates the path
 **And** any active session belonging to the revoked user is invalidated on their next navigation per Story 2.4.

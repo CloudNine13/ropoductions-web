@@ -53,6 +53,10 @@ Ropoductions adult game studio currently distributes titles through manual archi
 - **CAP-9**
   - **intent:** Visitors and players can select their preferred language from a language switcher, dynamically localizing the web shell, age gate, landing page, paywall, and save HUD.
   - **success:** Selecting a language instantly updates all portal microcopy and UI text, persisting the locale preference in a client cookie across sessions.
+
+- **CAP-10**
+  - **intent:** Studio creators and administrators manage role overrides and game playtest passes with anti-enumeration protection and sealed Creator Admin immutability.
+  - **success:** The application enforces a Two-Tier Admin Model: Creator Admins configured via `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`) in `.env.local` / `.dev.vars` are sealed inside the application and CANNOT be modified, updated, or deleted by any user or admin panel action. Panel Admins assigned through the dashboard can be created, updated, and revoked by authorized staff with sole-admin lockout protection.
 ## Constraints
 
 - Embedded game engine is RPG Maker MZ HTML5 export with an initial payload footprint of 5–30MB.

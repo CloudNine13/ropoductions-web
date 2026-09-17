@@ -1,7 +1,7 @@
 import type { SessionRecord } from "@/types/database";
-import { getPatronOverride, getSessionById, revokeSession } from "./db";
+import { getPatronOverride, getSessionById, revokeSession, upsertSession } from "./db";
 import { verifySignedValue } from "./crypto";
-
+import { bootstrapInitialAdminIfEligible } from "./patreon";
 export interface ApprovedTier {
   name: string;
   cents: number;
@@ -84,8 +84,9 @@ export async function validateSessionAccess(options: {
   sessionCookie?: string | null;
   sessionSecret?: string;
   nowSec?: number;
+  initialAdminIds?: string | null;
 }): Promise<SessionValidationResult> {
-  const { db, sessionCookie, sessionSecret } = options;
+  const { db, sessionCookie, sessionSecret, initialAdminIds } = options;
   const nowSec = options.nowSec ?? Math.floor(Date.now() / 1000);
 
   if (!sessionCookie) {
@@ -115,9 +116,22 @@ export async function validateSessionAccess(options: {
   if (session.expires_at_sec <= nowSec) {
     return { status: "lapsed", session };
   }
-
   if (session.role === "admin" || session.role === "comp") {
-    const override = await getPatronOverride(db, session.patron_id);
+    let override = await getPatronOverride(db, session.patron_id);
+    if (!override && initialAdminIds) {
+      try {
+        const bootstrapped = await bootstrapInitialAdminIfEligible(
+          db,
+          session.patron_id,
+          initialAdminIds
+        );
+        if (bootstrapped) {
+          override = await getPatronOverride(db, session.patron_id);
+        }
+      } catch {
+        // Best-effort bootstrap; does not interrupt session validation
+      }
+    }
     if (!override) {
       await revokeSession(db, session.id);
       return { status: "override_deleted", session };
@@ -126,10 +140,37 @@ export async function validateSessionAccess(options: {
   }
 
   if (session.role === "patron") {
-    if (!isAccessAuthorized(session, nowSec)) {
-      return { status: "unauthorized", session };
+    if (isAccessAuthorized(session, nowSec)) {
+      return { status: "authorized", session };
     }
-    return { status: "authorized", session };
+
+    if (initialAdminIds) {
+      try {
+        await bootstrapInitialAdminIfEligible(db, session.patron_id, initialAdminIds);
+      } catch {
+        // Best-effort bootstrap; does not interrupt session validation
+      }
+    }
+
+    const override = await getPatronOverride(db, session.patron_id);
+    if (override && (override.role === "admin" || override.role === "comp")) {
+      const elevatedSession: SessionRecord = {
+        ...session,
+        role: override.role,
+        tier_id: `override_${override.role}`,
+        tier_name:
+          override.role === "admin" ? "Studio Admin" : "Complimentary Pass",
+        last_verified_at_sec: nowSec,
+      };
+      try {
+        await upsertSession(db, elevatedSession);
+      } catch {
+        // Elevation persists in memory for this request even if background update fails
+      }
+      return { status: "authorized", session: elevatedSession };
+    }
+
+    return { status: "unauthorized", session };
   }
 
   return { status: "unauthorized", session };

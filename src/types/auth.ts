@@ -40,6 +40,7 @@ export interface PatreonOAuthConfig {
   redirectUri: string;
   campaignId?: string;
   initialAdminPatreonIds?: string;
+  creatorAdminPatreonIds?: string;
 }
 
 export interface PatreonTierAttributes {

@@ -296,12 +296,31 @@ export function parseInitialAdminPatreonIds(rawIds?: string | null): Set<string>
     return new Set();
   }
 
-  const ids = rawIds
+  const cleaned = rawIds.trim().replace(/^["']|["']$/g, "");
+  const ids = cleaned
     .split(",")
-    .map((id) => id.trim())
+    .map((id) => id.trim().replace(/^["']|["']$/g, ""))
     .filter((id) => id.length > 0);
 
   return new Set(ids);
+}
+export function isCreatorAdmin(patronId: string, creatorAdminIds?: string | null): boolean {
+  if (!patronId || !creatorAdminIds) {
+    return false;
+  }
+  const creatorSet = parseInitialAdminPatreonIds(creatorAdminIds);
+  return creatorSet.has(patronId.trim());
+}
+
+export function assertCanModifyOverride(
+  targetPatronId: string,
+  creatorAdminIds?: string | null
+): void {
+  if (isCreatorAdmin(targetPatronId, creatorAdminIds)) {
+    throw new Error(
+      `Creator Admin '${targetPatronId}' is sealed and cannot be modified or deleted.`
+    );
+  }
 }
 
 export async function bootstrapInitialAdminIfEligible(
@@ -318,8 +337,28 @@ export async function bootstrapInitialAdminIfEligible(
     patron_id: patronId,
     role: "admin",
     granted_by: "system_bootstrap",
-    notes: "Initial Env Admin",
+    notes: "Creator Admin (Sealed)",
   });
 
   return true;
+}
+
+export async function syncInitialAdminOverrides(
+  db: D1Database,
+  initialAdminIds?: string | null
+): Promise<string[]> {
+  const adminSet = parseInitialAdminPatreonIds(initialAdminIds);
+  const synced: string[] = [];
+
+  for (const patronId of adminSet) {
+    await upsertPatronOverride(db, {
+      patron_id: patronId,
+      role: "admin",
+      granted_by: "system_bootstrap",
+      notes: "Creator Admin (Sealed)",
+    });
+    synced.push(patronId);
+  }
+
+  return synced;
 }
