@@ -561,4 +561,48 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
     assert.equal(res.headers.get("content-range"), "bytes */1000");
     assert.equal(await res.text(), "");
   });
+  it("filters redundant empty segments from adjacent slashes", async () => {
+    const req = makeRequest("/api/game/audio//bgm/Theme1.ogg", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, {
+      params: Promise.resolve({ asset: ["audio", "", "bgm", "Theme1.ogg"] }),
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "audio/ogg");
+  });
+
+  it("normalizes capitalized root directory segments to match lowercase R2 keys", async () => {
+    const req = makeRequest("/api/game/Audio/bgm/Theme1.ogg", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, {
+      params: Promise.resolve({ asset: ["Audio", "bgm", "Theme1.ogg"] }),
+    });
+
+    assert.equal(res.status, 200);
+  });
+
+  it("ignores inverted range headers where start > end and returns 200 full entity per RFC 9110", async () => {
+    const req = makeRequest("/api/game/audio/bgm/Theme1.ogg", {
+      headers: { range: "bytes=500-200" },
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, {
+      params: Promise.resolve({ asset: ["audio", "bgm", "Theme1.ogg"] }),
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-length"), "1000");
+  });
 });

@@ -506,6 +506,66 @@ describe("patreon campaign membership client getPatronCampaignMembership", () =>
     assert.ok(membership);
     assert.equal(membership.memberId, "member_solo");
   });
+  it("falls back to identity memberships endpoint when creator campaign endpoint returns 403", async () => {
+    const mockFetch: typeof fetch = async (input) => {
+      const url = input.toString();
+      if (url.includes("/campaigns/camp_123/members")) {
+        return new Response("Forbidden", { status: 403 });
+      }
+
+      assert.ok(url.includes("/api/oauth2/v2/identity"));
+      assert.ok(url.includes("memberships.campaign"));
+
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: "user_patron_1",
+            type: "user",
+          },
+          included: [
+            {
+              id: "mem_from_identity",
+              type: "member",
+              attributes: {
+                patron_status: "active_patron",
+                currently_entitled_amount_cents: 1000,
+                email: "patron@example.com",
+              },
+              relationships: {
+                campaign: {
+                  data: { id: "camp_123", type: "campaign" },
+                },
+                currently_entitled_tiers: {
+                  data: [{ id: "tier_ogre", type: "tier" }],
+                },
+              },
+            },
+            {
+              id: "tier_ogre",
+              type: "tier",
+              attributes: {
+                title: "Ogre Pimp",
+                amount_cents: 1000,
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+
+    const membership = await getPatronCampaignMembership({
+      campaignId: "camp_123",
+      accessToken: "patron_oauth_token",
+      fetchFn: mockFetch,
+    });
+
+    assert.ok(membership);
+    assert.equal(membership.memberId, "mem_from_identity");
+    assert.equal(membership.patronStatus, "active_patron");
+    assert.equal(membership.currentlyEntitledAmountCents, 1000);
+    assert.equal(membership.tierName, "Ogre Pimp");
+  });
 });
 
 describe("session access validation and transactional override revocation validateSessionAccess", () => {

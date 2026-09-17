@@ -21,14 +21,19 @@ export const PAYWALL_TIERS = [
 export function resolvePaywallType(params: {
   paywall?: string;
   auth_required?: string;
+  auth_error?: string;
 }): PaywallType | null {
   if (params.paywall === "revoked") {
     return "revoked";
   }
-  if (params.paywall === "lapsed") {
+  if (params.paywall === "lapsed" || params.auth_error === "inactive_patron") {
     return "lapsed";
   }
-  if (params.paywall === "required" || params.auth_required === "true") {
+  if (
+    params.paywall === "required" ||
+    params.auth_required === "true" ||
+    params.auth_error === "insufficient_pledge"
+  ) {
     return "required";
   }
   return null;

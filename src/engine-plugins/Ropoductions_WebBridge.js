@@ -171,25 +171,32 @@
       return;
     }
 
-    const data = event.data;
-    if (!isPlainObject(data) || typeof data.type !== "string") {
+    if (window.parent && window.parent !== window && event.source && event.source !== window.parent) {
       return;
     }
 
-    switch (data.type) {
-      case "ROPODUCTIONS_GET_SAVES":
-        await handleGetSaves();
-        break;
-      case "ROPODUCTIONS_SET_SAVES":
-        await handleSetSaves(data.payload);
-        break;
-      case "ROPODUCTIONS_RESET_SAVES":
-        await handleResetSaves();
-        break;
-      default:
-        break;
+    try {
+      const data = event.data;
+      if (!isPlainObject(data) || typeof data.type !== "string") {
+        return;
+      }
+
+      switch (data.type) {
+        case "ROPODUCTIONS_GET_SAVES":
+          await handleGetSaves();
+          break;
+        case "ROPODUCTIONS_SET_SAVES":
+          await handleSetSaves(data.payload);
+          break;
+        case "ROPODUCTIONS_RESET_SAVES":
+          await handleResetSaves();
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      console.error("[Ropoductions_WebBridge] Error processing message:", err);
     }
   }
-
   window.addEventListener("message", onMessage);
 })();

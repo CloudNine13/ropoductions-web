@@ -93,15 +93,22 @@ function sanitizeAssetPath(segments?: string[]): { key?: string; error?: string 
     if (decoded.includes("\0") || decoded.includes("\\") || decoded.includes("/")) {
       return { error: "Illegal characters in asset path." };
     }
-    if (decoded === "" || decoded === "." || decoded === ".." || decoded.startsWith(".")) {
+    if (decoded === "") {
+      continue;
+    }
+    if (decoded === "." || decoded === ".." || decoded.startsWith(".")) {
       return { error: "Path traversal or invalid segment in asset path." };
     }
     decodedSegments.push(decoded);
+  }
+  if (decodedSegments.length === 0) {
+    return { error: "Asset path is required." };
   }
   const rootDir = decodedSegments[0].toLowerCase();
   if (!ALLOWED_ROOT_DIRS[rootDir]) {
     return { error: "Access outside allowed asset directories is restricted." };
   }
+  decodedSegments[0] = rootDir;
   return { key: decodedSegments.join("/") };
 }
 
@@ -148,7 +155,7 @@ function parseByteRange(rangeHeader: string, fileSize: number): ParsedRange | "i
   if (endStr !== undefined) {
     end = parseInt(endStr, 10);
     if (start > end) {
-      return "unsatisfiable";
+      return "invalid";
     }
     end = Math.min(end, fileSize - 1);
   } else {
@@ -301,28 +308,58 @@ async function handleAssetRequest(
     );
   }
 
-  let head;
-  try {
-    head = await bucket.head(key);
-  } catch {
-    return NextResponse.json(
-      {
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "An unexpected error occurred.",
+  const rangeHeader = request.headers.get("range");
+
+  let headOrObject: R2Object | R2ObjectBody | null = null;
+  let objectBody: ReadableStream | null = null;
+
+  if (isHead || rangeHeader) {
+    try {
+      headOrObject = await bucket.head(key);
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "An unexpected error occurred.",
+          },
         },
-      },
-      {
-        status: 500,
-        headers: {
-          "Cache-Control": "no-store",
-          "Cross-Origin-Resource-Policy": "same-origin",
-        },
+        {
+          status: 500,
+          headers: {
+            "Cache-Control": "no-store",
+            "Cross-Origin-Resource-Policy": "same-origin",
+          },
+        }
+      );
+    }
+  } else {
+    try {
+      const obj = await bucket.get(key);
+      headOrObject = obj;
+      if (obj && "body" in obj && obj.body) {
+        objectBody = obj.body as ReadableStream;
       }
-    );
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "An unexpected error occurred.",
+          },
+        },
+        {
+          status: 500,
+          headers: {
+            "Cache-Control": "no-store",
+            "Cross-Origin-Resource-Policy": "same-origin",
+          },
+        }
+      );
+    }
   }
 
-  if (!head) {
+  if (!headOrObject) {
     return NextResponse.json(
       {
         error: {
@@ -339,6 +376,7 @@ async function handleAssetRequest(
       }
     );
   }
+  const head = headOrObject;
 
   const ifMatch = request.headers.get("if-match");
   if (ifMatch && ifMatch.trim() !== "*") {
@@ -399,7 +437,6 @@ async function handleAssetRequest(
   const contentType = resolveContentType(key, head.httpMetadata?.contentType);
   headers.set("Content-Type", contentType);
 
-  const rangeHeader = request.headers.get("range");
   if (rangeHeader) {
     const parsedRange = parseByteRange(rangeHeader, head.size);
     if (parsedRange === "unsatisfiable") {
@@ -481,9 +518,62 @@ async function handleAssetRequest(
     });
   }
 
-  let object;
+  if (!objectBody) {
+    let object;
+    try {
+      object = await bucket.get(key);
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "An unexpected error occurred.",
+          },
+        },
+        {
+          status: 500,
+          headers: {
+            "Cache-Control": "no-store",
+            "Cross-Origin-Resource-Policy": "same-origin",
+          },
+        }
+      );
+    }
+
+    if (!object || !object.body) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "NOT_FOUND",
+            message: "Asset not found.",
+          },
+        },
+        {
+          status: 404,
+          headers: {
+            "Cache-Control": "no-store",
+            "Cross-Origin-Resource-Policy": "same-origin",
+          },
+        }
+      );
+    }
+    objectBody = object.body as ReadableStream;
+  }
+
+  headers.set("Content-Length", head.size.toString());
+
+  return new Response(objectBody, {
+    status: 200,
+    headers,
+  });
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ asset?: string[] }> }
+) {
   try {
-    object = await bucket.get(key);
+    return await handleAssetRequest(request, params, false);
   } catch {
     return NextResponse.json(
       {
@@ -501,17 +591,24 @@ async function handleAssetRequest(
       }
     );
   }
+}
 
-  if (!object || !object.body) {
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: Promise<{ asset?: string[] }> }
+) {
+  try {
+    return await handleAssetRequest(request, params, true);
+  } catch {
     return NextResponse.json(
       {
         error: {
-          code: "NOT_FOUND",
-          message: "Asset not found.",
+          code: "INTERNAL_ERROR",
+          message: "An unexpected error occurred.",
         },
       },
       {
-        status: 404,
+        status: 500,
         headers: {
           "Cache-Control": "no-store",
           "Cross-Origin-Resource-Policy": "same-origin",
@@ -519,25 +616,4 @@ async function handleAssetRequest(
       }
     );
   }
-
-  headers.set("Content-Length", head.size.toString());
-
-  return new Response(object.body, {
-    status: 200,
-    headers,
-  });
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ asset?: string[] }> }
-) {
-  return handleAssetRequest(request, params, false);
-}
-
-export async function HEAD(
-  request: NextRequest,
-  { params }: { params: Promise<{ asset?: string[] }> }
-) {
-  return handleAssetRequest(request, params, true);
 }

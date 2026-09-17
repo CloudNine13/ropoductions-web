@@ -17,6 +17,7 @@ export const PATREON_CAMPAIGNS_URL = "https://www.patreon.com/api/oauth2/v2/camp
 export const DEFAULT_PATREON_SCOPES = [
   "identity",
   "identity[email]",
+  "identity.memberships",
   "campaigns.members",
 ];
 
@@ -81,6 +82,7 @@ export async function exchangeAuthorizationCode({
       "User-Agent": "ropoductions-web/0.1.0",
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
@@ -103,6 +105,7 @@ export async function getPatronIdentity(
       Authorization: `Bearer ${accessToken}`,
       "User-Agent": "ropoductions-web/0.1.0",
     },
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
@@ -158,12 +161,24 @@ export async function getPatronCampaignMembership(
     campaignId
   )}/members?include=currently_entitled_tiers&fields%5Bmember%5D=patron_status,currently_entitled_amount_cents,email,full_name&fields%5Btier%5D=title,amount_cents`;
 
-  const response = await fetchFn(url, {
+  let response = await fetchFn(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "User-Agent": "ropoductions-web/0.1.0",
     },
+    signal: AbortSignal.timeout(10_000),
   });
+
+  if (response.status === 403) {
+    const identityUrl = `${PATREON_IDENTITY_URL}?include=memberships.campaign,memberships.currently_entitled_tiers&fields%5Bmember%5D=patron_status,currently_entitled_amount_cents,email,full_name&fields%5Btier%5D=title,amount_cents`;
+    response = await fetchFn(identityUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "ropoductions-web/0.1.0",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -171,7 +186,6 @@ export async function getPatronCampaignMembership(
       `Patreon campaign membership request failed with status ${response.status}: ${errorText}`
     );
   }
-
   const payload = (await response.json()) as PatreonCampaignMembersResponse;
   if (!payload?.data) {
     return null;
@@ -191,8 +205,21 @@ export async function getPatronCampaignMembership(
     } else {
       memberData = payload.data[0];
     }
+  } else if (
+    typeof payload.data === "object" &&
+    payload.data !== null &&
+    "type" in payload.data &&
+    payload.data.type === "user" &&
+    Array.isArray(payload.included)
+  ) {
+    memberData = payload.included.find((item) => {
+      if (item?.type !== "member") return false;
+      const campRel = item.relationships?.campaign?.data;
+      const cId = Array.isArray(campRel) ? campRel[0]?.id : campRel?.id;
+      return cId === campaignId;
+    }) as PatreonResource<PatreonMemberAttributes> | undefined;
   } else {
-    memberData = payload.data;
+    memberData = payload.data as unknown as PatreonResource<PatreonMemberAttributes>;
   }
   if (!memberData) {
     return null;

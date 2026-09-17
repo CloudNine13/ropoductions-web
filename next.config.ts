@@ -8,6 +8,14 @@ if (process.env.NODE_ENV === "development") {
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    return [
+      {
+        source: "/engine/:dir(data|img|audio|effects|movies)/:path*",
+        destination: "/api/game/:dir/:path*",
+      },
+    ];
+  },
   async headers() {
     return [
       {

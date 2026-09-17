@@ -10,6 +10,7 @@ interface PortalPageProps {
   searchParams?: Promise<{
     paywall?: string;
     auth_required?: string;
+    auth_error?: string;
   }>;
 }
 export default async function PortalPage({ searchParams }: PortalPageProps) {

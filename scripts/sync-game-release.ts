@@ -251,16 +251,19 @@ export function segregateAssets(gameDir: string, publicEngineDir: string): Asset
         }
       } else if (stat.isFile()) {
         const topLevelSegment = relPath.split(path.sep)[0];
+        const posixRelPath = relPath.split(path.sep).join("/");
         if (mediaRootDirs.has(topLevelSegment)) {
-          mediaFiles.push(relPath);
+          mediaFiles.push(posixRelPath);
         } else if (shellDirsOrFiles.has(topLevelSegment)) {
-          shellFiles.push(relPath);
+          shellFiles.push(posixRelPath);
 
           const destPath = path.resolve(publicEngineDir, relPath);
-          if (!destPath.startsWith(canonicalEngineDir)) {
+          const allowedPrefix = canonicalEngineDir.endsWith(path.sep)
+            ? canonicalEngineDir
+            : canonicalEngineDir + path.sep;
+          if (destPath !== canonicalEngineDir && !destPath.startsWith(allowedPrefix)) {
             throw new Error(`Path containment violation: ${destPath} outside ${canonicalEngineDir}`);
           }
-
           fs.mkdirSync(path.dirname(destPath), { recursive: true });
           fs.copyFileSync(fullPath, destPath);
         }

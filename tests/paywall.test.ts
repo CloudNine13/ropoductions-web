@@ -34,6 +34,13 @@ describe("portal query-to-paywall mapping resolvePaywallType", () => {
   it("collapses auth_required=true onto required", () => {
     assert.equal(resolvePaywallType({ auth_required: "true" }), "required");
   });
+  it("maps auth_error=insufficient_pledge onto required", () => {
+    assert.equal(resolvePaywallType({ auth_error: "insufficient_pledge" }), "required");
+  });
+
+  it("maps auth_error=inactive_patron onto lapsed", () => {
+    assert.equal(resolvePaywallType({ auth_error: "inactive_patron" }), "lapsed");
+  });
 
   it("renders no interstitial for absent or unknown params", () => {
     assert.equal(resolvePaywallType({}), null);
