@@ -54,31 +54,27 @@ describe("upstream game release ingestion engine (scripts/sync-game-release.ts)"
   });
 
   describe("resolveTargetBranch", () => {
-    it("returns explicit branch name when not auto", async () => {
-      const result = await resolveTargetBranch("0.6.0");
-      assert.equal(result, "0.6.0");
+    it("defaults to main when branch is auto, undefined, or empty", async () => {
+      assert.equal(await resolveTargetBranch("auto"), "main");
+      assert.equal(await resolveTargetBranch(undefined), "main");
+      assert.equal(await resolveTargetBranch(""), "main");
+      assert.equal(await resolveTargetBranch("   "), "main");
     });
 
-    it("fetches and extracts base version when branch is auto or undefined", async () => {
-      const mockFetch = async () => JSON.stringify({ base: "0.6.5", minBase: "0.6.0" });
-      const result = await resolveTargetBranch("auto", mockFetch);
-      assert.equal(result, "0.6.5");
-
-      const resultUndefined = await resolveTargetBranch(undefined, mockFetch);
-      assert.equal(resultUndefined, "0.6.5");
+    it("returns explicit branch name when valid", async () => {
+      assert.equal(await resolveTargetBranch("main"), "main");
+      assert.equal(await resolveTargetBranch("0.5.8"), "0.5.8");
+      assert.equal(await resolveTargetBranch("custom-feature"), "custom-feature");
     });
 
-    it("throws when release.json fails to parse or lacks base version", async () => {
-      const invalidJsonFetch = async () => "not-json";
+    it("rejects invalid branch names and injection attempts", async () => {
       await assert.rejects(
-        () => resolveTargetBranch("auto", invalidJsonFetch),
-        /Failed to parse upstream tools\/release\.json/
+        () => resolveTargetBranch("-invalid-flag"),
+        /cannot start with hyphen/
       );
-
-      const missingBaseFetch = async () => JSON.stringify({ other: "data" });
       await assert.rejects(
-        () => resolveTargetBranch("auto", missingBaseFetch),
-        /missing valid "base" version/
+        () => resolveTargetBranch("../path-traversal"),
+        /cannot contain traversal sequences/
       );
     });
   });

@@ -20,14 +20,14 @@ describe("workflow and upstream integration manifest verification", () => {
     );
   });
 
-  it("verifies dual triggers: workflow_dispatch with auto default and repository_dispatch with game_release_published", () => {
+  it("verifies dual triggers: workflow_dispatch with main default and repository_dispatch with game_release_published", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");
 
-    // Must declare workflow_dispatch with branch input defaulting to auto
+    // Must declare workflow_dispatch with branch input defaulting to main
     assert.match(content, /workflow_dispatch\s*:/);
     assert.match(content, /branch\s*:/);
-    assert.match(content, /default:\s*["']?auto["']?/);
+    assert.match(content, /default:\s*["']?main["']?/);
 
     // Must declare repository_dispatch with game_release_published
     assert.match(content, /repository_dispatch\s*:/);

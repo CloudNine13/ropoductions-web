@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Upstream branch/tag to sync, or auto to query tools/release.json"
+        description: "Upstream branch to sync (defaults to main)"
         required: false
-        default: "auto"
+        default: "main"
   repository_dispatch:
     types:
       - game_release_published
@@ -39,8 +39,7 @@ jobs:
       - name: Resolve Upstream Release Branch
         id: resolve-branch
         env:
-          BRANCH_INPUT: ${{ github.event.inputs.branch || github.event.client_payload.branch || 'auto' }}
-          UPSTREAM_READ_TOKEN: ${{ secrets.UPSTREAM_READ_TOKEN }}
+          BRANCH_INPUT: ${{ github.event.inputs.branch || github.event.client_payload.branch || 'main' }}
         run: |
           SAFE_BRANCH=$(npx tsx -e "
             import { resolveTargetBranch } from './scripts/sync-game-release.ts';
