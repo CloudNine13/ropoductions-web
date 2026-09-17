@@ -14,12 +14,12 @@ context: []
 
 **Problem:** Visitors arriving at the Ropoductions web portal can access public pages without age verification, creating legal and compliance exposure for mature indie gaming content.
 
-**Approach:** Implement a mandatory Radix UI `Dialog` modal in `src/components/age-gate-dialog.tsx` mounted within `src/app/(portal)/layout.tsx` that checks for the `ropoductions_age_verified=true` cookie (max-age 5 days / 432000s, locked per owner decision, `SameSite=Lax`, `Secure`), traps focus with `backdrop-blur-xl`, sets the cookie and smoothly dissolves on "I am 21 or older — Enter Studio", immediately redirects to `https://google.com` on "Exit", and remains hidden for verified returning visitors.
+**Approach:** Implement a mandatory Radix UI `Dialog` modal in `src/components/age-gate-dialog.tsx` mounted within `src/app/(portal)/layout.tsx` that checks for the `ropoductions_age_verified=true` cookie (max-age 14 hours / 50400s, locked per owner decision, `SameSite=Lax`, `Secure`), traps focus with `backdrop-blur-xl`, sets the cookie and smoothly dissolves on "I am 21 or older — Enter Studio", immediately redirects to `https://google.com` on "Exit", and remains hidden for verified returning visitors.
 
 </frozen-after-approval>
 
 ## Implementation Notes
-- Created `src/lib/cookies.ts` providing `hasAgeVerifiedCookie` and `setAgeVerifiedCookie` utilities with 5-day max-age, Lax, and Secure flags.
+- Created `src/lib/cookies.ts` providing `hasAgeVerifiedCookie` and `setAgeVerifiedCookie` utilities with 14-hour max-age, Lax, and Secure flags.
 - Created `src/components/age-gate-dialog.tsx` implementing a mandatory Radix UI `Dialog` modal with focus trap, explicit cookie disclosure notice, backdrop blur (`backdrop-blur-xl`), dark obsidian card design token styling (`#121522` / `bg-card`), glowing crimson top border (`border-t-2 border-t-primary`), Lucide `ShieldAlert` icon, Cinzel typography, and >=44px touch targets.
 - Updated `src/app/globals.css` with dedicated keyframe animations and exact center translation for `.age-gate-content` and `.age-gate-overlay` ensuring smooth 200ms ease-out dissolution.
 - Mounted `<AgeGateDialog />` inside `src/app/(portal)/layout.tsx` to protect all public portal pages.

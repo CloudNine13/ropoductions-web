@@ -34,7 +34,7 @@ function mockRequest(pathname: string, cookies: Record<string, string> = {}) {
 describe("portal base contract", () => {
   it("keeps the 21+ age gate cookie on its implemented identity and lifetime", () => {
     assert.equal(AGE_VERIFIED_COOKIE_NAME, "ropoductions_age_verified");
-    assert.equal(AGE_VERIFIED_COOKIE_MAX_AGE, 5 * 24 * 60 * 60);
+    assert.equal(AGE_VERIFIED_COOKIE_MAX_AGE, 14 * 60 * 60);
   });
 
   it("keeps the opaque patron session cookie on its identity and 30-day lifetime", () => {

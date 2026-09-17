@@ -70,7 +70,7 @@ development_status:
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
     epic: 1
-    action: "Lock AGE_VERIFIED_COOKIE_MAX_AGE to 5 days (432000s) in src/lib/cookies.ts
+    action: "Lock AGE_VERIFIED_COOKIE_MAX_AGE to 14 hours (50400s) in src/lib/cookies.ts
       per project owner decision"
     owner: "dev"
     status: done

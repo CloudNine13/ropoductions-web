@@ -52,7 +52,7 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 ### 1. 21+ Age Gate Modal
 * **Behavior:** Appears immediately on first visit if `ropoductions_age_verified` cookie is missing.
 * **Focus Trap:** Background page content is set to `aria-hidden="true"` and blurred with CSS `backdrop-blur-xl`. Focus is locked to the primary confirmation button.
-* **Confirmation Action:** Clicking *"I am 21 or older"* sets a 5-day cookie (with explicit cookie disclosure) and smoothly dissolves the modal (200ms ease-out).
+* **Confirmation Action:** Clicking *"I am 21 or older"* sets a 14-hour cookie (with explicit cookie disclosure) and smoothly dissolves the modal (200ms ease-out).
 * **Decline Action:** Clicking *"Exit"* immediately redirects the browser window to `https://google.com`.
 
 ### 2. Save HUD Dock (Bottom Floating Bar)
