@@ -46,7 +46,7 @@ development_status:
   2-1-cloudflare-d1-sessions-database-schema-migration: done
   2-2-patreon-oauth-2-0-pkce-authorization-callback-route-handlers: done
   2-3-active-tier-verification-5-threshold-secure-session-cookie-i: done
-  2-4-paywall-interstitial-graceful-navigation-session-verificatio: review
+  2-4-paywall-interstitial-graceful-navigation-session-verificatio: done
   epic-2-retrospective: optional
 
   epic-3: backlog
