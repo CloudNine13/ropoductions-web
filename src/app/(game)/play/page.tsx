@@ -5,7 +5,7 @@ import { Gamepad2, ArrowLeft, Shield, Sparkles, UserCheck } from "lucide-react";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
 import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/cookies";
 import { validateSessionAccess } from "@/lib/auth";
-import { mapSessionStatusToPlayRedirect } from "@/lib/paywall";
+import { mapSessionStatusToPaywall, sessionClearHref } from "@/lib/paywall";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function PlayPage() {
   }
 
   if (!sessionCookie) {
-    redirect("/?paywall=required");
+    redirect(sessionClearHref("required"));
   }
 
   let db;
@@ -28,8 +28,7 @@ export default async function PlayPage() {
     db = await getDatabase();
     authEnv = await getAuthEnv();
   } catch {
-    cookieStore.delete(SESSION_COOKIE_NAME);
-    redirect("/?paywall=required");
+    redirect(sessionClearHref("required"));
   }
 
   let result;
@@ -40,13 +39,11 @@ export default async function PlayPage() {
       sessionSecret: authEnv.sessionSecret,
     });
   } catch {
-    cookieStore.delete(SESSION_COOKIE_NAME);
-    redirect("/?paywall=required");
+    redirect(sessionClearHref("required"));
   }
 
   if (result.status !== "authorized") {
-    cookieStore.delete(SESSION_COOKIE_NAME);
-    redirect(mapSessionStatusToPlayRedirect(result.status) ?? "/?paywall=required");
+    redirect(sessionClearHref(mapSessionStatusToPaywall(result.status) ?? "required"));
   }
 
   const { session } = result;

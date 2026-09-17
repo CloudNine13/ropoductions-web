@@ -81,7 +81,8 @@ context:
 - `validateSessionAccess` (`src/lib/auth.ts`) resolves the signed session cookie, point-looks-up `sessions`, returns `revoked`/`lapsed` early, checks `patron_overrides` for `admin`/`comp` roles (writing `revoked = 1` when the row is gone), and applies `isAccessAuthorized` for patrons. All D1 access uses `db.prepare().bind()` via `src/lib/db.ts`.
 - `/play` (`src/app/(game)/play/page.tsx`, `force-dynamic`) enforces the age cookie, then maps every non-`authorized` status to its paywall redirect through `mapSessionStatusToPlayRedirect` (`src/lib/paywall.ts`), clearing `ropoductions_session` first. D1/env failures and `validateSessionAccess` throws fall back to `/?paywall=required`. No background polling; checks run on navigation only.
 - The portal (`src/app/(portal)/page.tsx`) maps `?paywall=` / `?auth_required=` through `resolvePaywallType` and renders `PaywallNotificationBanner` plus `PatreonPaywallCard` in `#paywall-section`. Successful Patreon logins land on `/play` (callback `Location: /play`), so the return path is preserved through the card's login CTA.
-- `src/lib/paywall.ts` holds the pure, unit-tested mapping layer (`resolvePaywallType`, `mapSessionStatusToPlayRedirect`, `getPaywallBannerMessageKey`) plus `PAYWALL_TIERS`, `PATREON_LOGIN_HREF`, and `PAYWALL_CAMPAIGN_URL` constants consumed by the banner and card.
+- `src/lib/paywall.ts` holds the pure, unit-tested mapping layer (`resolvePaywallType`, `mapSessionStatusToPaywall`, `mapSessionStatusToPlayRedirect`, `sessionClearHref`, `getPaywallBannerMessageKey`) plus `PAYWALL_TIERS`, `PATREON_LOGIN_HREF`, `SESSION_CLEAR_HREF`, and `PAYWALL_CAMPAIGN_URL` constants consumed by the banner and card.
+- Cookie clearing happens in `GET /api/auth/session` (Route Handler, the only server context allowed to mutate cookies in production): it expires `ropoductions_session` (`Max-Age: 0; Path=/; HttpOnly; SameSite=Lax; Secure`) and bounces to `/?paywall=<revoked|lapsed|required>` from an allowlist. `/play` never calls `cookies().delete()` -- that throws `Cookies can only be modified in a Server Action or Route Handler` under `next start` (caught by CI e2e, invisible under `next dev`).
 - `pl.json` is a tracked locale since Story 1-4; paywall keys were added to all six locales and parity is enforced by `tests/i18n-locales.test.ts`. `Final Orginity` is the canonical game title per SPEC/epics/architecture, not a typo.
 
 ## Spec Change Log
@@ -107,6 +108,7 @@ context:
 - verification/portal-mapping-untested -- verdict `patch` -- extracted `resolvePaywallType`, covered by unit tests plus `e2e/portal.spec.ts` interstitial visits.
 - verification/banner-card-content-untested -- verdict `patch` -- extracted banner-key selector, tier data, and CTA constants; unit-tested with locale cross-checks plus Playwright banner/tier/CTA/dismiss assertions.
 - e2e/dismiss-blocked-by-age-gate -- found during verification -- the blocking age-gate modal intercepts the banner dismiss click; the test now confirms the age gate first, matching the real user flow.
+- ci/prod-cookie-mutation-500 -- CI e2e caught `cookies().delete()` in the `/play` Server Component throwing under `next start` (dev-tolerant, prod-fatal) -- verdict `patch` -- moved clearing into `GET /api/auth/session`, `/play` bounces through `sessionClearHref`; covered by route unit tests and the rewritten edge-gating e2e (forged session lands on `/?paywall=required` with the session cookie gone).
 
 ## Verification
 
@@ -117,7 +119,7 @@ context:
 - `npx playwright test e2e/portal.spec.ts` -- expected: landing, headers, and paywall interstitial cases pass
 
 **Results (2026-09-17, feat/2-4-paywall-interstitial-graceful-navigation):**
-- `npm run test:unit` -- 87 pass, 0 fail (16 suites; includes 11 new `validateSessionAccess` tests and 11 new `paywall` helper tests)
+- `npm run test:unit` -- 90 pass, 0 fail (18 suites; includes `validateSessionAccess`, paywall helpers, and `/api/auth/session` route tests)
 - `npm test` -- d1 schema and Patreon OAuth/PKCE verification checks pass
-- `npm run build:next` -- production build succeeds; routes `/`, `/play`, `/api/auth/patreon`, `/api/auth/callback`
-- `npx playwright test e2e/portal.spec.ts` -- 8 passed, 0 failed
+- `npm run build:next` -- production build succeeds; routes `/`, `/play`, `/api/auth/patreon`, `/api/auth/callback`, `/api/auth/session`
+- `npx playwright test` -- 15 passed, 0 failed (full suite against `next start`, matching CI)

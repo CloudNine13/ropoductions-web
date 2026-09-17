@@ -5,12 +5,17 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   getPaywallBannerMessageKey,
+  mapSessionStatusToPaywall,
   mapSessionStatusToPlayRedirect,
   PATREON_LOGIN_HREF,
   PAYWALL_CAMPAIGN_URL,
   PAYWALL_TIERS,
   resolvePaywallType,
+  SESSION_CLEAR_HREF,
+  sessionClearHref,
 } from "../src/lib/paywall";
+import { GET as clearSession } from "../src/app/api/auth/session/route";
+import { SESSION_COOKIE_NAME } from "../src/lib/cookies";
 
 const testsDir = dirname(fileURLToPath(import.meta.url));
 const enPaywall = JSON.parse(
@@ -53,6 +58,53 @@ describe("play status-to-redirect mapping mapSessionStatusToPlayRedirect", () =>
   it("sends lapsed and under-pledged sessions to the lapsed paywall", () => {
     assert.equal(mapSessionStatusToPlayRedirect("lapsed"), "/?paywall=lapsed");
     assert.equal(mapSessionStatusToPlayRedirect("unauthorized"), "/?paywall=lapsed");
+  });
+});
+
+describe("session clearing bounce sessionClearHref", () => {
+  it("routes every non-authorized status through the clearing endpoint", () => {
+    assert.equal(SESSION_CLEAR_HREF, "/api/auth/session");
+    for (const status of [
+      "invalid_signature",
+      "not_found",
+      "override_deleted",
+      "revoked",
+      "lapsed",
+      "unauthorized",
+    ] as const) {
+      const paywall = mapSessionStatusToPaywall(status);
+      assert.ok(paywall, `missing paywall mapping for ${status}`);
+      assert.equal(
+        sessionClearHref(paywall!),
+        `/api/auth/session?paywall=${paywall}`
+      );
+    }
+    assert.equal(mapSessionStatusToPaywall("authorized"), null);
+  });
+});
+
+describe("session clearing route GET /api/auth/session", () => {
+  it("clears the session cookie and lands on the requested paywall", async () => {
+    const res = await clearSession(
+      new Request("http://127.0.0.1:3100/api/auth/session?paywall=revoked")
+    );
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("Location"), "/?paywall=revoked");
+    const setCookie = res.headers.get("Set-Cookie") ?? "";
+    assert.ok(setCookie.startsWith(`${SESSION_COOKIE_NAME}=`));
+    assert.ok(setCookie.includes("max-age=0"));
+    assert.ok(setCookie.includes("path=/"));
+    assert.ok(setCookie.includes("HttpOnly"));
+    assert.ok(setCookie.includes("SameSite=Lax"));
+    assert.equal(res.headers.get("Cache-Control"), "no-store, max-age=0");
+  });
+
+  it("falls back to the required paywall for unknown values", async () => {
+    const res = await clearSession(
+      new Request("http://127.0.0.1:3100/api/auth/session?paywall=expired")
+    );
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("Location"), "/?paywall=required");
   });
 });
 

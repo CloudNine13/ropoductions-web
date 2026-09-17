@@ -8,6 +8,8 @@ export const PAYWALL_CAMPAIGN_URL = "https://www.patreon.com/join/Ropoductions";
 
 export const PATREON_LOGIN_HREF = "/api/auth/patreon";
 
+export const SESSION_CLEAR_HREF = "/api/auth/session";
+
 export const PAYWALL_TIERS = [
   { id: "tier-1", price: "$5", nameKey: "tier1Name", descKey: "tier1Desc" },
   { id: "tier-2", price: "$10", nameKey: "tier2Name", descKey: "tier2Desc" },
@@ -32,20 +34,29 @@ export function resolvePaywallType(params: {
   return null;
 }
 
-export function mapSessionStatusToPlayRedirect(status: SessionStatus): string | null {
+export function mapSessionStatusToPaywall(status: SessionStatus): PaywallType | null {
   switch (status) {
     case "authorized":
       return null;
     case "invalid_signature":
     case "not_found":
-      return "/?paywall=required";
+      return "required";
     case "override_deleted":
     case "revoked":
-      return "/?paywall=revoked";
+      return "revoked";
     case "lapsed":
     case "unauthorized":
-      return "/?paywall=lapsed";
+      return "lapsed";
   }
+}
+
+export function mapSessionStatusToPlayRedirect(status: SessionStatus): string | null {
+  const paywall = mapSessionStatusToPaywall(status);
+  return paywall ? `/?paywall=${paywall}` : null;
+}
+
+export function sessionClearHref(type: PaywallType): string {
+  return `${SESSION_CLEAR_HREF}?paywall=${type}`;
 }
 
 export function getPaywallBannerMessageKey(
