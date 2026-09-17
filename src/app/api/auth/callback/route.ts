@@ -137,18 +137,13 @@ export async function GET(request: Request): Promise<Response> {
 
     try {
       const db = await getDatabase();
-      const bootstrapped = await bootstrapInitialAdminIfEligible(
+      await bootstrapInitialAdminIfEligible(
         db,
         identity.patronId,
         authEnv.initialAdminPatreonIds
       );
-      if (bootstrapped) {
-        console.log(
-          `[AUTH] Successfully bootstrapped initial admin for patron_id=${identity.patronId}`
-        );
-      }
-    } catch (dbErr) {
-      console.error("[AUTH] Database error during admin bootstrap:", dbErr);
+    } catch {
+      // Admin bootstrap must not block authentication; the session proceeds without elevated role.
     }
     return new Response(null, {
       status: 302,
