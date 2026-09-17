@@ -1,0 +1,127 @@
+name: Sync Game Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Upstream branch/tag to sync, or auto to query tools/release.json"
+        required: false
+        default: "auto"
+  repository_dispatch:
+    types:
+      - game_release_published
+
+concurrency:
+  group: sync-game-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-deploy:
+    name: Ingest Game Release & Sync R2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ropoductions-web
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Resolve Upstream Release Branch
+        id: resolve-branch
+        env:
+          BRANCH_INPUT: ${{ github.event.inputs.branch || github.event.client_payload.branch || 'auto' }}
+          UPSTREAM_READ_TOKEN: ${{ secrets.UPSTREAM_READ_TOKEN }}
+        run: |
+          SAFE_BRANCH=$(npx tsx -e "
+            import { resolveTargetBranch } from './scripts/sync-game-release.ts';
+            const branch = await resolveTargetBranch(process.env.BRANCH_INPUT);
+            console.log(branch);
+          ")
+          echo "safe_branch=${SAFE_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Resolved release branch: ${SAFE_BRANCH}"
+
+      - name: Shallow Clone Upstream Release
+        env:
+          SAFE_BRANCH: ${{ steps.resolve-branch.outputs.safe_branch }}
+          UPSTREAM_READ_TOKEN: ${{ secrets.UPSTREAM_READ_TOKEN }}
+        run: |
+          mkdir -p tmp_upstream
+          AUTH_HEADER=$(echo -n "x-access-token:${UPSTREAM_READ_TOKEN}" | base64 -w 0)
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH_HEADER}" clone \
+            --depth 1 \
+            --branch "${SAFE_BRANCH}" \
+            -- "https://github.com/salamin888/Final_Orginity.git" \
+            tmp_upstream
+
+          UPSTREAM_SHA=$(git -C tmp_upstream rev-parse --short HEAD)
+          echo "upstream_sha=${UPSTREAM_SHA}" >> "$GITHUB_OUTPUT"
+        id: clone-upstream
+
+      - name: Execute Game Release Ingestion Engine
+        env:
+          UPSTREAM_DIR: tmp_upstream
+          PUBLIC_ENGINE_DIR: public/engine
+          BRIDGE_PLUGIN_PATH: src/engine-plugins/Ropoductions_WebBridge.js
+          BRANCH_INPUT: ${{ steps.resolve-branch.outputs.safe_branch }}
+          UPSTREAM_COMMIT_SHA: ${{ steps.clone-upstream.outputs.upstream_sha }}
+        run: |
+          npx tsx scripts/sync-game-release.ts tmp_upstream public/engine "${BRANCH_INPUT}"
+
+      - name: Synchronize Static Media Assets to Private R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET_NAME: GAME_ASSETS
+        run: |
+          # Locate game root relative to cloned repository
+          GAME_ROOT=$(npx tsx -e "
+            import { locateGameRoot } from './scripts/sync-game-release.ts';
+            console.log(locateGameRoot('tmp_upstream'));
+          ")
+          echo "Syncing media assets from: ${GAME_ROOT}"
+
+          R2_ENDPOINT="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          # Strictly additive S3 sync (never purge files to protect historic saves)
+          for dir in audio img effects movies data; do
+            if [ -d "${GAME_ROOT}/${dir}" ]; then
+              echo "==> Syncing ${dir}/ to R2 bucket: ${R2_BUCKET_NAME}/${dir}"
+              aws s3 sync "${GAME_ROOT}/${dir}" "s3://${R2_BUCKET_NAME}/${dir}" \
+                --endpoint-url "${R2_ENDPOINT}"
+            fi
+          done
+
+      - name: Commit Lightweight Engine Shell
+        env:
+          SAFE_BRANCH: ${{ steps.resolve-branch.outputs.safe_branch }}
+          UPSTREAM_SHA: ${{ steps.clone-upstream.outputs.upstream_sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add public/engine/
+
+          if git diff --staged --quiet; then
+            echo "No changes detected in public/engine, skipping commit."
+          else
+            COMMIT_MSG="chore(engine): sync game release ${SAFE_BRANCH} [upstream:${UPSTREAM_SHA}]"
+            git commit -m "${COMMIT_MSG}"
+            git push origin HEAD
+          fi
+
+      - name: Cleanup Runner Workspace
+        if: always()
+        run: |
+          rm -rf tmp_upstream
