@@ -432,17 +432,17 @@ async function testRouteHandlers(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  console.log("Starting Patreon OAuth & PKCE Verification Suite");
+  console.log("Patreon OAuth and PKCE verification started.");
   await testPkceRfc7636Vector();
   await testCryptoSigningAndEncryption();
   testCookies();
   await testPatreonClient();
   await testInitialAdminBootstrap();
   await testRouteHandlers();
-  console.log("All Patreon OAuth & PKCE Verification Checks Passed");
+  console.log("Patreon OAuth and PKCE verification completed successfully.");
 }
 
 main().catch((err) => {
-  console.error("Test suite failed:", err);
+  console.error("Patreon OAuth and PKCE verification failed:", err);
   process.exit(1);
 });
