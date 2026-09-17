@@ -7,6 +7,10 @@ export const OAUTH_VERIFIER_COOKIE_MAX_AGE = 10 * 60;
 export const SESSION_COOKIE_NAME = "ropoductions_session";
 export const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 
+export function unquoteCookieValue(val?: string | null): string | undefined {
+  if (!val) return undefined;
+  return val.replace(/^"|"$/g, "");
+}
 export interface CookieOptions {
   maxAge?: number;
   path?: string;
@@ -46,7 +50,7 @@ export function parseCookies(cookieHeader?: string | null): Record<string, strin
     if (idx === -1) continue;
     const key = pair.slice(0, idx).trim();
     const rawVal = pair.slice(idx + 1).trim();
-    const val = rawVal.replace(/^"|"$/g, "");
+    const val = unquoteCookieValue(rawVal) ?? "";
     try {
       result[key] = decodeURIComponent(val);
     } catch {

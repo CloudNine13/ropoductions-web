@@ -7,6 +7,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 declare global {
   var __D1_TEST_DB__: D1Database | undefined;
+  var __R2_TEST_BUCKET__: R2Bucket | undefined;
 }
 
 /**
@@ -86,6 +87,10 @@ export async function getGameAssetsBucket(env?: CloudflareEnv): Promise<R2Bucket
     return env.GAME_ASSETS;
   }
 
+  if (process.env.NODE_ENV !== "production" && globalThis.__R2_TEST_BUCKET__) {
+    return globalThis.__R2_TEST_BUCKET__;
+  }
+
   try {
     const ctx = await getCloudflareContext({ async: true });
     if (ctx?.env?.GAME_ASSETS) {
@@ -113,6 +118,10 @@ export async function getGameAssetsBucket(env?: CloudflareEnv): Promise<R2Bucket
 export function getGameAssetsBucketSync(env?: CloudflareEnv): R2Bucket {
   if (env?.GAME_ASSETS) {
     return env.GAME_ASSETS;
+  }
+
+  if (process.env.NODE_ENV !== "production" && globalThis.__R2_TEST_BUCKET__) {
+    return globalThis.__R2_TEST_BUCKET__;
   }
 
   try {
