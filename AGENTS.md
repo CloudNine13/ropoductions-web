@@ -7,7 +7,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 ## Policy
 
-- NEVER push to `develop` or `master`, and NEVER commit directly on them; NEVER do work on `master`.
+- NEVER push to `develop` or `master`, and NEVER commit directly on them; NEVER do work on `master`. NEVER merge branches (you may only merge to update the branch over the develop), ONLY the user can do it. ONLY prepare a PR and ask user explicitly to continue after he merges. Always pass the full link to PR.
 - Agent pushes ONLY to a working branch cut from `develop`, then opens a PR with base `develop` ONLY.
 - GitHub workflow is mandatory in this order: `git fetch origin`, check `git branch -a` and status of `develop`, `git checkout develop && git pull`, create working branch from `develop`, commit work on that branch, `git status` plus `git diff` review, `git push -u origin <branch>`, open PR to `develop` with `gh`.
 - Branch name format is mandatory: `<type>/<story-id>-<kebab-slug>` (example: `feat/1-2-age-gate-modal`); types allowed are `feat`, `fix`, `chore`, `docs`, `refactor`.
@@ -58,14 +58,47 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 <!-- /bmad:context -->
 
+## Comments
+
+Default to writing no comments.
+Only add a comment when the WHY is non-obvious.
+Never comment WHAT the code does. The code already says what it does.
+Never reference the current task, ticket, or fix in a comment.
+
+## Testing
+
+Always use testing-guidelines skill.
+Write tests for business logic and API endpoints.
+Don't test implementation details - test behavior.
+Don't mock what you don't own.
+
+## Git
+
+Use conventional commit format: type(scope): description
+Types: feat, fix, refactor, test, docs, chore
+Keep commits focused on one change.
+Don't mention AI, Claude, or "generated" in commit messages.
+
+## Security
+
+Never commit .env files, API keys, tokens, private keys, or credentials.
+Never log sensitive data.
+Never put secrets in comments or test fixtures.
+If you need a secret for testing, use environment variables with placeholder values.
+
+## Error Handling
+
+Don't add error handling for scenarios that can't happen.
+Trust internal function contracts.
+Only validate at system boundaries: user input, API responses, file reads.
+Don't wrap internal function calls in try/catch unless they actually throw.
+
 ## MUST rules
 
+- NEVER do git reset hard. You may do reset ONLY if it won't wipe out the work of others worktrees and agentic sessions.
+- Before preparing a PR you MUST check if there is merge conflicts.
+- Always use context7-mcp working with code base or tech tools.
 - When working with github repos not related to the project's one, you are operating in READ-ONLY mode. You are PROHIBITED to write in the repos, not related to the project. The only repo you can write is the local project's repo: https://github.com/CloudNine13/ropoductions-web
-- Never use emojis.
-- Don't comment your code. Only in the case of really hard to understand piece of code.
-
-## Build notes
-
-- Edge gating lives in `src/proxy.ts` exporting `proxy()`; Next 16 renamed the `middleware` file convention to `proxy`, so do not reintroduce `src/middleware.ts`.
-- `e2e/` and `playwright.config.ts` are excluded from `tsconfig.json` so `next build` type-check never depends on Playwright being installed.
-- `src/app/globals.css` holds the Tailwind v4 `@theme` tokens directly; do not add a legacy `@config` directive pointing at `tailwind.config.ts`. 
+- Never use emojis, never use useless/WHAT comments, keep only hard WHY ones. 
+- When working, you must create a separate working tree, so the other sessions could work and don't overlap you. 
+- Always test your code. Make sure you are making thoughtful tests and not a bunch of false greens.
