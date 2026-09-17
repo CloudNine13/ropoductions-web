@@ -14,6 +14,10 @@ temp/
 *.swo
 *~
 
+# --- Worktrees ---
+.worktrees/
+worktrees/
+
 # --- Secrets / environment — NEVER commit ---
 # Patreon OAuth, Cloudflare tokens, session secrets live here
 .env
@@ -54,6 +58,7 @@ workers/.wrangler/
 !migrations/**/*.sql
 
 # --- Dependencies ---
+node_modules
 node_modules/
 .pnp
 .pnp.*

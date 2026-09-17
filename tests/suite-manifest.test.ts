@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const testsDir = dirname(fileURLToPath(import.meta.url));
-const WRANGLER_DEPENDENT = new Set(["d1-schema.test.ts"]);
+const WRANGLER_DEPENDENT = new Set(["d1-schema.test.ts", "patreon-oauth.test.ts"]);
 
 describe("unit test manifest", () => {
   it("runs every isolated suite through test:unit", () => {
