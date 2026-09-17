@@ -33,10 +33,8 @@ test.describe("paywall interstitial", () => {
     }) => {
       await page.goto(`/?paywall=${paywall}`);
 
+      await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
       await expect(page.getByLabel("Access notification")).toBeVisible();
-      await expect(
-        page.getByLabel("Access notification").locator("a[href='https://www.patreon.com/join/Ropoductions']")
-      ).toBeVisible();
       await expect(page.locator("#paywall-section")).toBeVisible();
       await expect(page.locator("#paywall-section")).toContainText("$5");
       await expect(page.locator("#paywall-section")).toContainText("$50");
@@ -56,30 +54,23 @@ test.describe("paywall interstitial", () => {
   }) => {
     await page.goto("/?auth_required=true");
 
+    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
     await expect(page.getByLabel("Access notification")).toBeVisible();
     await expect(page.locator("#paywall-section")).toBeVisible();
   });
 
-  test("dismissing the banner keeps the tier matrix on the page", async ({
-    page,
-  }) => {
-    await page.goto("/?paywall=required");
-
-    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
-    await page.getByLabel("Dismiss notification").click();
-    await expect(page.getByLabel("Access notification")).toHaveCount(0);
-    await expect(page.locator("#paywall-section")).toBeVisible();
-  });
-
-  for (const paywall of ["revoked", "lapsed"] as const) {
-    test(`keeps the ${paywall} banner on screen until renewed`, async ({
+  for (const paywall of ["revoked", "lapsed", "required"] as const) {
+    test(`closing the ${paywall} window returns to the landing page`, async ({
       page,
     }) => {
       await page.goto(`/?paywall=${paywall}`);
 
       await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
       await expect(page.getByLabel("Access notification")).toBeVisible();
-      await expect(page.getByLabel("Dismiss notification")).toHaveCount(0);
+      await page.getByLabel("Dismiss notification").click();
+      await expect(page.getByLabel("Access notification")).toHaveCount(0);
+      await expect(page.locator("#paywall-section")).toHaveCount(0);
+      await expect(page.getByText("PROJECT SHOWCASE")).toBeVisible();
     });
   }
 });

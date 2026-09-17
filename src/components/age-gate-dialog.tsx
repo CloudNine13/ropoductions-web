@@ -39,6 +39,7 @@ export function AgeGateDialog({
   const handleConfirm = useCallback(() => {
     setAgeVerifiedCookie();
     setIsOpen(false);
+    window.dispatchEvent(new Event("ropoductions:age-verified"));
   }, []);
 
   const handleExit = useCallback(() => {
