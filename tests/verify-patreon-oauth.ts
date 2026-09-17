@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   OAUTH_VERIFIER_COOKIE_MAX_AGE,
   OAUTH_VERIFIER_COOKIE_NAME,
+  SESSION_COOKIE_MAX_AGE,
+  SESSION_COOKIE_NAME,
   parseCookies,
   serializeCookie,
 } from "../src/lib/cookies";
@@ -25,6 +27,20 @@ import {
   PATREON_IDENTITY_URL,
   PATREON_TOKEN_URL,
 } from "../src/lib/patreon";
+import {
+  APPROVED_TIERS,
+  findApprovedTier,
+  isAccessAuthorized,
+  MINIMUM_PLEDGE_CENTS,
+} from "../src/lib/auth";
+import {
+  deletePatronOverride,
+  getSessionById,
+  getPatronOverride,
+  upsertPatronOverride,
+} from "../src/lib/db";
+import type { SessionRecord } from "../src/types/database";
+import { PATREON_CAMPAIGNS_URL } from "../src/lib/patreon";
 import { GET as initiateAuth } from "../src/app/api/auth/patreon/route";
 import { GET as callbackAuth } from "../src/app/api/auth/callback/route";
 
@@ -270,12 +286,161 @@ async function testInitialAdminBootstrap(): Promise<void> {
   assert.equal(upsertCalls.length, 1);
 }
 
+type DbRow = Record<string, unknown>;
+
+function createMockDb(): D1Database {
+  const sessions = new Map<string, DbRow>();
+  const patronOverrides = new Map<string, DbRow>();
+
+  const db = {
+    prepare(sql: string) {
+      const stmt = {
+        params: [] as unknown[],
+        bind(...params: unknown[]) {
+          stmt.params = params;
+          return stmt;
+        },
+        async first<T>(): Promise<T | null> {
+          if (sql.includes("FROM sessions WHERE id = ?")) {
+            return (sessions.get(stmt.params[0] as string) as T | undefined) ?? null;
+          }
+          if (sql.includes("FROM patron_overrides WHERE patron_id = ?")) {
+            return (patronOverrides.get(stmt.params[0] as string) as T | undefined) ?? null;
+          }
+          throw new Error(`Unhandled first() query: ${sql}`);
+        },
+        async all<T>(): Promise<{ results: T[] }> {
+          if (sql.includes("FROM sessions WHERE patron_id = ?")) {
+            const results = [...sessions.values()]
+              .filter((s) => s.patron_id === stmt.params[0])
+              .sort((a, b) => (b.created_at_sec as number) - (a.created_at_sec as number));
+            return { results: results as T[] };
+          }
+          if (sql.includes("FROM patron_overrides ORDER BY")) {
+            const [limit, offset] = stmt.params as [number, number];
+            const results = [...patronOverrides.values()]
+              .sort((a, b) => (b.created_at_sec as number) - (a.created_at_sec as number))
+              .slice(offset, offset + limit);
+            return { results: results as T[] };
+          }
+          throw new Error(`Unhandled all() query: ${sql}`);
+        },
+        async run(): Promise<void> {
+          if (sql.startsWith("INSERT INTO sessions")) {
+            const [
+              id, patron_id, email, role, tier_id, tier_name, pledge_cents,
+              encrypted_access_token, encrypted_refresh_token,
+              token_expires_at_sec, expires_at_sec, revoked,
+              createdAt, lastVerifiedAt, roleGuard, revokedGuard,
+            ] = stmt.params as unknown[];
+            const existing = sessions.get(id as string);
+            if (!existing) {
+              sessions.set(id as string, {
+                id, patron_id, email, role, tier_id, tier_name, pledge_cents,
+                encrypted_access_token, encrypted_refresh_token,
+                token_expires_at_sec, expires_at_sec, revoked,
+                created_at_sec: createdAt, last_verified_at_sec: lastVerifiedAt,
+              });
+              return;
+            }
+            if (roleGuard !== null) existing.role = role;
+            if (revokedGuard !== null) existing.revoked = revoked;
+            Object.assign(existing, {
+              patron_id, email, tier_id, tier_name, pledge_cents,
+              encrypted_access_token, encrypted_refresh_token,
+              token_expires_at_sec, expires_at_sec,
+              last_verified_at_sec: lastVerifiedAt,
+            });
+            return;
+          }
+          if (sql === "UPDATE sessions SET revoked = 1 WHERE id = ?") {
+            const target = sessions.get(stmt.params[0] as string);
+            if (target) target.revoked = 1;
+            return;
+          }
+          if (sql === "UPDATE sessions SET revoked = 1 WHERE patron_id = ?") {
+            for (const s of sessions.values()) {
+              if (s.patron_id === stmt.params[0]) s.revoked = 1;
+            }
+            return;
+          }
+          if (sql === "DELETE FROM sessions WHERE id = ?") {
+            sessions.delete(stmt.params[0] as string);
+            return;
+          }
+          if (sql.startsWith("INSERT INTO patron_overrides")) {
+            const [patron_id, role, notes, granted_by, createdAt, updatedAt, notesGuard] =
+              stmt.params as unknown[];
+            const existing = patronOverrides.get(patron_id as string);
+            if (!existing) {
+              patronOverrides.set(patron_id as string, {
+                patron_id, role, notes, granted_by,
+                created_at_sec: createdAt, updated_at_sec: updatedAt,
+              });
+              return;
+            }
+            existing.role = role;
+            existing.granted_by = granted_by;
+            existing.updated_at_sec = updatedAt;
+            if (notesGuard !== null) existing.notes = notes;
+            return;
+          }
+          if (sql === "DELETE FROM patron_overrides WHERE patron_id = ?") {
+            patronOverrides.delete(stmt.params[0] as string);
+            return;
+          }
+          throw new Error(`Unhandled run() query: ${sql}`);
+        },
+      };
+      return stmt;
+    },
+  };
+  return db as unknown as D1Database;
+}
+
+async function createSignedVerifierCookie(secret: string): Promise<{
+  state: string;
+  verifier: string;
+  cookieHeader: string;
+}> {
+  const state = generateRandomString(32);
+  const pkce = await generatePkcePair(64);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const payload = `${state}:${pkce.verifier}:${nowSec}`;
+  const signedPayload = await signValue(payload, secret);
+  return {
+    state,
+    verifier: pkce.verifier,
+    cookieHeader: `${OAUTH_VERIFIER_COOKIE_NAME}=${signedPayload}`,
+  };
+}
+
+function parseResponseCookies(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (typeof headers.getSetCookie === "function") {
+    for (const cookieStr of headers.getSetCookie()) {
+      Object.assign(result, parseCookies(cookieStr));
+    }
+  } else {
+    const raw = headers.get("Set-Cookie");
+    if (raw) {
+      Object.assign(result, parseCookies(raw));
+    }
+  }
+  return result;
+}
+
 async function testRouteHandlers(): Promise<void> {
   logStep("Verifying /api/auth/patreon and /api/auth/callback route handlers");
   process.env.PATREON_CLIENT_ID = "test_patreon_client_id";
   process.env.PATREON_CLIENT_SECRET = "test_patreon_client_secret";
   process.env.SESSION_SECRET = "test_session_secret_32_bytes_long";
+  process.env.TOKEN_ENCRYPTION_KEY = "test_token_encryption_key_32_bytes";
   process.env.INITIAL_ADMIN_PATREON_IDS = "987654321, 555555555";
+  process.env.PATREON_CAMPAIGN_ID = "camp_123456";
+
+  const mockDb = createMockDb();
+  globalThis.__D1_TEST_DB__ = mockDb;
 
   const initRequest = new Request("http://localhost:3000/api/auth/patreon", {
     method: "GET",
@@ -376,6 +541,13 @@ async function testRouteHandlers(): Promise<void> {
 
   const originalFetch = globalThis.fetch;
   try {
+    let currentUserId = "987654321";
+    let currentUserEmail = "founder@ropoductions.com";
+    let currentUserFullName = "Studio Founder";
+    let campaignMembershipData: unknown = null;
+    let campaignMembershipIncluded: unknown[] = [];
+    let campaignApiCalled = false;
+
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const urlStr = input.toString();
       if (urlStr === PATREON_TOKEN_URL) {
@@ -394,13 +566,23 @@ async function testRouteHandlers(): Promise<void> {
         return new Response(
           JSON.stringify({
             data: {
-              id: "987654321",
+              id: currentUserId,
               type: "user",
               attributes: {
-                email: "founder@ropoductions.com",
-                full_name: "Studio Founder",
+                email: currentUserEmail,
+                full_name: currentUserFullName,
               },
             },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (urlStr.startsWith(PATREON_CAMPAIGNS_URL)) {
+        campaignApiCalled = true;
+        return new Response(
+          JSON.stringify({
+            data: campaignMembershipData,
+            included: campaignMembershipIncluded,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
@@ -408,6 +590,7 @@ async function testRouteHandlers(): Promise<void> {
       return originalFetch(input, init);
     }) as typeof fetch;
 
+    // Scenario 1: Initial Admin Bootstrap & Override Short-Circuit
     const validCallbackRequest = new Request(
       `http://localhost:3000/api/auth/callback?code=valid_code_123&state=${state}`,
       {
@@ -421,13 +604,259 @@ async function testRouteHandlers(): Promise<void> {
     const validCallbackResponse = await callbackAuth(validCallbackRequest);
     assert.equal(validCallbackResponse.status, 302);
     assert.equal(validCallbackResponse.headers.get("Location"), "/play");
-    assert.ok(
-      validCallbackResponse.headers
-        .get("Set-Cookie")
-        ?.includes("max-age=0")
+    assert.equal(campaignApiCalled, false, "Admin override must skip Patreon campaign API");
+
+    const callbackCookies = parseResponseCookies(validCallbackResponse.headers);
+    const signedSessionId1 = callbackCookies[SESSION_COOKIE_NAME];
+    assert.ok(signedSessionId1, "Session cookie must be issued for admin override");
+    assert.ok(validCallbackResponse.headers.get("Set-Cookie")?.includes("max-age=0"));
+
+    const rawSetCookies = validCallbackResponse.headers.getSetCookie
+      ? validCallbackResponse.headers.getSetCookie()
+      : (validCallbackResponse.headers.get("Set-Cookie") || "").split(/,(?=\s*[^;=]+=)/);
+    const sessionCookieHeaderStr = rawSetCookies.find((c) => c.startsWith(`${SESSION_COOKIE_NAME}=`));
+    assert.ok(sessionCookieHeaderStr, "Session cookie header must be present");
+    assert.ok(sessionCookieHeaderStr.includes("HttpOnly"), "Session cookie must be HttpOnly");
+    assert.ok(sessionCookieHeaderStr.includes("SameSite=Lax"), "Session cookie must be SameSite=Lax");
+    assert.ok(sessionCookieHeaderStr.includes("max-age=2592000"), "Session cookie max-age must be 2592000");
+    const sessionId1 = await verifySignedValue(
+      signedSessionId1,
+      process.env.SESSION_SECRET!
     );
+    assert.ok(sessionId1);
+
+    const sessionRecord1 = await getSessionById(mockDb, sessionId1);
+    assert.ok(sessionRecord1);
+    assert.equal(sessionRecord1.patron_id, "987654321");
+    assert.equal(sessionRecord1.role, "admin");
+    assert.equal(sessionRecord1.tier_id, "override_admin");
+    assert.equal(sessionRecord1.tier_name, "Studio Admin");
+    assert.equal(sessionRecord1.pledge_cents, 0);
+    assert.equal(sessionRecord1.revoked, 0);
+
+    const decryptedAccessToken1 = await decryptToken(
+      sessionRecord1.encrypted_access_token,
+      process.env.TOKEN_ENCRYPTION_KEY!
+    );
+    assert.equal(decryptedAccessToken1, "live_access_token_xyz");
+    const decryptedRefreshToken1 = await decryptToken(
+      sessionRecord1.encrypted_refresh_token,
+      process.env.TOKEN_ENCRYPTION_KEY!
+    );
+    assert.equal(decryptedRefreshToken1, "live_refresh_token_abc");
+    assert.equal(isAccessAuthorized(sessionRecord1), true);
+    // Scenario 2: Complimentary Override Short-Circuit
+    await upsertPatronOverride(mockDb, {
+      patron_id: "comp_patron_888",
+      role: "comp",
+      granted_by: "system_admin",
+      notes: "VIP Tester",
+    });
+    currentUserId = "comp_patron_888";
+    currentUserEmail = "comp@example.com";
+    currentUserFullName = "VIP Tester";
+    campaignApiCalled = false;
+
+    const compCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const compRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=comp_code&state=${compCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: compCookie.cookieHeader },
+      }
+    );
+
+    const compResponse = await callbackAuth(compRequest);
+    assert.equal(compResponse.status, 302);
+    assert.equal(compResponse.headers.get("Location"), "/play");
+    assert.equal(campaignApiCalled, false, "Comp override must skip Patreon campaign API");
+
+    const compSignedSession = parseResponseCookies(compResponse.headers)[SESSION_COOKIE_NAME];
+    assert.ok(compSignedSession);
+    const compSessionId = await verifySignedValue(compSignedSession, process.env.SESSION_SECRET!);
+    const compRecord = await getSessionById(mockDb, compSessionId!);
+    assert.ok(compRecord);
+    assert.equal(compRecord.role, "comp");
+    assert.equal(compRecord.tier_id, "override_comp");
+    assert.equal(compRecord.tier_name, "Complimentary Pass");
+    assert.equal(compRecord.pledge_cents, 0);
+    assert.equal(isAccessAuthorized(compRecord), true);
+
+    // Scenario 3: Eligible Active Patron ($5+ Ork Patron)
+    currentUserId = "regular_patron_111";
+    currentUserEmail = "ork@example.com";
+    currentUserFullName = "Ork Supporter";
+    campaignApiCalled = false;
+    campaignMembershipData = [
+      {
+        id: "mem_111",
+        type: "member",
+        attributes: {
+          patron_status: "active_patron",
+          currently_entitled_amount_cents: 500,
+        },
+        relationships: {
+          currently_entitled_tiers: {
+            data: [{ id: "tier_ork_5", type: "tier" }],
+          },
+        },
+      },
+    ];
+    campaignMembershipIncluded = [
+      {
+        id: "tier_ork_5",
+        type: "tier",
+        attributes: {
+          title: "Ork Patron",
+          amount_cents: 500,
+        },
+      },
+    ];
+
+    const patronCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const patronRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=patron_code&state=${patronCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: patronCookie.cookieHeader },
+      }
+    );
+
+    const patronResponse = await callbackAuth(patronRequest);
+    assert.equal(patronResponse.status, 302);
+    assert.equal(patronResponse.headers.get("Location"), "/play");
+    assert.equal(campaignApiCalled, true, "Standard patron must query campaign API");
+
+    const patronSignedSession = parseResponseCookies(patronResponse.headers)[SESSION_COOKIE_NAME];
+    assert.ok(patronSignedSession);
+    const patronSessionId = await verifySignedValue(patronSignedSession, process.env.SESSION_SECRET!);
+    const patronRecord = await getSessionById(mockDb, patronSessionId!);
+    assert.ok(patronRecord);
+    assert.equal(patronRecord.role, "patron");
+    assert.equal(patronRecord.tier_id, "tier_ork_5");
+    assert.equal(patronRecord.tier_name, "Ork Patron");
+    assert.equal(patronRecord.pledge_cents, 500);
+    assert.equal(isAccessAuthorized(patronRecord), true);
+
+    // Scenario 4: Sub-Threshold Patron (< $5)
+    currentUserId = "sub_patron_222";
+    campaignMembershipData = [
+      {
+        id: "mem_222",
+        type: "member",
+        attributes: {
+          patron_status: "active_patron",
+          currently_entitled_amount_cents: 300,
+        },
+      },
+    ];
+    campaignMembershipIncluded = [];
+
+    const subCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const subRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=sub_code&state=${subCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: subCookie.cookieHeader },
+      }
+    );
+
+    const subResponse = await callbackAuth(subRequest);
+    assert.equal(subResponse.status, 302);
+    assert.ok(subResponse.headers.get("Location")?.includes("auth_error=insufficient_pledge"));
+    assert.equal(
+      parseResponseCookies(subResponse.headers)[SESSION_COOKIE_NAME],
+      undefined
+    );
+
+    // Scenario 5: Inactive / Lapsed Patron
+    currentUserId = "lapsed_patron_333";
+    campaignMembershipData = [
+      {
+        id: "mem_333",
+        type: "member",
+        attributes: {
+          patron_status: "declined_patron",
+          currently_entitled_amount_cents: 500,
+        },
+      },
+    ];
+
+    const lapsedCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const lapsedRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=lapsed_code&state=${lapsedCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: lapsedCookie.cookieHeader },
+      }
+    );
+
+    const lapsedResponse = await callbackAuth(lapsedRequest);
+    assert.equal(lapsedResponse.status, 302);
+    assert.ok(lapsedResponse.headers.get("Location")?.includes("auth_error=inactive_patron"));
+    assert.equal(
+      parseResponseCookies(lapsedResponse.headers)[SESSION_COOKIE_NAME],
+      undefined
+    );
+
+    // Scenario 6: Unpledged Visitor
+    currentUserId = "unpledged_patron_444";
+    campaignMembershipData = [];
+
+    const unpledgedCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const unpledgedRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=unpledged_code&state=${unpledgedCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: unpledgedCookie.cookieHeader },
+      }
+    );
+
+    const unpledgedResponse = await callbackAuth(unpledgedRequest);
+    assert.equal(unpledgedResponse.status, 302);
+    assert.ok(unpledgedResponse.headers.get("Location")?.includes("auth_error=insufficient_pledge"));
+    assert.equal(
+      parseResponseCookies(unpledgedResponse.headers)[SESSION_COOKIE_NAME],
+      undefined
+    );
+
+    // Scenario 7: Missing PATREON_CAMPAIGN_ID configuration
+    currentUserId = "unconfigured_patron_555";
+    delete process.env.PATREON_CAMPAIGN_ID;
+
+    const noCampCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const noCampRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=no_camp_code&state=${noCampCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: noCampCookie.cookieHeader },
+      }
+    );
+
+    const noCampResponse = await callbackAuth(noCampRequest);
+    assert.equal(noCampResponse.status, 302);
+    assert.ok(noCampResponse.headers.get("Location")?.includes("auth_error=campaign_not_configured"));
+    process.env.PATREON_CAMPAIGN_ID = "camp_123456";
+
+    // Scenario 8: Missing TOKEN_ENCRYPTION_KEY server configuration
+    const savedTokenKey = process.env.TOKEN_ENCRYPTION_KEY;
+    process.env.TOKEN_ENCRYPTION_KEY = "";
+    const noKeyCookie = await createSignedVerifierCookie(process.env.SESSION_SECRET!);
+    const noKeyRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=no_key_code&state=${noKeyCookie.state}`,
+      {
+        method: "GET",
+        headers: { Cookie: noKeyCookie.cookieHeader },
+      }
+    );
+
+    const noKeyResponse = await callbackAuth(noKeyRequest);
+    assert.equal(noKeyResponse.status, 302);
+    assert.ok(noKeyResponse.headers.get("Location")?.includes("auth_error=server_configuration_error"));
+    process.env.TOKEN_ENCRYPTION_KEY = savedTokenKey;
   } finally {
     globalThis.fetch = originalFetch;
+    delete (globalThis as Record<string, unknown>).__D1_TEST_DB__;
   }
 }
 

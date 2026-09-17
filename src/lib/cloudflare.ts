@@ -5,6 +5,10 @@
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+declare global {
+  var __D1_TEST_DB__: D1Database | undefined;
+}
+
 /**
  * Safely resolves the Cloudflare D1 database binding (`DB`).
  *
@@ -15,6 +19,10 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export async function getDatabase(env?: CloudflareEnv): Promise<D1Database> {
   if (env?.DB) {
     return env.DB;
+  }
+
+  if (process.env.NODE_ENV !== "production" && globalThis.__D1_TEST_DB__) {
+    return globalThis.__D1_TEST_DB__;
   }
 
   try {
@@ -44,6 +52,10 @@ export async function getDatabase(env?: CloudflareEnv): Promise<D1Database> {
 export function getDatabaseSync(env?: CloudflareEnv): D1Database {
   if (env?.DB) {
     return env.DB;
+  }
+
+  if (process.env.NODE_ENV !== "production" && globalThis.__D1_TEST_DB__) {
+    return globalThis.__D1_TEST_DB__;
   }
 
   try {
