@@ -62,4 +62,10 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 - When working with github repos not related to the project's one, you are operating in READ-ONLY mode. You are PROHIBITED to write in the repos, not related to the project. The only repo you can write is the local project's repo: https://github.com/CloudNine13/ropoductions-web
 - Never use emojis.
-- Don't comment your code. Only in the case of really hard to understand piece of code. 
+- Don't comment your code. Only in the case of really hard to understand piece of code.
+
+## Build notes
+
+- Edge gating lives in `src/proxy.ts` exporting `proxy()`; Next 16 renamed the `middleware` file convention to `proxy`, so do not reintroduce `src/middleware.ts`.
+- `e2e/` and `playwright.config.ts` are excluded from `tsconfig.json` so `next build` type-check never depends on Playwright being installed.
+- `src/app/globals.css` holds the Tailwind v4 `@theme` tokens directly; do not add a legacy `@config` directive pointing at `tailwind.config.ts`. 
