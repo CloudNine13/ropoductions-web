@@ -178,7 +178,7 @@ export function ProjectShowcase() {
                 key={char.id}
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/70 p-4 transition-all duration-200 hover:border-primary/50 hover:bg-background-secondary shadow-md"
               >
-                <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-card border border-border/60">
+                <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-card">
                   <Image
                     src={char.portrait}
                     alt={`${char.name} - ${char.role}`}
