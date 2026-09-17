@@ -9,6 +9,17 @@ export async function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
     };
   }
+  if (specifier.startsWith("@/")) {
+    const candidate = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../src",
+      specifier.slice(2)
+    );
+    const withExtension = path.extname(candidate) ? candidate : `${candidate}.ts`;
+    if (existsSync(withExtension)) {
+      return { url: pathToFileURL(withExtension).href, shortCircuit: true };
+    }
+  }
   if (
     (specifier.startsWith("./") || specifier.startsWith("../")) &&
     !path.extname(specifier) &&
