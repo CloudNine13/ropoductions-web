@@ -296,9 +296,10 @@ export function parseInitialAdminPatreonIds(rawIds?: string | null): Set<string>
     return new Set();
   }
 
-  const ids = rawIds
+  const cleaned = rawIds.trim().replace(/^["']|["']$/g, "");
+  const ids = cleaned
     .split(",")
-    .map((id) => id.trim())
+    .map((id) => id.trim().replace(/^["']|["']$/g, ""))
     .filter((id) => id.length > 0);
 
   return new Set(ids);
@@ -322,4 +323,24 @@ export async function bootstrapInitialAdminIfEligible(
   });
 
   return true;
+}
+
+export async function syncInitialAdminOverrides(
+  db: D1Database,
+  initialAdminIds?: string | null
+): Promise<string[]> {
+  const adminSet = parseInitialAdminPatreonIds(initialAdminIds);
+  const synced: string[] = [];
+
+  for (const patronId of adminSet) {
+    await upsertPatronOverride(db, {
+      patron_id: patronId,
+      role: "admin",
+      granted_by: "system_bootstrap",
+      notes: "Initial Env Admin",
+    });
+    synced.push(patronId);
+  }
+
+  return synced;
 }

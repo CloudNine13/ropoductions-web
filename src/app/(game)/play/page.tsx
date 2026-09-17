@@ -40,6 +40,7 @@ export default async function PlayPage() {
       db,
       sessionCookie,
       sessionSecret: authEnv.sessionSecret,
+      initialAdminIds: authEnv.initialAdminPatreonIds,
     });
   } catch {
     redirect("/?paywall=required");

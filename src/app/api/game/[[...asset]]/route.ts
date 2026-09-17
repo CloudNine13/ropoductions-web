@@ -226,6 +226,7 @@ async function handleAssetRequest(
         db,
         sessionCookie,
         sessionSecret: authEnv.sessionSecret,
+        initialAdminIds: authEnv.initialAdminPatreonIds,
       });
 
       if (validation.status !== "authorized") {
