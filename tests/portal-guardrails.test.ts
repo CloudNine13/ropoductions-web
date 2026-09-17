@@ -105,7 +105,7 @@ describe("portal base contract", () => {
     assert.equal(url.searchParams.get("code_challenge_method"), "S256");
     assert.equal(
       url.searchParams.get("scope"),
-      "identity identity[email] campaigns.members"
+      "identity identity[email] identity.memberships campaigns.members"
     );
   });
 

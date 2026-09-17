@@ -96,12 +96,16 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     };
   }
 
-  async function dispatchMessage(data: unknown, origin = "https://ropoductions.com") {
+  async function dispatchMessage(
+    data: unknown,
+    origin = "https://ropoductions.com",
+    source?: unknown
+  ) {
     const listeners = eventListeners["message"] || [];
     const event = {
       origin,
       data,
-      source: sandbox.window,
+      source: source !== undefined ? source : (sandbox.window as Record<string, unknown>).parent,
     };
     for (const listener of listeners) {
       await listener(event);
@@ -133,6 +137,17 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
 
     assert.equal(postedMessages.length, 0);
   });
+  it("strictly ignores messages from within the iframe itself (source !== window.parent)", async () => {
+    loadPlugin();
+    await dispatchMessage(
+      { type: "ROPODUCTIONS_RESET_SAVES" },
+      "https://ropoductions.com",
+      sandbox.window
+    );
+
+    assert.equal(postedMessages.length, 0);
+  });
+
 
   it("handles ROPODUCTIONS_GET_SAVES and returns saves data", async () => {
     storageStore["file1"] = JSON.stringify({ hero: "Reid", level: 5 });

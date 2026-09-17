@@ -147,11 +147,11 @@ export function GameViewport({
       data-fullscreen={activeFullscreen ? "true" : "false"}
       className={
         activeFullscreen
-          ? "fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none rounded-none border-0 bg-black flex items-center justify-center select-none touch-manipulation overflow-hidden"
+          ? "fixed inset-0 z-50 w-screen h-dvh max-w-none max-h-none rounded-none border-0 bg-black flex items-center justify-center select-none touch-manipulation overflow-hidden"
           : `relative w-auto h-full max-h-full max-w-full aspect-[16/9] rounded-xl border border-border/80 bg-black shadow-2xl flex items-center justify-center select-none touch-manipulation overflow-hidden ${className}`
       }
     >
-      <div className="relative w-full h-full aspect-[16/9] max-w-full max-h-full flex items-center justify-center overflow-hidden bg-black">
+      <div className="relative w-full max-w-full max-h-full aspect-[16/9] flex items-center justify-center overflow-hidden bg-black">
         <iframe
           src={engineSrc}
           title={title}

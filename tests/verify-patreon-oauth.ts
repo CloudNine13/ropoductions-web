@@ -152,7 +152,7 @@ async function testPatreonClient(): Promise<void> {
   assert.equal(parsedUrl.searchParams.get("client_id"), "client_abc");
   assert.equal(
     parsedUrl.searchParams.get("scope"),
-    "identity identity[email] campaigns.members"
+    "identity identity[email] identity.memberships campaigns.members"
   );
   assert.equal(parsedUrl.searchParams.get("code_challenge_method"), "S256");
 
