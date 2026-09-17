@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ageVerified = request.cookies.get("ropoductions_age_verified")?.value === "true";
   const sessionToken = request.cookies.get("ropoductions_session")?.value;

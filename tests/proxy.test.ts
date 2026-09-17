@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { middleware } from "../src/middleware";
+import { proxy } from "../src/proxy";
 
 function mockRequest(pathname: string, cookies: Record<string, string> = {}) {
   const nextUrl = new URL(pathname, "https://portal.test") as URL & { clone: () => URL };
@@ -21,7 +21,7 @@ const VERIFIED_PATRON = {
 
 describe("edge gate entry points", () => {
   it("blocks anonymous game asset requests with a 403 JSON envelope", async () => {
-    const response = middleware(mockRequest("/api/game/data/file1.rpgsave") as never);
+    const response = proxy(mockRequest("/api/game/data/file1.rpgsave") as never);
 
     assert.equal(response.status, 403);
     assert.equal(response.headers.get("cache-control"), "no-store");
@@ -34,24 +34,24 @@ describe("edge gate entry points", () => {
   });
 
   it("blocks game asset requests missing either credential", async () => {
-    const noAge = middleware(
+    const noAge = proxy(
       mockRequest("/api/game/data/file1.rpgsave", { ropoductions_session: "session-uuid" }) as never
     );
     assert.equal(noAge.status, 403);
 
-    const noSession = middleware(
+    const noSession = proxy(
       mockRequest("/api/game/data/file1.rpgsave", { ropoductions_age_verified: "true" }) as never
     );
     assert.equal(noSession.status, 403);
   });
 
   it("lets verified patrons stream game assets", async () => {
-    const response = middleware(mockRequest("/api/game/data/file1.rpgsave", VERIFIED_PATRON) as never);
+    const response = proxy(mockRequest("/api/game/data/file1.rpgsave", VERIFIED_PATRON) as never);
     assert.equal(response.status, 200);
   });
 
   it("redirects unverified play entry to landing with a renewal flag", async () => {
-    const response = middleware(mockRequest("/play") as never);
+    const response = proxy(mockRequest("/play") as never);
 
     assert.equal(response.status, 307);
     const location = new URL(response.headers.get("location")!);
@@ -60,12 +60,12 @@ describe("edge gate entry points", () => {
   });
 
   it("lets verified patrons enter play without redirect", async () => {
-    const response = middleware(mockRequest("/play", VERIFIED_PATRON) as never);
+    const response = proxy(mockRequest("/play", VERIFIED_PATRON) as never);
     assert.equal(response.status, 200);
   });
 
   it("passes unrelated portal traffic through untouched", async () => {
-    const response = middleware(mockRequest("/") as never);
+    const response = proxy(mockRequest("/") as never);
     assert.equal(response.status, 200);
   });
 });
