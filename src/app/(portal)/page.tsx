@@ -20,7 +20,7 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground overflow-x-clip">
       {/* Sticky Studio Brand Header */}
       <StudioHeader />
-      {paywallType && <PaywallModal type={paywallType} />}
+      {paywallType && <PaywallModal />}
 
       {/* Main Content Area with Full-Bleed Hero and Constrained Content Sections */}
       <main className="flex-1 w-full flex flex-col">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Play, Menu, X, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { saveLandingScrollPosition } from "@/lib/paywall";
 
 export function StudioHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -66,6 +67,8 @@ export function StudioHeader() {
 
           <Link
             href="/play"
+            scroll={false}
+            onClick={saveLandingScrollPosition}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-display text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-primary-hover min-h-[44px] cursor-pointer"
           >
             <Play className="h-4 w-4 fill-current" />
@@ -115,7 +118,11 @@ export function StudioHeader() {
             <div className="pt-2 border-t border-border/60">
               <Link
                 href="/play"
-                onClick={() => setMobileMenuOpen(false)}
+                scroll={false}
+                onClick={() => {
+                  saveLandingScrollPosition();
+                  setMobileMenuOpen(false);
+                }}
                 className="flex items-center justify-center gap-2 w-full rounded-md bg-primary py-3 font-display text-sm font-bold text-primary-foreground min-h-[44px]"
               >
                 <Play className="h-4 w-4 fill-current" />

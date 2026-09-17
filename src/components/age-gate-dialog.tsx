@@ -39,7 +39,8 @@ export function AgeGateDialog({
   const handleConfirm = useCallback(() => {
     setAgeVerifiedCookie();
     setIsOpen(false);
-    window.dispatchEvent(new Event("ropoductions:age-verified"));
+    // Defer so the gate unmounts before stacked-dialog effects run.
+    setTimeout(() => window.dispatchEvent(new Event("ropoductions:age-verified")), 0);
   }, []);
 
   const handleExit = useCallback(() => {

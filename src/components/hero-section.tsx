@@ -5,10 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Play, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { saveLandingScrollPosition } from "@/lib/paywall";
 
 const BACKDROP_SLIDES = [
   "/branding/studio-banner.jpeg",
-  "/branding/studio-background.jpeg",
+  "/branding/studio-background.png",
 ];
 
 const SLIDE_INTERVAL_MS = 5000;
@@ -114,6 +115,8 @@ export function HeroSection() {
 
             <Link
               href="/play"
+              scroll={false}
+              onClick={saveLandingScrollPosition}
               className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-lg bg-primary hover:bg-primary-hover text-primary-foreground font-display font-bold text-base transition-all min-h-[44px] shadow-lg shadow-primary/25 hover:shadow-primary/40 cursor-pointer"
             >
               <Play className="h-5 w-5 fill-current" />
