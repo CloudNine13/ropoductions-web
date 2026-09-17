@@ -61,56 +61,17 @@ export function validateBranchName(branch: unknown): string {
 }
 
 /**
- * Resolves target branch name, querying tools/release.json on main if branch is 'auto' or undefined.
+ * Resolves target branch name, defaulting to 'main' when omitted, empty, or 'auto'.
  */
 export async function resolveTargetBranch(
-  inputBranch?: string,
-  fetchReleaseJsonFn?: () => Promise<string>
+  inputBranch?: string
 ): Promise<string> {
   const normalized = inputBranch?.trim();
-  if (normalized && normalized !== "auto") {
-    return validateBranchName(normalized);
+  if (!normalized || normalized === "auto") {
+    return "main";
   }
 
-  const fetcher = fetchReleaseJsonFn || defaultFetchReleaseJson;
-  const rawJson = await fetcher();
-
-  interface ReleaseConfig {
-    base?: string;
-  }
-
-  let parsed: ReleaseConfig;
-  try {
-    parsed = JSON.parse(rawJson) as ReleaseConfig;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to parse upstream tools/release.json: ${msg}`);
-  }
-
-  if (!parsed || typeof parsed !== "object" || typeof parsed.base !== "string" || !parsed.base.trim()) {
-    throw new Error('Upstream tools/release.json is missing valid "base" version string');
-  }
-
-  return validateBranchName(parsed.base);
-}
-
-async function defaultFetchReleaseJson(): Promise<string> {
-  const token = process.env.UPSTREAM_READ_TOKEN;
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github.raw+json",
-    "User-Agent": "ropoductions-game-sync",
-  };
-
-  if (token) {
-    headers["Authorization"] = `token ${token}`;
-  }
-
-  const url = "https://api.github.com/repos/salamin888/Final_Orginity/contents/tools/release.json?ref=main";
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    throw new Error(`GitHub API request to tools/release.json failed with HTTP ${res.status}: ${res.statusText}`);
-  }
-  return res.text();
+  return validateBranchName(normalized);
 }
 
 /**
@@ -334,7 +295,7 @@ async function runCli() {
   const upstreamBaseDir = process.env.UPSTREAM_DIR || process.argv[2];
   const publicEngineDir = process.env.PUBLIC_ENGINE_DIR || process.argv[3] || "public/engine";
   const bridgePluginPath = process.env.BRIDGE_PLUGIN_PATH || "src/engine-plugins/Ropoductions_WebBridge.js";
-  const branchInput = process.env.BRANCH_INPUT || process.argv[4] || "auto";
+  const branchInput = process.env.BRANCH_INPUT || process.argv[4] || "main";
 
   if (!upstreamBaseDir) {
     console.error("Usage: tsx scripts/sync-game-release.ts <upstream-dir> [public-engine-dir] [branch]");
