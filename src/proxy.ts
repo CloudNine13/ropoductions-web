@@ -7,7 +7,7 @@ function unquote(val?: string | null): string | undefined {
   return val.replace(/^"|"$/g, "");
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ageVerified = unquote(request.cookies.get(AGE_VERIFIED_COOKIE_NAME)?.value) === "true";
   const sessionToken = unquote(request.cookies.get(SESSION_COOKIE_NAME)?.value);
