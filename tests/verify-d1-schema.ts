@@ -42,14 +42,14 @@ interface IndexInfo {
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
-    console.error(`❌ Assertion Failed: ${message}`);
+    console.error(`Assertion failed: ${message}`);
     throw new Error(message);
   }
 }
 
 async function runVerification() {
   console.log("==================================================");
-  console.log("🚀 Starting Cloudflare D1 Schema & Query Verification");
+  console.log("Cloudflare D1 schema and query verification started.");
   console.log("==================================================");
 
   const proxy = await getPlatformProxy();
@@ -61,7 +61,7 @@ async function runVerification() {
     // ----------------------------------------------------
     // Step 1: Verify Table Existence
     // ----------------------------------------------------
-    console.log("\n📋 Step 1: Verifying Table Existence...");
+    console.log("\nStep 1: Table existence verification.");
     const { results: tables } = await db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .all<{ name: string }>();
@@ -69,12 +69,12 @@ async function runVerification() {
     const tableNames = new Set(tables.map((t) => t.name));
     assert(tableNames.has("sessions"), "Table 'sessions' must exist in D1 database");
     assert(tableNames.has("patron_overrides"), "Table 'patron_overrides' must exist in D1 database");
-    console.log("  ✅ Tables 'sessions' and 'patron_overrides' confirmed present.");
+    console.log("  PASS: Tables 'sessions' and 'patron_overrides' confirmed present.");
 
     // ----------------------------------------------------
     // Step 2: Verify `sessions` Column Schema
     // ----------------------------------------------------
-    console.log("\n📋 Step 2: Verifying `sessions` Columns...");
+    console.log("\nStep 2: 'sessions' column verification.");
     const { results: sessionCols } = await db
       .prepare("PRAGMA table_info(sessions)")
       .all<ColumnInfo>();
@@ -118,12 +118,12 @@ async function runVerification() {
       roleCol.dflt_value === "'patron'",
       `Column 'role' default value expected "'patron'", got "${roleCol.dflt_value}"`
     );
-    console.log(`  ✅ All 14 'sessions' columns verified with correct types and constraints.`);
+    console.log(`  PASS: All 14 'sessions' columns verified with correct types and constraints.`);
 
     // ----------------------------------------------------
     // Step 3: Verify `sessions` Indexes
     // ----------------------------------------------------
-    console.log("\n📋 Step 3: Verifying `sessions` Indexes...");
+    console.log("\nStep 3: 'sessions' index verification.");
     const { results: sessionIndexes } = await db
       .prepare("PRAGMA index_list(sessions)")
       .all<IndexInfo>();
@@ -139,12 +139,12 @@ async function runVerification() {
     for (const idx of requiredSessionIndexes) {
       assert(sessionIndexNames.has(idx), `Index '${idx}' must exist on table 'sessions'`);
     }
-    console.log(`  ✅ All 4 required 'sessions' indexes verified: ${requiredSessionIndexes.join(", ")}`);
+    console.log(`  PASS: All 4 required 'sessions' indexes verified: ${requiredSessionIndexes.join(", ")}`);
 
     // ----------------------------------------------------
     // Step 4: Verify `patron_overrides` Column Schema
     // ----------------------------------------------------
-    console.log("\n📋 Step 4: Verifying `patron_overrides` Columns...");
+    console.log("\nStep 4: 'patron_overrides' column verification.");
     const { results: overrideCols } = await db
       .prepare("PRAGMA table_info(patron_overrides)")
       .all<ColumnInfo>();
@@ -174,12 +174,12 @@ async function runVerification() {
         assert(col.pk === 1, `Column '${colName}' must be PRIMARY KEY`);
       }
     }
-    console.log(`  ✅ All 6 'patron_overrides' columns verified with correct types and constraints.`);
+    console.log(`  PASS: All 6 'patron_overrides' columns verified with correct types and constraints.`);
 
     // ----------------------------------------------------
     // Step 5: Verify `patron_overrides` Indexes
     // ----------------------------------------------------
-    console.log("\n📋 Step 5: Verifying `patron_overrides` Indexes...");
+    console.log("\nStep 5: 'patron_overrides' index verification.");
     const { results: overrideIndexes } = await db
       .prepare("PRAGMA index_list(patron_overrides)")
       .all<IndexInfo>();
@@ -189,12 +189,12 @@ async function runVerification() {
       overrideIndexNames.has("idx_patron_overrides_role"),
       "Index 'idx_patron_overrides_role' must exist on table 'patron_overrides'"
     );
-    console.log("  ✅ Index 'idx_patron_overrides_role' verified.");
+    console.log("  PASS: Index 'idx_patron_overrides_role' verified.");
 
     // ----------------------------------------------------
     // Step 6: Verify SQLite CHECK Constraints
     // ----------------------------------------------------
-    console.log("\n📋 Step 6: Verifying Check Constraints...");
+    console.log("\nStep 6: Check constraint verification.");
 
     // Test valid session role values: 'admin', 'comp', 'patron'
     for (const validRole of ["admin", "comp", "patron"] as const) {
@@ -224,7 +224,7 @@ async function runVerification() {
         .run();
       await db.prepare("DELETE FROM sessions WHERE id = ?").bind(testId).run();
     }
-    console.log("  ✅ Valid session roles ('admin', 'comp', 'patron') successfully accepted.");
+    console.log("  PASS: Valid session roles ('admin', 'comp', 'patron') accepted.");
 
     // Test invalid session role: should throw CHECK constraint error
     let sessionConstraintFailed = false;
@@ -260,7 +260,7 @@ async function runVerification() {
       sessionConstraintFailed,
       "Inserting session with invalid role ('moderator') must be rejected by CHECK constraint"
     );
-    console.log("  ✅ Invalid session role ('moderator') correctly rejected by CHECK constraint.");
+    console.log("  PASS: Invalid session role ('moderator') rejected by CHECK constraint.");
 
     // Test valid override role values: 'admin', 'comp'
     for (const validRole of ["admin", "comp"] as const) {
@@ -274,7 +274,7 @@ async function runVerification() {
         .run();
       await db.prepare("DELETE FROM patron_overrides WHERE patron_id = ?").bind(testPatronId).run();
     }
-    console.log("  ✅ Valid patron override roles ('admin', 'comp') successfully accepted.");
+    console.log("  PASS: Valid patron override roles ('admin', 'comp') accepted.");
 
     // Test invalid override role: 'patron' should fail on patron_overrides
     let overrideConstraintFailed = false;
@@ -294,12 +294,12 @@ async function runVerification() {
       overrideConstraintFailed,
       "Inserting patron_override with role 'patron' must be rejected by CHECK(role IN ('admin', 'comp'))"
     );
-    console.log("  ✅ Invalid patron override role ('patron') correctly rejected by CHECK constraint.");
+    console.log("  PASS: Invalid patron override role ('patron') rejected by CHECK constraint.");
 
     // ----------------------------------------------------
     // Step 7: Verify CRUD Functions in src/lib/db.ts
     // ----------------------------------------------------
-    console.log("\n📋 Step 7: Testing Prepared Statement CRUD Operations (src/lib/db.ts)...");
+    console.log("\nStep 7: Prepared statement CRUD operation verification (src/lib/db.ts).");
 
     const testSessionId = `test-sess-${Date.now()}`;
     const testPatronId = "99887766";
@@ -323,7 +323,7 @@ async function runVerification() {
     };
 
     await upsertSession(db, sessionInput);
-    console.log("  ✅ upsertSession (insert) succeeded.");
+    console.log("  PASS: upsertSession (insert) completed.");
 
     // 7.2 getSessionById
     const fetchedSession = await getSessionById(db, testSessionId);
@@ -333,7 +333,7 @@ async function runVerification() {
     assert(fetchedSession.tier_name === "Elf Sybarite", "Tier name must match");
     assert(fetchedSession.pledge_cents === 1500, "Pledge cents must match");
     assert(fetchedSession.revoked === 0, "Revoked flag must initially be 0");
-    console.log("  ✅ getSessionById returned matching record.");
+    console.log("  PASS: getSessionById returned matching record.");
 
     // 7.3 upsertSession (update on conflict)
     const updatedInput: SessionRecord = {
@@ -351,7 +351,7 @@ async function runVerification() {
       updatedSession?.created_at_sec === 1700000000,
       "created_at_sec must be preserved on conflict update"
     );
-    console.log("  ✅ upsertSession conflict resolution updated record while preserving created_at_sec.");
+    console.log("  PASS: upsertSession conflict resolution updated record while preserving created_at_sec.");
 
     // 7.3b Test upsertSession with minimal optional fields (defaults check)
     const minimalSessionId = `min-sess-${Date.now()}`;
@@ -371,7 +371,7 @@ async function runVerification() {
     assert(minimalSession.role === "patron", "Omitted role must default to 'patron'");
     assert(minimalSession.revoked === 0, "Omitted revoked must default to 0");
     assert(minimalSession.email === null, "Omitted email must default to null");
-    console.log("  ✅ upsertSession optional fields correctly defaulted (role='patron', revoked=0, email=null).");
+    console.log("  PASS: upsertSession optional fields defaulted (role='patron', revoked=0, email=null).");
 
     // 7.3c Test getSessionsByPatronId & revokeSessionsByPatronId
     const patronSessions = await getSessionsByPatronId(db, testPatronId);
@@ -379,20 +379,20 @@ async function runVerification() {
     await revokeSessionsByPatronId(db, testPatronId);
     const postRevokeSessions = await getSessionsByPatronId(db, testPatronId);
     assert(postRevokeSessions.every((s) => s.revoked === 1), "revokeSessionsByPatronId must mark all sessions revoked");
-    console.log("  ✅ getSessionsByPatronId and revokeSessionsByPatronId verified.");
+    console.log("  PASS: getSessionsByPatronId and revokeSessionsByPatronId completed.");
     await deleteSession(db, minimalSessionId);
 
     // 7.4 revokeSession
     await revokeSession(db, testSessionId);
     const revokedSession = await getSessionById(db, testSessionId);
     assert(revokedSession?.revoked === 1, "revokeSession must set revoked = 1");
-    console.log("  ✅ revokeSession successfully marked session as revoked (1).");
+    console.log("  PASS: revokeSession marked session as revoked (1).");
 
     // 7.5 deleteSession
     await deleteSession(db, testSessionId);
     const deletedSession = await getSessionById(db, testSessionId);
     assert(deletedSession === null, "deleteSession must remove the session from D1");
-    console.log("  ✅ deleteSession removed record; getSessionById returned null.");
+    console.log("  PASS: deleteSession removed record; getSessionById returned null.");
 
     // 7.6 upsertPatronOverride (insert)
     const overridePatronId = `override-${Date.now()}`;
@@ -404,7 +404,7 @@ async function runVerification() {
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
     });
-    console.log("  ✅ upsertPatronOverride (insert) succeeded.");
+    console.log("  PASS: upsertPatronOverride (insert) completed.");
 
     // 7.7 getPatronOverride
     const fetchedOverride = await getPatronOverride(db, overridePatronId);
@@ -412,7 +412,7 @@ async function runVerification() {
     assert(fetchedOverride.role === "admin", "Role must be 'admin'");
     assert(fetchedOverride.granted_by === "system_bootstrap", "granted_by must match");
     assert(fetchedOverride.notes === "Initial studio staff bootstrap", "Notes must match");
-    console.log("  ✅ getPatronOverride returned matching record.");
+    console.log("  PASS: getPatronOverride returned matching record.");
 
     // 7.8 upsertPatronOverride (update on conflict)
     await upsertPatronOverride(db, {
@@ -433,7 +433,7 @@ async function runVerification() {
       updatedOverride?.created_at_sec === 1700000000,
       "created_at_sec must be preserved on conflict update"
     );
-    console.log("  ✅ upsertPatronOverride conflict update preserved created_at_sec.");
+    console.log("  PASS: upsertPatronOverride conflict update preserved created_at_sec.");
 
     // 7.9 listPatronOverrides
     const allOverrides = await listPatronOverrides(db);
@@ -441,18 +441,18 @@ async function runVerification() {
       allOverrides.some((o) => o.patron_id === overridePatronId),
       "listPatronOverrides must include our test override"
     );
-    console.log(`  ✅ listPatronOverrides returned ${allOverrides.length} record(s) including test override.`);
+    console.log(`  PASS: listPatronOverrides returned ${allOverrides.length} record(s) including test override.`);
 
     // 7.10 deletePatronOverride
     await deletePatronOverride(db, overridePatronId);
     const deletedOverride = await getPatronOverride(db, overridePatronId);
     assert(deletedOverride === null, "deletePatronOverride must remove the override");
-    console.log("  ✅ deletePatronOverride removed record; getPatronOverride returned null.");
+    console.log("  PASS: deletePatronOverride removed record; getPatronOverride returned null.");
 
     // ----------------------------------------------------
     // Step 8: Parameterized Query Sanitization (AD-8)
     // ----------------------------------------------------
-    console.log("\n📋 Step 8: Verifying Parameterized Query Sanitization (Anti-SQLi)...");
+    console.log("\nStep 8: Parameterized query sanitization verification.");
     // Seed a real session first to ensure the table is NOT empty
     const canarySessionId = `canary-sess-${Date.now()}`;
     await upsertSession(db, {
@@ -474,10 +474,10 @@ async function runVerification() {
       "Parameterized query must sanitize input and return null instead of leaking existing rows"
     );
     await deleteSession(db, canarySessionId);
-    console.log("  ✅ Parameterized prepared statement successfully resisted SQL injection payload on populated table.");
+    console.log("  PASS: Parameterized prepared statement resisted SQL injection payload on populated table.");
 
     console.log("\n==================================================");
-    console.log("🎉 ALL SCHEMA & QUERY VERIFICATION CHECKS PASSED!");
+    console.log("All schema and query verification checks passed.");
     console.log("==================================================");
   } finally {
     await proxy.dispose();
@@ -485,6 +485,6 @@ async function runVerification() {
 }
 
 runVerification().catch((err) => {
-  console.error("\n💥 Verification Failed with Error:", err);
+  console.error("\nVerification failed:", err);
   process.exit(1);
 });

@@ -540,6 +540,38 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(httpsErrorResponse.headers.get("Set-Cookie")?.includes("Secure"));
 
   const originalFetch = globalThis.fetch;
+  const mockPatreonSuccessFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = input.toString();
+    if (urlStr === PATREON_TOKEN_URL) {
+      return new Response(
+        JSON.stringify({
+          access_token: "live_access_token_xyz",
+          refresh_token: "live_refresh_token_abc",
+          expires_in: 2592000,
+          scope: "identity campaigns.members",
+          token_type: "Bearer",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (urlStr.startsWith(PATREON_IDENTITY_URL)) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: "987654321",
+            type: "user",
+            attributes: {
+              email: "founder@ropoductions.com",
+              full_name: "Studio Founder",
+            },
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
   try {
     let currentUserId = "987654321";
     let currentUserEmail = "founder@ropoductions.com";
@@ -856,22 +888,43 @@ async function testRouteHandlers(): Promise<void> {
     process.env.TOKEN_ENCRYPTION_KEY = savedTokenKey;
   } finally {
     globalThis.fetch = originalFetch;
+  }
+
+  logStep("Verifying admin bootstrap failure does not block authentication");
+  try {
+    globalThis.fetch = mockPatreonSuccessFetch;
+
+    const bootstrapFailureRequest = new Request(
+      `http://localhost:3000/api/auth/callback?code=auth_code_bootstrap_eligible&state=${state}`,
+      {
+        method: "GET",
+        headers: {
+          Cookie: `${OAUTH_VERIFIER_COOKIE_NAME}=${signedVerifier}`,
+        },
+      }
+    );
+
+    const bootstrapFailureResponse = await callbackAuth(bootstrapFailureRequest);
+    assert.equal(bootstrapFailureResponse.status, 302);
+    assert.equal(bootstrapFailureResponse.headers.get("Location"), "/play");
+  } finally {
+    globalThis.fetch = originalFetch;
     delete (globalThis as Record<string, unknown>).__D1_TEST_DB__;
   }
 }
 
 async function main(): Promise<void> {
-  console.log("Starting Patreon OAuth & PKCE Verification Suite");
+  console.log("Patreon OAuth and PKCE verification started.");
   await testPkceRfc7636Vector();
   await testCryptoSigningAndEncryption();
   testCookies();
   await testPatreonClient();
   await testInitialAdminBootstrap();
   await testRouteHandlers();
-  console.log("All Patreon OAuth & PKCE Verification Checks Passed");
+  console.log("Patreon OAuth and PKCE verification completed successfully.");
 }
 
 main().catch((err) => {
-  console.error("Test suite failed:", err);
+  console.error("Patreon OAuth and PKCE verification failed:", err);
   process.exit(1);
 });

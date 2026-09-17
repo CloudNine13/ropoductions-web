@@ -155,11 +155,15 @@ export async function GET(request: Request): Promise<Response> {
     const identity = await getPatronIdentity(tokens.access_token);
 
     const db = await getDatabase();
-    await bootstrapInitialAdminIfEligible(
-      db,
-      identity.patronId,
-      authEnv.initialAdminPatreonIds
-    );
+    try {
+      await bootstrapInitialAdminIfEligible(
+        db,
+        identity.patronId,
+        authEnv.initialAdminPatreonIds
+      );
+    } catch {
+      // Admin bootstrap must not block authentication; the session proceeds without elevated role.
+    }
 
     const nowSec = Math.floor(Date.now() / 1000);
     const tokenExpiresIn =
