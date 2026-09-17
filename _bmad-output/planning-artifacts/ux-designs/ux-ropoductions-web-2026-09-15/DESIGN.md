@@ -107,6 +107,7 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 | `primary` | `#22C55E` | Studio Emerald | Primary CTAs ("Play Now"), active buttons, emerald brand accents. |
 | `accent` | `#F59E0B` | Sunset Amber | Highlight banners, secondary arcade accents. |
 | `tier-gold` | `#FBBF24` | Patron Honor | Tier status badges, supporter recognition elements. |
+| `crimson` | `#E11D48` | Alert / Crimson Flame | Destructive confirmations (reset, revoke), age gate top glow. |
 | `foreground` | `#F8FAFC` | Text Primary | Headlines, active navigation links, modal body text. |
 | `muted-foreground` | `#94A3B8` | Text Secondary | Captions, metadata, changelogs, footer copyright. |
 
@@ -114,7 +115,7 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 
 ## Typography
 
-* **Display (`Chakra Petch` / `Russo One`):** Bold, futuristic arcade/gaming display typography for studio brand headlines, banner accents, and modal titles. Conveys retro gaming energy while maintaining clean screen legibility.
+* **Display (`Chakra Petch`):** Bold, futuristic gaming display typography for studio brand headlines, banner accents, and modal titles. Conveys retro gaming energy while maintaining clean screen legibility. Exported with a backward-compatible alias `export const cinzel = chakraPetch;` in `src/lib/fonts.ts`.
 * **Body (`Geist Sans` / `Inter`):** Clean, neutral, high-legibility geometric sans-serif for UI labels, descriptive blurbs, HUD buttons, and system notices.
 * **Mono (`Geist Mono`):** Used strictly for version badges (`v1.2.0`), save file timestamps, and technical storage diagnostics.
 

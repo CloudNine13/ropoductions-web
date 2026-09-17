@@ -70,29 +70,28 @@ development_status:
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
     epic: 1
-    action: "Restore AGE_VERIFIED_COOKIE_MAX_AGE to 30 days (2592000 seconds) in src/lib/cookies.ts
-      per FR-2"
+    action: "Lock AGE_VERIFIED_COOKIE_MAX_AGE to 5 days (432000s) in src/lib/cookies.ts per project owner decision"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-2-align-src-middleware-ts-cookie-parsing-w"
     epic: 1
     action: "Align src/middleware.ts cookie parsing with cookies.ts to strip surrounding
       quotes"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-3-update-planning-documents-architecture-s"
     epic: 1
     action: "Update planning documents (ARCHITECTURE-SPINE, DESIGN.md) to document
       Studio Emerald (#22C55E) and Chakra Petch typography"
     owner: "architect"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"
   - id: "epic-1-retro-item-4-configure-vitest-test-runner-and-add-uni"
     epic: 1
     action: "Configure Vitest test runner and add unit tests for cookie parsing, i18n
       fallback merging, and edge route guards"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-15.md"

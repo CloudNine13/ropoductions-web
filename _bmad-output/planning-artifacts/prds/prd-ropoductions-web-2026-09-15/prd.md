@@ -118,9 +118,9 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
 
 #### FR-2: Age Confirmation Persistence
 * **Actor:** Verified Visitor.
-* **Capability:** The system stores the confirmed age status in a secure client cookie / local storage key so that returning visitors are not repeatedly prompted within a 30-day window. [ASSUMPTION: 30-day age gate expiration is optimal for user experience while maintaining compliance].
+* **Capability:** The system stores the confirmed age status in a secure client cookie (`ropoductions_age_verified=true`, max-age 5 days / 432,000 seconds, locked per project owner decision) so that returning visitors are not repeatedly prompted within a 5-day window.
 * **Consequences (testable):**
-  - Refreshing or reopening the browser within 30 days bypasses the age modal.
+  - Refreshing or reopening the browser within 5 days bypasses the age modal.
   - Clearing browser cookies/storage resets the gate, prompting re-confirmation on the next visit.
 
 ---
@@ -294,7 +294,7 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
 ## 6. MVP Scope
 
 ### 6.1 In Scope for v1
-* Mandatory 21+ age verification modal on entry with 30-day cookie persistence.
+* Mandatory 21+ age verification modal on entry with 5-day cookie persistence (432,000s, locked per owner decision).
 * Responsive studio landing page showcasing studio identity, current RPG Maker MZ title, and teaser media.
 * Patreon OAuth 2.0 authentication flow with active tier validation ($5, $10, $15, $25, $50).
 * Protected `/play` route with paywall interstitial for unpledged/unauthenticated visitors.
@@ -339,7 +339,7 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
 
 ## 9. Assumptions Index
 
-* **[ASSUMPTION §4.1 / FR-2]:** A 30-day client-side age confirmation cookie is legally and experientially appropriate for adult gaming portals before re-prompting.
+* **[ASSUMPTION §4.1 / FR-2]:** A 5-day client-side age confirmation cookie (`max-age=432000`) is established and locked per project owner decision for legal compliance before re-prompting.
 * **[ASSUMPTION §4.3 / FR-7]:** All 5 listed Patreon tiers ($5 Ork Patron, $10 Ogre Pimp, $15 Elf Sybarite, $25 Horseman Aesthete, $50 Mind Fucker Avatar) receive uniform access in v1 without tier-based gating.
 * **[ASSUMPTION §4.3 / FR-9]:** Session token re-checks during route navigation provide sufficient business security without requiring aggressive periodic polling during active gameplay.
 * **[ASSUMPTION §4.5 / FR-13]:** The Ropoductions game development team will enforce backward compatibility within their RPG Maker MZ plugins, ensuring that older save files do not crash the engine when new variables or switches are added in patches.
