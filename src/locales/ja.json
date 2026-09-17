@@ -147,5 +147,28 @@
     "pl": "Polski",
     "ja": "日本語",
     "zh": "简体中文"
+  },
+  "paywall": {
+    "badge": "パトロン限定",
+    "title": "サポーターアクセスが必要です",
+    "subtitle": "$5以上のPatreonティアに参加して、ブラウザゲームのプレイと今後のリリースにアクセスしてください。",
+    "allTiersInclude": "すべての$5〜$50ティアには完全なWebゲームアクセスとセーブデータのバックアップが含まれます。",
+    "loginWithPatreon": "Patreonでログイン",
+    "pledgeOnPatreon": "Patreonで支援する",
+    "perMonth": "/月",
+    "tier1Name": "Ork Patron",
+    "tier1Desc": "Webブラウザプレイヤーアクセス、セーブデータ保持",
+    "tier2Name": "Ogre Pimp",
+    "tier2Desc": "高解像度イラスト先行公開、チャプター早期更新",
+    "tier3Name": "Elf Sybarite",
+    "tier3Desc": "専用Discordロール、月替わりイラスト投票権",
+    "tier4Name": "Horseman Aesthete",
+    "tier4Desc": "パトロンクレジット掲載、コンセプトアートパック",
+    "tier5Name": "Mind Fucker Avatar",
+    "tier5Desc": "アーカイブゲームビルド、VIPスタジオラウンジ",
+    "bannerRevoked": "一時アクセス権が無効化または期限切れになりました。プレイを続けるにはPatreonで支援してください。",
+    "bannerLapsed": "Patreonのサブスクリプションが一時停止または無効になっています。プレイを再開するには支援を更新してください。",
+    "bannerAuthRequired": "ゲームプレイヤーにアクセスするには、アクティブなパトロンセッション（$5以上）と21歳以上の年齢確認が必要です。",
+    "dismiss": "通知を閉じる"
   }
 }

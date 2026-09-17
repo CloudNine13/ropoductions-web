@@ -147,5 +147,28 @@
     "pl": "Polski",
     "ja": "日本語",
     "zh": "简体中文"
+  },
+  "paywall": {
+    "badge": "EXCLUSIVO PARA MECENAS",
+    "title": "ACCESO DE MECENAS REQUERIDO",
+    "subtitle": "Únete a nuestra campaña de Patreon en el nivel de $5 o superior para desbloquear el juego en navegador web y acceder a los lanzamientos.",
+    "allTiersInclude": "Todos los niveles de $5 a $50 incluyen acceso completo al juego web y respaldo persistente de partidas.",
+    "loginWithPatreon": "Iniciar sesión con Patreon",
+    "pledgeOnPatreon": "Apoyar en Patreon",
+    "perMonth": "/mes",
+    "tier1Name": "Ork Patron",
+    "tier1Desc": "Acceso al reproductor web, persistencia de datos de guardado",
+    "tier2Name": "Ogre Pimp",
+    "tier2Desc": "Vistas previas en alta resolución, actualizaciones anticipadas de capítulos",
+    "tier3Name": "Elf Sybarite",
+    "tier3Desc": "Rol exclusivo en Discord, votación mensual de arte",
+    "tier4Name": "Horseman Aesthete",
+    "tier4Desc": "Créditos especiales de mecenas, paquete de arte conceptual",
+    "tier5Name": "Mind Fucker Avatar",
+    "tier5Desc": "Compilaciones archivadas del juego, salón VIP de estudio",
+    "bannerRevoked": "Tu pase de acceso temporal ha expirado o ha sido revocado. Apóyanos en Patreon para seguir jugando.",
+    "bannerLapsed": "Tu suscripción de Patreon está en pausa o inactiva. Actualiza tu suscripción en Patreon para reanudar el juego.",
+    "bannerAuthRequired": "Se requiere una sesión activa de mecenas (nivel de $5+) y verificación de edad de 21+ para acceder al juego.",
+    "dismiss": "Cerrar notificación"
   }
 }
