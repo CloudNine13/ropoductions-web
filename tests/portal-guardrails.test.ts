@@ -14,7 +14,7 @@ import {
   serializeCookie,
 } from "../src/lib/cookies";
 import { buildPatreonAuthorizeUrl, PATREON_AUTHORIZE_URL } from "../src/lib/patreon";
-import { config as edgeConfig, middleware } from "../src/middleware";
+import { config as edgeConfig, proxy } from "../src/proxy";
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readSource = (rel: string): string => readFileSync(join(rootDir, rel), "utf8");
@@ -65,7 +65,7 @@ describe("portal base contract", () => {
   });
 
   it("freezes the anonymous asset rejection to the 403 JSON envelope", async () => {
-    const response = middleware(mockRequest("/api/game/data/file1.rpgsave") as never);
+    const response = proxy(mockRequest("/api/game/data/file1.rpgsave") as never);
 
     assert.equal(response.status, 403);
     assert.equal(response.headers.get("cache-control"), "no-store");
@@ -78,7 +78,7 @@ describe("portal base contract", () => {
   });
 
   it("keeps /play redirecting to landing with the renewal flag", async () => {
-    const response = middleware(mockRequest("/play") as never);
+    const response = proxy(mockRequest("/play") as never);
 
     assert.equal(response.status, 307);
     const location = new URL(response.headers.get("location")!);
