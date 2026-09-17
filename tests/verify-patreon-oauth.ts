@@ -106,7 +106,7 @@ function testCookies(): void {
     sameSite: "Lax",
   });
   assert.ok(serialized.includes("test_cookie=value_123"));
-  assert.ok(serialized.includes("Max-Age=600"));
+  assert.ok(serialized.includes("max-age=600"));
   assert.ok(serialized.includes("HttpOnly"));
   assert.ok(serialized.includes("Secure"));
   assert.ok(serialized.includes("SameSite=Lax"));
@@ -316,7 +316,7 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(
     errorCallbackResponse.headers
       .get("Set-Cookie")
-      ?.includes("Max-Age=0")
+      ?.includes("max-age=0")
   );
 
   const missingStateRequest = new Request(
@@ -424,7 +424,7 @@ async function testRouteHandlers(): Promise<void> {
     assert.ok(
       validCallbackResponse.headers
         .get("Set-Cookie")
-        ?.includes("Max-Age=0")
+        ?.includes("max-age=0")
     );
   } finally {
     globalThis.fetch = originalFetch;
