@@ -8,8 +8,9 @@
     "build:next": "next build",
     "preview": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare deploy",
-    "test": "npx tsx tests/verify-d1-schema.ts",
+    "test": "npx tsx tests/verify-d1-schema.ts && npx tsx tests/verify-patreon-oauth.ts",
     "test:d1": "npx tsx tests/verify-d1-schema.ts",
+    "test:oauth": "npx tsx tests/verify-patreon-oauth.ts",
     "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/middleware.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/suite-manifest.test.ts"
   },
   "dependencies": {

@@ -44,7 +44,7 @@ development_status:
 
   epic-2: in-progress
   2-1-cloudflare-d1-sessions-database-schema-migration: done
-  2-2-patreon-oauth-2-0-pkce-authorization-callback-route-handlers: backlog
+  2-2-patreon-oauth-2-0-pkce-authorization-callback-route-handlers: review
   2-3-active-tier-verification-5-threshold-secure-session-cookie-i: backlog
   2-4-paywall-interstitial-graceful-navigation-session-verificatio: backlog
   epic-2-retrospective: optional

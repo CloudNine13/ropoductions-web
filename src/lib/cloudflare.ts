@@ -118,3 +118,60 @@ export function getGameAssetsBucketSync(env?: CloudflareEnv): R2Bucket {
     "Cloudflare R2 binding 'GAME_ASSETS' is missing. Verify [[r2_buckets]] binding 'GAME_ASSETS' in wrangler.toml."
   );
 }
+
+export async function getEnvVariable(
+  key: string,
+  explicitEnv?: Record<string, unknown>
+): Promise<string | undefined> {
+  if (explicitEnv && typeof explicitEnv[key] === "string") {
+    return explicitEnv[key] as string;
+  }
+  try {
+    const ctx = await getCloudflareContext({ async: true });
+    const envObj = ctx?.env as unknown as Record<string, unknown> | undefined;
+    const val = envObj?.[key];
+    if (typeof val === "string") {
+      return val;
+    }
+  } catch {
+  }
+  if (typeof process !== "undefined" && process.env && typeof process.env[key] === "string") {
+    return process.env[key];
+  }
+  return undefined;
+}
+
+export async function getAuthEnv(explicitEnv?: Record<string, unknown>): Promise<{
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  campaignId?: string;
+  sessionSecret: string;
+  tokenEncryptionKey: string;
+  initialAdminPatreonIds?: string;
+}> {
+  const clientId = (await getEnvVariable("PATREON_CLIENT_ID", explicitEnv)) ?? "";
+  const clientSecret = (await getEnvVariable("PATREON_CLIENT_SECRET", explicitEnv)) ?? "";
+  const redirectUri = (await getEnvVariable("PATREON_REDIRECT_URI", explicitEnv)) ?? "";
+  const campaignId = await getEnvVariable("PATREON_CAMPAIGN_ID", explicitEnv);
+  const sessionSecret =
+    (await getEnvVariable("SESSION_SECRET", explicitEnv)) ??
+    "dev_session_secret_change_in_production";
+  const tokenEncryptionKey =
+    (await getEnvVariable("TOKEN_ENCRYPTION_KEY", explicitEnv)) ??
+    "dev_token_encryption_key_32_bytes_len";
+  const initialAdminPatreonIds = await getEnvVariable(
+    "INITIAL_ADMIN_PATREON_IDS",
+    explicitEnv
+  );
+
+  return {
+    clientId,
+    clientSecret,
+    redirectUri,
+    campaignId,
+    sessionSecret,
+    tokenEncryptionKey,
+    initialAdminPatreonIds,
+  };
+}
