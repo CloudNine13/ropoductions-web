@@ -154,4 +154,13 @@ describe("portal base contract", () => {
     assert.ok(i18n.includes("LANG_COOKIE_MAX_AGE = 365 * 24 * 60 * 60"));
     assert.ok(i18n.includes('DEFAULT_LOCALE: Locale = "en"'));
   });
+
+  it("integrates AuthErrorToast into the portal landing page for auth error parameter feedback", () => {
+    const portalPage = readSource("src/app/(portal)/page.tsx");
+    assert.ok(portalPage.includes("AuthErrorToast"), "Portal page must import and render AuthErrorToast");
+    assert.ok(existsSync(join(rootDir, "src/components/auth-error-toast.tsx")), "AuthErrorToast component file must exist");
+    const toastSource = readSource("src/components/auth-error-toast.tsx");
+    assert.ok(toastSource.includes('role="alert"'), "AuthErrorToast must have role=alert accessibility attribute");
+    assert.ok(toastSource.includes('aria-live="polite"'), "AuthErrorToast must have aria-live=polite attribute");
+  });
 });

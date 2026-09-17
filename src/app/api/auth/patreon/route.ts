@@ -13,18 +13,23 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const authEnv = await getAuthEnv();
   if (!authEnv.clientId) {
-    return new Response(
-      JSON.stringify({
-        error: {
-          code: "MISSING_CONFIG",
-          message: "PATREON_CLIENT_ID is not configured",
-        },
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/?auth_error=client_configuration_error",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  }
+
+  if (!authEnv.sessionSecret) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/?auth_error=server_configuration_error",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   }
 
   const requestUrl = new URL(request.url);

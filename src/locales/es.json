@@ -177,5 +177,16 @@
     "returnToPortal": "Volver al portal del estudio",
     "title": "Final Orginity: Capítulo 1",
     "iframeTitle": "Final Orginity"
+  },
+  "authError": {
+    "dismiss": "Cerrar notificación",
+    "clientConfigTitle": "Error de configuración del cliente",
+    "clientConfigDesc": "La autenticación de Patreon no está configurada. Verifica PATREON_CLIENT_ID.",
+    "serverConfigTitle": "Error de configuración del servidor",
+    "serverConfigDesc": "El servicio de autenticación no está disponible temporalmente debido a la configuración del servidor.",
+    "accessDeniedTitle": "Acceso denegado",
+    "accessDeniedDesc": "La autorización de Patreon fue cancelada o denegada.",
+    "genericTitle": "Error de autenticación",
+    "genericDesc": "Ocurrió un error durante la autorización de Patreon. Inténtalo de nuevo."
   }
 }

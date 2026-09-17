@@ -177,5 +177,16 @@
     "returnToPortal": "Вернуться на портал студии",
     "title": "Final Orginity: Глава 1",
     "iframeTitle": "Final Orginity"
+  },
+  "authError": {
+    "dismiss": "Закрыть уведомление",
+    "clientConfigTitle": "Ошибка конфигурации клиента",
+    "clientConfigDesc": "Аутентификация через Patreon не настроена. Проверьте PATREON_CLIENT_ID.",
+    "serverConfigTitle": "Ошибка конфигурации сервера",
+    "serverConfigDesc": "Сервис аутентификации временно недоступен из-за настроек сервера.",
+    "accessDeniedTitle": "Доступ запрещен",
+    "accessDeniedDesc": "Авторизация в Patreon была отменена или отклонена.",
+    "genericTitle": "Ошибка аутентификации",
+    "genericDesc": "Произошла ошибка при авторизации в Patreon. Пожалуйста, попробуйте позже."
   }
 }

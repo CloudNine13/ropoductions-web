@@ -467,6 +467,32 @@ async function testRouteHandlers(): Promise<void> {
   const signedVerifier = parsedCookie[OAUTH_VERIFIER_COOKIE_NAME];
   assert.ok(signedVerifier);
 
+  delete process.env.PATREON_CLIENT_ID;
+  const missingClientIdResponse = await initiateAuth(initRequest);
+  assert.equal(missingClientIdResponse.status, 302);
+  assert.equal(
+    missingClientIdResponse.headers.get("Location"),
+    "/?auth_error=client_configuration_error"
+  );
+  assert.equal(
+    missingClientIdResponse.headers.get("Cache-Control"),
+    "no-store, max-age=0"
+  );
+  process.env.PATREON_CLIENT_ID = "test_patreon_client_id";
+
+  delete process.env.SESSION_SECRET;
+  const missingSecretResponse = await initiateAuth(initRequest);
+  assert.equal(missingSecretResponse.status, 302);
+  assert.equal(
+    missingSecretResponse.headers.get("Location"),
+    "/?auth_error=server_configuration_error"
+  );
+  assert.equal(
+    missingSecretResponse.headers.get("Cache-Control"),
+    "no-store, max-age=0"
+  );
+  process.env.SESSION_SECRET = "test_session_secret_32_bytes_long";
+
   const errorCallbackRequest = new Request(
     "http://localhost:3000/api/auth/callback?error=access_denied",
     { method: "GET" }

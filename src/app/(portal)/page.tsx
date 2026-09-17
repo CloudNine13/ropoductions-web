@@ -4,6 +4,7 @@ import { ProjectShowcase } from "@/components/project-showcase";
 import { SocialHub } from "@/components/social-hub";
 import { StudioFooter } from "@/components/studio-footer";
 import { PaywallModal } from "@/components/paywall-modal";
+import { AuthErrorToast } from "@/components/auth-error-toast";
 import { resolvePaywallType } from "@/lib/paywall";
 
 interface PortalPageProps {
@@ -16,12 +17,13 @@ interface PortalPageProps {
 export default async function PortalPage({ searchParams }: PortalPageProps) {
   const resolvedParams = searchParams ? await searchParams : {};
   const paywallType = resolvePaywallType(resolvedParams);
-
+  const authErrorCode = !paywallType && resolvedParams.auth_error ? resolvedParams.auth_error : null;
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground overflow-x-clip">
       {/* Sticky Studio Brand Header */}
       <StudioHeader />
       {paywallType && <PaywallModal />}
+      {authErrorCode && <AuthErrorToast errorCode={authErrorCode} />}
 
       {/* Main Content Area with Full-Bleed Hero and Constrained Content Sections */}
       <main className="flex-1 w-full flex flex-col">
