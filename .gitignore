@@ -142,3 +142,7 @@ _bmad-output/party-mode/memories/
 .eslintcache
 .stylelintcache
 .turbo
+
+# --- Playwright E2E artifacts ---
+/playwright-report/
+/test-results/

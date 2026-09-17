@@ -11,7 +11,9 @@
     "test": "npx tsx tests/verify-d1-schema.ts && npx tsx tests/verify-patreon-oauth.ts",
     "test:d1": "npx tsx tests/verify-d1-schema.ts",
     "test:oauth": "npx tsx tests/verify-patreon-oauth.ts",
-    "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/middleware.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/auth.test.ts tests/suite-manifest.test.ts"
+    "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/middleware.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/auth.test.ts tests/suite-manifest.test.ts",
+    "test:e2e": "playwright test",
+    "start": "next start -p 3100"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.6",
@@ -24,13 +26,14 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.0.0",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.13.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
     "postcss": "8.5.0",
-    "tailwindcss": "4.0.0",
-    "typescript": "5.8.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.8.3",
     "wrangler": "4.131.2"
   }
 }
