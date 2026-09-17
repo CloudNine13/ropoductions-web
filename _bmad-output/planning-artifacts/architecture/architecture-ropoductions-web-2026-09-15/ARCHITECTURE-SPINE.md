@@ -112,31 +112,37 @@ graph TD
 
 - **Binds:** CAP-5, CAP-8, CAP-11, FR-17, FR-18
 - **Prevents:** Cloudflare Edge worker memory exhaustion from Git operations, accidental auto-deployments of broken development assets, and game engine JSON database corruption.
-- **Rule:** Cloudflare Edge Workers and Pages functions MUST NEVER interact with Git repositories or execute asset ingestion at runtime. Upstream game assets from `salamin888/Final_Orginity` are ingested exclusively via a manual `workflow_dispatch` GitHub Action in `ropoductions-web` (`.github/workflows/sync-game-release.yml`). The workflow reads the release version from `tools/release.json` on `main` (or accepts a manual branch override), clones the target release branch, injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers it in `js/plugins.js`, synchronizes media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 via AWS CLI S3 sync, and commits the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) to `public/engine/`.
-
+- **Rule:** Cloudflare Edge Workers and Pages functions MUST NEVER interact with Git repositories or execute asset ingestion at runtime. Upstream game assets from `salamin888/Final_Orginity` are ingested via a dedicated GitHub Action in `ropoductions-web` (`.github/workflows/sync-game-release.yml`).
+  - **Trigger Modes (Dual Trigger):**
+    1. **Portal Maintainer Manual Trigger:** `workflow_dispatch` within `CloudNine13/ropoductions-web` with input `branch` (defaulting to `auto`).
+    2. **Upstream Remote Trigger:** `repository_dispatch` with event type `game_release_published`, enabling upstream game maintainers (`salamin888`) to trigger web publication directly from their repository upon publishing a release.
+  - **Security Boundary & Secret Isolation:** Upstream maintainers are NEVER given Cloudflare API tokens, R2 S3 access keys, or repository write access to `ropoductions-web`. Upstream triggers the pipeline using a fine-grained GitHub Personal Access Token (PAT) with `Actions: Read and write` scoped exclusively to dispatching workflows on `CloudNine13/ropoductions-web`. All Cloudflare R2 secrets (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) and upstream clone credentials (`UPSTREAM_READ_TOKEN`) reside strictly within `ropoductions-web` GitHub Secrets.
+  - **Execution Protocol:** The runner resolves target branch (`client_payload.branch` if present, else manual input, falling back to `tools/release.json` `base` version if `auto`), shallow-clones the release branch using `UPSTREAM_READ_TOKEN`, validates the file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`), injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers it in `js/plugins.js`, synchronizes media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 (`GAME_ASSETS`) via AWS CLI S3 sync (`--endpoint-url`), and commits the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) to `public/engine/`.
+  - **Decoupled Runtime Testing Invariant:** Development and testing of the web client iframe container (Story 3.1) and Save HUD postMessage bridge (Epic 4) are completely decoupled from upstream release availability. The web player container can be verified locally and in CI using a lightweight mock canvas harness in `public/engine/index.html` adhering to the identical origin and postMessage protocol.
 
 ```mermaid
-graph LR
-    subgraph Client Layer
-        WebShell[Next.js Web Shell]
-        SaveHUD[Save HUD Dock]
-        MZFrame[RPG Maker MZ Iframe]
+sequenceDiagram
+    autonumber
+    actor GameDev as Upstream Maintainer (salamin888)
+    actor PortalDev as Portal Maintainer (CloudNine13)
+    participant UpstreamRepo as salamin888/Final_Orginity (.github)
+    participant WebRepo as CloudNine13/ropoductions-web (.github)
+    participant R2 as Private Cloudflare R2 (GAME_ASSETS)
+    participant EngineShell as public/engine/ (Git)
+
+    alt Upstream Self-Trigger
+        GameDev->>UpstreamRepo: Trigger "Publish to Web" (workflow_dispatch)
+        UpstreamRepo->>WebRepo: POST /repos/CloudNine13/ropoductions-web/dispatches (event_type: game_release_published)
+    else Portal Manual Trigger
+        PortalDev->>WebRepo: Trigger "Sync Game Release" (workflow_dispatch)
     end
 
-    subgraph Edge Layer
-        Worker[Cloudflare Worker]
-        D1Store[(D1 Database)]
-        R2Bucket[(R2 Storage)]
-    end
-
-    WebShell -->|Dispatches postMessage| MZFrame
-    MZFrame -->|Returns Save Slots| SaveHUD
-    SaveHUD -->|Bundles .zip via JSZip| WebShell
-    WebShell -->|Requests Assets /api/game/*| Worker
-    Worker -->|Validates Session| D1Store
-    Worker -->|Streams File| R2Bucket
+    Note over WebRepo: Runner executes sync-game-release.yml
+    WebRepo->>WebRepo: Clone upstream using UPSTREAM_READ_TOKEN & validate System.json
+    WebRepo->>WebRepo: Inject Ropoductions_WebBridge.js into plugins.js
+    WebRepo->>R2: Sync media assets (audio, img, data) via AWS S3 CLI
+    WebRepo->>EngineShell: Commit lightweight HTML5 shell (index.html, js, css)
 ```
-
 ---
 
 ## Consistency Conventions

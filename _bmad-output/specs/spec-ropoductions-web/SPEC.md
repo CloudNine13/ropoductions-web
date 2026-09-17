@@ -61,6 +61,8 @@ Ropoductions adult game studio currently distributes titles through manual archi
 - Full responsive scaling is required across all web pages and the game canvas for desktop and mobile viewports.
 - Patreon OAuth 2.0 is the sole authentication and authorization provider for v1.
 - Web stack is Next.js (App Router) deployed on Cloudflare serverless runtime (Workers/Pages, R2 asset storage, D1 session database).
+- Upstream game releases are ingested via GitHub Actions supporting both manual execution and upstream self-service trigger (`repository_dispatch`), syncing assets to private R2 and engine shell to `public/engine/` while isolating all Cloudflare secrets inside the web repository.
+- The web player iframe container and Save HUD are architecturally testable in isolation via a same-origin mock canvas harness at `/engine/index.html` prior to upstream game asset availability.
 
 ## Non-goals
 
