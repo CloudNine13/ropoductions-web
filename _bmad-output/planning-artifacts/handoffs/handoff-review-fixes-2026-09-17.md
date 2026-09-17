@@ -42,6 +42,6 @@ Date: 2026-09-17. From: review-fixes session. For: any agent continuing this wor
 
 ## User-reported notes (manual QA, unverified by agent)
 
-- User sees no age-confirmation modal: almost certainly the 5-day `ropoductions_age_verified` cookie already set in their browser. Clear it in devtools → reload to retest. Fresh-visitor flow is covered by `e2e/age-gate.spec.ts`.
+- User sees no age-confirmation modal: almost certainly the 14-hour `ropoductions_age_verified` cookie already set in their browser. Clear it in devtools → reload to retest. Fresh-visitor flow is covered by `e2e/age-gate.spec.ts`.
 - Untouched UX debt from the party review (filed, not started): paywall Login-vs-Pledge hierarchy, gold/amber/emerald token blur, Exit-button affordance, lightbox `navHint` dead microcopy, 10–11px microcopy contrast, mobile drawer Escape handling.
 - Deferred to Epic 3 by design: real `/api/game/[...asset]` route, same-origin iframe, AD-9 sync workflow.

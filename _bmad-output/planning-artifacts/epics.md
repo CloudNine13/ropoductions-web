@@ -19,7 +19,7 @@ This document provides the complete epic and story breakdown for ropoductions-we
 ### Functional Requirements
 
 - **FR-1:** Mandatory 21+ Confirmation Modal blocking all underlying interactions on first visit until user confirms age self-attestation.
-- **FR-2:** Age Confirmation Persistence storing verification status in a 5-day persistent cookie (`max-age=432000`, locked per owner decision) to avoid repeated prompting.
+- **FR-2:** Age Confirmation Persistence storing verification status in a 14-hour persistent cookie (`max-age=50400`, locked per owner decision) to avoid repeated prompting.
 - **FR-3:** Responsive Hero & Studio Identity displaying studio branding, key art, lore, and primary calls-to-action across desktop and mobile.
 - **FR-4:** Project Showcase & Media Cards displaying RPG Maker MZ title, character profiles, screenshots with lightbox, and future Godot teaser.
 - **FR-5:** Social & Community Hub providing verified external links to Patreon, Discord, and Twitter/X with security attributes.
@@ -70,7 +70,7 @@ This document provides the complete epic and story breakdown for ropoductions-we
 ### FR Coverage Map
 
 * **FR-1:** Epic 1 — Mandatory 21+ Confirmation Modal
-* **FR-2:** Epic 1 — Age Confirmation Persistence (5-day cookie, 432000s)
+* **FR-2:** Epic 1 — Age Confirmation Persistence (14-hour cookie, 50400s)
 * **FR-3:** Epic 1 — Responsive Hero & Studio Identity
 * **FR-4:** Epic 1 — Project Showcase & Media Cards
 * **FR-5:** Epic 1 — Social & Community Hub
@@ -151,7 +151,7 @@ So that I am legally informed of mature content and unconfirmed visitors are kep
 **Given** a visitor with no `ropoductions_age_verified` cookie
 **When** navigating to any portal page
 **Then** a Radix UI `Dialog` modal renders over a blurred backdrop (`backdrop-blur-xl`) with focus trapped
-**And** clicking "I am 21 or older" sets a `ropoductions_age_verified=true` cookie (max-age 5 days / 432000s, locked per owner decision) and smoothly dissolves the modal
+**And** clicking "I am 21 or older" sets a `ropoductions_age_verified=true` cookie (max-age 14 hours / 50400s, locked per owner decision) and smoothly dissolves the modal
 **And** clicking "Exit" immediately redirects the browser window to `https://google.com`
 **And** returning visitors with a valid cookie bypass the modal automatically.
 

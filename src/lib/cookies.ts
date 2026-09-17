@@ -1,5 +1,5 @@
 export const AGE_VERIFIED_COOKIE_NAME = "ropoductions_age_verified";
-export const AGE_VERIFIED_COOKIE_MAX_AGE = 5 * 24 * 60 * 60;
+export const AGE_VERIFIED_COOKIE_MAX_AGE = 14 * 60 * 60;
 
 export const OAUTH_VERIFIER_COOKIE_NAME = "ropoductions_oauth_verifier";
 export const OAUTH_VERIFIER_COOKIE_MAX_AGE = 10 * 60;

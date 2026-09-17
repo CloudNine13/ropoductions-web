@@ -44,7 +44,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - D1 access MUST use `db.prepare().bind()`; string-concatenated SQL is forbidden; schema changes go as versioned files in `migrations/`.
 - Files are `kebab-case` (`age-gate-dialog.tsx`); API routes are lowercase plural (`/api/auth/patreon`, `/api/auth/callback`, `/api/game/[...asset]`); D1 tables and columns are `snake_case` with unit suffixes (`pledge_cents`, `created_at`, `expires_at_sec`); env vars are `UPPER_SNAKE_CASE`.
 - Locales live in `src/locales/[locale].json` with fallback to `en`; supported codes are EN, JA, ES, RU, ZH, PL; persist in `ropoductions_lang` cookie for 365 days.
-- Age gate uses cookie `ropoductions_age_verified` for 5 days (432000s; strictly 5 days per owner decision, DO NOT change to 30 days); Exit redirects to `https://google.com`.
+- Age gate uses cookie `ropoductions_age_verified` for 14 hours (50400s; strictly 14 hours per owner decision); Exit redirects to `https://google.com`.
 - Save HUD export MUST bundle slots `file1.rpgsave` through `file20.rpgsave` plus `global.rpgsave` and `config.rpgsave` via JSZip into `ropoductions_saves_{YYYY-MM-DD}.zip`; import accepts `.zip` or `.rpgsave` and shows invalid-format error, reset requires explicit destructive confirmation.
 - Use design tokens `#090A0F` background, `#121522` card, `#22C55E` Studio Emerald primary (with `#E11D48` crimson accents), `#FBBF24` tier gold; display type Chakra Petch (with Cinzel alias), body Geist Sans/Inter, mono for versions/timestamps; minimum 44x44px touch targets; Lucide SVGs only, no emojis as icons.
 
