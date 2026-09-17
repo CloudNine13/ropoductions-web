@@ -74,10 +74,12 @@ graph TD
 ### 5.2 Pipeline Architecture Decisions
 1. **Edge Runtime Isolation (Cloudflare Workers / Pages):**
    - **Decision:** Cloudflare Edge Workers will **never** interact with Git or perform asset synchronization. Edge isolates run under strict CPU/memory limits (128MB ceiling) and are dedicated solely to D1 session validation and R2 byte streaming via `/api/game/*`.
-2. **Release Trigger Mechanism:**
-   - **Decision:** Use `workflow_dispatch` (manual button in GitHub Actions) in `CloudNine13/ropoductions-web`.
-   - **Auto-Default:** The workflow provides a `branch` input that defaults to `auto`. When `auto`, the runner queries `salamin888/Final_Orginity:main`'s `tools/release.json`, reads the `"base"` string (e.g. `0.6.0`), and clones that branch.
-   - **Rejection of Continuous Polling / Daemon:** Background file-diff pollers and automated push webhooks were rejected because they risk deploying mid-game WIP assets, trigger premature builds before the studio finishes pushing asset fixes, and burn GitHub Actions quotas. Release deployment remains an intentional, Igor-controlled action.
+2. **Release Trigger Mechanism (Dual-Trigger Architecture):**
+   - **Decision:** Support both portal maintainer manual execution and upstream developer self-service execution without compromising credentials:
+     - **Portal Manual Trigger:** `workflow_dispatch` (manual button in GitHub Actions) in `CloudNine13/ropoductions-web`. Input `branch` defaults to `auto`.
+     - **Upstream Self-Service Trigger:** `repository_dispatch` (event type `game_release_published`) in `CloudNine13/ropoductions-web`, triggered by an on-demand workflow in `salamin888/Final_Orginity`.
+   - **Auto-Default:** When `branch` is `auto` (or omitted from dispatch payload), the runner queries `salamin888/Final_Orginity:main`'s `tools/release.json`, reads the `"base"` string (e.g. `0.6.0`), and clones that branch.
+   - **Security Boundary:** Zero Cloudflare credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) or repository write permissions are shared with `salamin888`. Upstream repository receives only a fine-grained GitHub PAT with actions dispatch permissions to `CloudNine13/ropoductions-web`.
 3. **R2 Transfer Tooling:**
    - **Decision:** Use the **AWS S3-compatible CLI** (`aws s3 sync --endpoint-url https://<account_id>.r2.cloudflarestorage.com`) with Cloudflare R2 credentials. S3 sync calculates checksum deltas and only transfers modified audio/images, reducing ingestion run times from 15+ minutes down to under 60 seconds.
 4. **Engine Shell vs. Static Asset Separation:**
@@ -94,7 +96,63 @@ graph TD
 
 ## 6. Actionable Implementation Checklist
 
-- [ ] Create `.github/workflows/sync-game-release.yml` with `workflow_dispatch` (input: `branch`, default `auto`).
-- [ ] Add GitHub Secrets: `UPSTREAM_READ_TOKEN` (fine-grained PAT for `salamin888/Final_Orginity`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`.
+- [ ] Create `.github/workflows/sync-game-release.yml` with dual triggers (`workflow_dispatch` and `repository_dispatch: [game_release_published]`).
+- [ ] Add GitHub Secrets in `ropoductions-web`: `UPSTREAM_READ_TOKEN` (fine-grained PAT for `salamin888/Final_Orginity`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`.
+- [ ] Generate fine-grained GitHub Dispatch PAT scoped to `CloudNine13/ropoductions-web` actions dispatch and provide to upstream maintainers.
+- [ ] Provide upstream maintainers (`salamin888`) with the lightweight `.github/workflows/publish-to-web.yml` dispatch workflow.
 - [ ] Implement `Ropoductions_WebBridge.js` plugin under `src/engine-plugins/Ropoductions_WebBridge.js` with postMessage listener, origin checking, and `StorageManager` / `DataManager` hooks.
 - [ ] Implement Save HUD import modal with JSZip client-side unzipping, header validation, and error handling.
+- [ ] Scaffold lightweight mock canvas harness in `public/engine/index.html` to enable decoupled local and E2E testing of Story 3.1 and Epic 4 before live asset ingestion.
+
+---
+
+## 7. Addendum: Upstream Action Contract (`publish-to-web.yml`)
+
+To allow upstream game maintainers to trigger deployment directly from their repository without holding Cloudflare keys:
+
+### 7.1 Upstream Workflow Specification (`salamin888/Final_Orginity:.github/workflows/publish-to-web.yml`)
+```yaml
+name: Publish Game to Web Portal
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch or tag to publish (or 'auto')"
+        required: true
+        default: "auto"
+
+jobs:
+  dispatch-to-portal:
+    name: Trigger ropoductions-web Ingestion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Repository Dispatch Event
+        run: |
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.ROPODUCTIONS_TRIGGER_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/CloudNine13/ropoductions-web/dispatches \
+            -d '{"event_type": "game_release_published", "client_payload": {"branch": "${{ github.event.inputs.branch }}"}}'
+          echo "Dispatched game_release_published event to CloudNine13/ropoductions-web."
+```
+
+### 7.2 Secrets & Token Setup
+1. **`ROPODUCTIONS_TRIGGER_TOKEN`:** Fine-grained GitHub PAT issued by `CloudNine13` with `Actions: Read and write` on `CloudNine13/ropoductions-web` only.
+2. Saved in `salamin888/Final_Orginity` repository secrets.
+3. Upstream developers trigger the workflow manually via GitHub Actions UI ("Run workflow") or chain it to their release tagging workflow.
+
+---
+
+## 8. Decoupled Testing Strategy for Story 3.1 & Epic 4
+
+### 8.1 Problem
+Developing and testing Story 3.1 (16:9 responsive iframe, mobile touch parity, fullscreen) and Epic 4 (Save HUD dock, postMessage bridge, JSZip backup) cannot block on upstream release ingestion or private R2 asset population.
+
+### 8.2 Solution: Local Mock Canvas Harness
+1. `public/engine/index.html` hosts a 16:9 mock canvas (1280x720) with touch/pointer coordinate display and origin-verified postMessage handling.
+2. Story 3.1 verifies viewport locking (`100dvh`/`100dvw`), touch handling (`touch-action: manipulation`), and Fullscreen API against the mock.
+3. Story 3.2 verifies authenticated R2 streaming via Vitest unit tests mocking `R2Bucket` and Miniflare local emulation in `wrangler dev`.
+4. Epic 4 verifies `ROPODUCTIONS_GET_SAVES`, `ROPODUCTIONS_SET_SAVES`, and `ROPODUCTIONS_RESET_SAVES` against the mock bridge.
+5. When Story 3.3 sync runs, it replaces `public/engine/` with the real RPG Maker MZ shell, requiring zero code changes in the Next.js web application.

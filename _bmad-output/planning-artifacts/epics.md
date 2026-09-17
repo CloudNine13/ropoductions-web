@@ -286,23 +286,23 @@ So that unauthorized visitors and web scrapers cannot rip or hotlink our encrypt
 **And** sets `Cache-Control: private, max-age=86400` so legitimate clients cache encrypted assets locally
 **And** any request without a valid session cookie returns `HTTP 403 Forbidden` with zero asset data streamed.
 
-### Story 3.3: Upstream Game Release Ingestion & R2 Sync Workflow
+### Story 3.3: Upstream Game Release Ingestion & R2 Sync Workflow (Manual & Remote Trigger)
 
-As a project maintainer,
-I want an on-demand GitHub Action in `ropoductions-web` that pulls release snapshots from `salamin888/Final_Orginity`,
-So that verified game assets are automatically validated, injected with our web bridge, and synced to private R2 without manual upload errors or edge isolate overhead.
+As a project maintainer or upstream game developer,
+I want an on-demand GitHub Action in `ropoductions-web` that can be triggered locally via `workflow_dispatch` or remotely from `salamin888/Final_Orginity` via `repository_dispatch`,
+So that verified game assets are automatically validated, injected with our web bridge, and synced to private R2 without manual upload errors, edge isolate overhead, or leaking Cloudflare secrets to upstream.
 
 **Acceptance Criteria:**
 
-**Given** a project maintainer triggering `.github/workflows/sync-game-release.yml` via `workflow_dispatch`
-**When** the workflow executes with input `branch` (defaulting to `auto`)
+**Given** a project maintainer triggering `.github/workflows/sync-game-release.yml` via `workflow_dispatch` OR an upstream developer triggering publication from `salamin888/Final_Orginity` via `repository_dispatch` (event type `game_release_published`)
+**When** the workflow executes with input `branch` or `client_payload.branch` (defaulting to `auto`)
 **Then** if `auto`, the runner queries `salamin888/Final_Orginity:main`'s `tools/release.json` to extract the active `base` version string and target branch
-**And** shallow-clones the target release branch using a read-only upstream GitHub PAT
+**And** shallow-clones the target release branch using a read-only upstream GitHub PAT (`UPSTREAM_READ_TOKEN`)
 **And** validates file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`)
 **And** injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers the plugin in `js/plugins.js`
 **And** transfers static media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 (`GAME_ASSETS`) using AWS CLI S3 sync (`--endpoint-url`)
-**And** commits the lightweight HTML5 engine shell (`index.html`, `js/`, `css/`, `fonts/`) into `public/engine/` of `ropoductions-web`.
-
+**And** commits the lightweight HTML5 engine shell (`index.html`, `js/`, `css/`, `fonts/`) into `public/engine/` of `ropoductions-web`
+**And** Cloudflare R2 credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) reside strictly within `ropoductions-web`, with zero secrets exposed to the upstream repository.
 ---
 
 ## Epic 4: Origin-Stable Save Persistence & Backup HUD
