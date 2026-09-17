@@ -55,7 +55,7 @@ export function HeroSection() {
             aria-hidden="true"
             fill
             onError={() => setBackgroundAvailable(false)}
-            className={`pixelated object-cover object-center transition-opacity duration-[2000ms] ${
+            className={`pixelated object-cover object-center transition-opacity duration-[2000ms] motion-reduce:transition-none ${
               activeSlide === 1 ? "opacity-100" : "opacity-0"
             }`}
             sizes="100vw"

@@ -179,26 +179,27 @@ describe("landing scroll preservation across the play redirect", () => {
       },
     };
 
-    saveLandingScrollPosition();
-    assert.equal(store["ropoductions:scrollY"], "500");
-    assert.ok(!classes.has("scroll-smooth"));
+    try {
+      saveLandingScrollPosition();
+      assert.equal(store["ropoductions:scrollY"], "500");
+      assert.ok(!classes.has("scroll-smooth"));
 
-    (globalThis as Record<string, unknown>).window = {
-      scrollY: 0,
-      scrollTo: (x: number, y: number) => {
-        scrolled.push([x, y]);
-      },
-    };
-    restoreLandingScrollPosition();
-    assert.deepEqual(scrolled, [[0, 500]]);
-    assert.ok(classes.has("scroll-smooth"));
-    assert.equal(store["ropoductions:scrollY"], undefined);
-
-    delete (globalThis as Record<string, unknown>).sessionStorage;
-    delete (globalThis as Record<string, unknown>).window;
-    delete (globalThis as Record<string, unknown>).document;
+      (globalThis as Record<string, unknown>).window = {
+        scrollY: 0,
+        scrollTo: (x: number, y: number) => {
+          scrolled.push([x, y]);
+        },
+      };
+      restoreLandingScrollPosition();
+      assert.deepEqual(scrolled, [[0, 500]]);
+      assert.ok(classes.has("scroll-smooth"));
+      assert.equal(store["ropoductions:scrollY"], undefined);
+    } finally {
+      delete (globalThis as Record<string, unknown>).sessionStorage;
+      delete (globalThis as Record<string, unknown>).window;
+      delete (globalThis as Record<string, unknown>).document;
+    }
   });
-
   it("stays inert without a DOM (SSR, private mode)", () => {
     assert.doesNotThrow(() => saveLandingScrollPosition());
     assert.doesNotThrow(() => restoreLandingScrollPosition());

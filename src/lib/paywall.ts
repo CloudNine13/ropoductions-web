@@ -90,7 +90,7 @@ export function restoreLandingScrollPosition(): void {
     if (saved !== null) {
       const y = parseInt(saved, 10);
       if (!isNaN(y)) {
-        window.scrollTo(0, y);
+        window.scrollTo(0, Math.max(0, y));
       }
     }
     document.documentElement.classList.add("scroll-smooth");

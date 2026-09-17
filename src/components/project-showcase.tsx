@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Play, Sparkles, Maximize2, Shield, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScreenshotLightbox, type ScreenshotItem } from "@/components/screenshot-lightbox";
+import { saveLandingScrollPosition } from "@/lib/paywall";
 
 export function ProjectShowcase() {
   const t = useTranslations("showcase");
@@ -149,6 +150,8 @@ export function ProjectShowcase() {
           <div className="flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[220px]">
             <Link
               href="/play"
+              scroll={false}
+              onClick={saveLandingScrollPosition}
               className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer"
             >
               <Play className="h-5 w-5 fill-current" />
