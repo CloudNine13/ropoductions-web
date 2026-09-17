@@ -177,5 +177,16 @@
     "returnToPortal": "Return to Studio Portal",
     "title": "Final Orginity: Chapter 1",
     "iframeTitle": "Final Orginity"
+  },
+  "authError": {
+    "dismiss": "Dismiss notification",
+    "clientConfigTitle": "Client Configuration Error",
+    "clientConfigDesc": "Patreon authentication is not configured. Please verify PATREON_CLIENT_ID.",
+    "serverConfigTitle": "Server Configuration Error",
+    "serverConfigDesc": "Authentication service is temporarily unavailable due to server configuration.",
+    "accessDeniedTitle": "Access Denied",
+    "accessDeniedDesc": "Patreon authorization was cancelled or denied.",
+    "genericTitle": "Authentication Error",
+    "genericDesc": "An error occurred during Patreon authorization. Please try again."
   }
 }

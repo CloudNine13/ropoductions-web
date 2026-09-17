@@ -177,5 +177,16 @@
     "returnToPortal": "Wróć do portalu studia",
     "title": "Final Orginity: Rozdział 1",
     "iframeTitle": "Final Orginity"
+  },
+  "authError": {
+    "dismiss": "Zamknij powiadomienie",
+    "clientConfigTitle": "Błąd konfiguracji klienta",
+    "clientConfigDesc": "Uwierzytelnianie Patreon nie zostało skonfigurowane. Sprawdź PATREON_CLIENT_ID.",
+    "serverConfigTitle": "Błąd konfiguracji serwera",
+    "serverConfigDesc": "Usługa uwierzytelniania jest tymczasowo niedostępna z powodu konfiguracji serwera.",
+    "accessDeniedTitle": "Dostęp zabroniony",
+    "accessDeniedDesc": "Autoryzacja Patreon została anulowana lub odrzucona.",
+    "genericTitle": "Błąd uwierzytelniania",
+    "genericDesc": "Wystąpił błąd podczas autoryzacji Patreon. Spróbuj ponownie później."
   }
 }

@@ -177,5 +177,16 @@
     "returnToPortal": "スタジオポータルに戻る",
     "title": "Final Orginity: 第1章",
     "iframeTitle": "Final Orginity"
+  },
+  "authError": {
+    "dismiss": "通知を閉じる",
+    "clientConfigTitle": "クライアント設定エラー",
+    "clientConfigDesc": "Patreon認証が設定されていません。PATREON_CLIENT_IDを確認してください。",
+    "serverConfigTitle": "サーバー設定エラー",
+    "serverConfigDesc": "サーバー設定のため、認証サービスを一時的に利用できません。",
+    "accessDeniedTitle": "アクセス拒否",
+    "accessDeniedDesc": "Patreonの認証がキャンセルまたは拒否されました。",
+    "genericTitle": "認証エラー",
+    "genericDesc": "Patreon認証中にエラーが発生しました。もう一度お試しください。"
   }
 }
