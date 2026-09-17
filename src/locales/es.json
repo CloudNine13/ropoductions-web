@@ -170,5 +170,12 @@
     "bannerLapsed": "Tu suscripción de Patreon está en pausa o inactiva. Actualiza tu suscripción en Patreon para reanudar el juego.",
     "bannerAuthRequired": "Se requiere una sesión activa de mecenas (nivel de $5+) y verificación de edad de 21+ para acceder al juego.",
     "dismiss": "Cerrar notificación"
+  },
+  "game": {
+    "fullscreenEnter": "Pantalla completa",
+    "fullscreenExit": "Salir de pantalla completa",
+    "returnToPortal": "Volver al portal del estudio",
+    "title": "Final Orginity: Capítulo 1",
+    "iframeTitle": "Final Orginity"
   }
 }

@@ -170,5 +170,12 @@
     "bannerLapsed": "Your Patreon subscription is currently paused or inactive. Please update your pledge on Patreon to resume playing.",
     "bannerAuthRequired": "Active patron session ($5+ tier) and 21+ age verification required to access the game player.",
     "dismiss": "Dismiss notification"
+  },
+  "game": {
+    "fullscreenEnter": "Enter Fullscreen",
+    "fullscreenExit": "Exit Fullscreen",
+    "returnToPortal": "Return to Studio Portal",
+    "title": "Final Orginity: Chapter 1",
+    "iframeTitle": "Final Orginity"
   }
 }
