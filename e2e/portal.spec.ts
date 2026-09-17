@@ -64,6 +64,7 @@ test.describe("paywall interstitial", () => {
 
       await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
       await expect(page.locator("#paywall-section")).toBeVisible();
+      await expect(page.locator("#paywall-section")).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(page.locator("#paywall-section")).toHaveCount(0);
       await expect(page.getByText("PROJECT SHOWCASE")).toBeVisible();

@@ -42,6 +42,7 @@ export function PaywallModal() {
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl" />
         <Dialog.Content
           id="paywall-section"
+          tabIndex={-1}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             document.getElementById("paywall-section")?.focus({ preventScroll: true });
