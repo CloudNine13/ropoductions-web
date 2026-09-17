@@ -41,3 +41,58 @@ export interface PatreonOAuthConfig {
   campaignId?: string;
   initialAdminPatreonIds?: string;
 }
+
+export interface PatreonTierAttributes {
+  title: string;
+  amount_cents: number;
+  description?: string | null;
+  published?: boolean;
+  url?: string | null;
+}
+
+export interface PatreonMemberAttributes {
+  patron_status?: string | null;
+  currently_entitled_amount_cents?: number;
+  is_follower?: boolean;
+  last_charge_date?: string | null;
+  last_charge_status?: string | null;
+  lifetime_support_cents?: number;
+  pledge_relationship_start?: string | null;
+  email?: string | null;
+  full_name?: string | null;
+}
+
+export interface PatreonResource<TAttributes = Record<string, unknown>> {
+  id: string;
+  type: string;
+  attributes: TAttributes;
+  relationships?: Record<
+    string,
+    {
+      data:
+        | { id: string; type: string }
+        | Array<{ id: string; type: string }>
+        | null;
+    }
+  >;
+}
+export interface PatreonCampaignMembersResponse {
+  data:
+    | Array<PatreonResource<PatreonMemberAttributes>>
+    | PatreonResource<PatreonMemberAttributes>;
+  included?: Array<
+    | PatreonResource<PatreonTierAttributes>
+    | PatreonResource<Record<string, unknown>>
+  >;
+  links?: {
+    next?: string;
+  };
+}
+
+export interface PatreonMembershipInfo {
+  memberId: string | null;
+  patronStatus: string | null;
+  currentlyEntitledAmountCents: number;
+  tierId: string | null;
+  tierName: string | null;
+}
