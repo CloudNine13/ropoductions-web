@@ -147,5 +147,28 @@
     "pl": "Polski",
     "ja": "日本語",
     "zh": "简体中文"
+  },
+  "paywall": {
+    "badge": "赞助者专享",
+    "title": "需要赞助者访问权限",
+    "subtitle": "以$5或更高级别加入我们的Patreon赞助，解锁网页浏览器游戏并畅玩当前及后续版本。",
+    "allTiersInclude": "所有$5至$50级别均包含完整网页游戏访问权限与稳定存档备份。",
+    "loginWithPatreon": "通过Patreon登录",
+    "pledgeOnPatreon": "在Patreon上赞助",
+    "perMonth": "/月",
+    "tier1Name": "Ork Patron",
+    "tier1Desc": "网页端游戏访问权限，存档数据持久化",
+    "tier2Name": "Ogre Pimp",
+    "tier2Desc": "高清插画抢先预览，章节抢先更新",
+    "tier3Name": "Elf Sybarite",
+    "tier3Desc": "专属Discord身份组，每月美术投票权",
+    "tier4Name": "Horseman Aesthete",
+    "tier4Desc": "特别赞助者致谢名单，概念美术包",
+    "tier5Name": "Mind Fucker Avatar",
+    "tier5Desc": "历史归档游戏版本，VIP工作室贵宾厅",
+    "bannerRevoked": "您的临时访问通行证已被撤销或已过期。请在Patreon上赞助以继续游戏。",
+    "bannerLapsed": "您的Patreon赞助目前已暂停或未激活。请在Patreon上更新赞助以继续游戏。",
+    "bannerAuthRequired": "需要有效的赞助者会话（$5或更高级别）及21岁以上年龄验证方可进入游戏。",
+    "dismiss": "关闭通知"
   }
 }

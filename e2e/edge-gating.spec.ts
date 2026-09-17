@@ -26,14 +26,29 @@ test.describe("patron edge gating", () => {
     });
   });
 
-  test("lets credentialed requests pass the gate instead of 403", async ({ page }) => {
+  test("bounces forged sessions through clearing to the required paywall", async ({
+    page,
+  }) => {
     await page.context().addCookies(VERIFIED_COOKIES);
 
-    const playResponse = await page.goto("/play");
-    expect(page.url()).toContain("/play");
-    expect(playResponse?.status()).toBe(404);
+    await page.goto("/play");
+    expect(page.url()).toBe("http://127.0.0.1:3100/?paywall=required");
+    await expect(page.getByLabel("Access notification")).toBeVisible();
+    await expect(page.locator("#paywall-section")).toBeVisible();
+
+    const cookies = await page.context().cookies();
+    expect(cookies.some((c) => c.name === "ropoductions_session")).toBe(false);
+    expect(
+      cookies.find((c) => c.name === "ropoductions_age_verified")?.value
+    ).toBe("true");
 
     const assetResponse = await page.request.get("/api/game/data/file1.rpgsave");
-    expect(assetResponse.status()).toBe(404);
+    expect(assetResponse.status()).toBe(403);
+    expect(await assetResponse.json()).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Active patron session and 21+ age verification required.",
+      },
+    });
   });
 });

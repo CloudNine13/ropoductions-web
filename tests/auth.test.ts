@@ -5,7 +5,9 @@ import {
   findApprovedTier,
   isAccessAuthorized,
   MINIMUM_PLEDGE_CENTS,
+  validateSessionAccess,
 } from "../src/lib/auth";
+import { signValue } from "../src/lib/crypto";
 import {
   getPatronCampaignMembership,
   PATREON_CAMPAIGNS_URL,
@@ -424,5 +426,143 @@ describe("patreon campaign membership client getPatronCampaignMembership", () =>
 
     assert.ok(membership);
     assert.equal(membership.tierId, "tier_standalone_500");
+  });
+});
+
+describe("session access validation and transactional override revocation validateSessionAccess", () => {
+  const SECRET = "test-session-secret-32-chars-long!";
+  const NOW = 1750000000;
+
+  function createTestDb(initialSessions: SessionRecord[] = [], initialOverrides: any[] = []) {
+    const sessions = new Map<string, SessionRecord>(initialSessions.map((s) => [s.id, { ...s }]));
+    const overrides = new Map<string, any>(initialOverrides.map((o) => [o.patron_id, { ...o }]));
+
+    return {
+      sessions,
+      overrides,
+      db: {
+        prepare(sql: string) {
+          const stmt = {
+            params: [] as unknown[],
+            bind(...params: unknown[]) {
+              stmt.params = params;
+              return stmt;
+            },
+            async first<T>(): Promise<T | null> {
+              if (sql.includes("FROM sessions WHERE id = ?")) {
+                return (sessions.get(stmt.params[0] as string) as T | undefined) ?? null;
+              }
+              if (sql.includes("FROM patron_overrides WHERE patron_id = ?")) {
+                return (overrides.get(stmt.params[0] as string) as T | undefined) ?? null;
+              }
+              throw new Error(`Unhandled query: ${sql}`);
+            },
+            async run(): Promise<D1Response> {
+              if (sql.includes("UPDATE sessions SET revoked = 1 WHERE id = ?")) {
+                const s = sessions.get(stmt.params[0] as string);
+                if (s) {
+                  s.revoked = 1;
+                }
+                return { success: true, meta: {} } as D1Response;
+              }
+              throw new Error(`Unhandled run query: ${sql}`);
+            },
+          };
+          return stmt;
+        },
+      } as unknown as D1Database,
+    };
+  }
+
+  it("returns not_found when sessionCookie is missing or empty", async () => {
+    const { db } = createTestDb();
+    const res = await validateSessionAccess({ db, sessionCookie: null });
+    assert.equal(res.status, "not_found");
+  });
+
+  it("returns invalid_signature when session cookie HMAC signature is tampered", async () => {
+    const { db } = createTestDb();
+    const signed = await signValue("session-1", SECRET);
+    const tampered = signed.slice(0, -4) + "XXXX";
+    const res = await validateSessionAccess({ db, sessionCookie: tampered, sessionSecret: SECRET });
+    assert.equal(res.status, "invalid_signature");
+  });
+
+  it("returns not_found when session does not exist in D1", async () => {
+    const { db } = createTestDb();
+    const signed = await signValue("non-existent", SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET });
+    assert.equal(res.status, "not_found");
+  });
+
+  it("authorizes active patron with pledge >= 500 cents", async () => {
+    const session = createSessionFixture({ id: "sess-patron-1", pledge_cents: 500, expires_at_sec: NOW + 3600 });
+    const { db } = createTestDb([session]);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "authorized");
+    if (res.status === "authorized") {
+      assert.equal(res.session.id, "sess-patron-1");
+    }
+  });
+
+  it("rejects patron with pledge below 500 cents as unauthorized", async () => {
+    const session = createSessionFixture({ id: "sess-patron-low", pledge_cents: 400, expires_at_sec: NOW + 3600 });
+    const { db } = createTestDb([session]);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "unauthorized");
+  });
+
+  it("returns lapsed for expired patron session", async () => {
+    const session = createSessionFixture({ id: "sess-patron-exp", expires_at_sec: NOW - 10 });
+    const { db } = createTestDb([session]);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "lapsed");
+  });
+
+  it("returns revoked for previously revoked session", async () => {
+    const session = createSessionFixture({ id: "sess-revoked", revoked: 1, expires_at_sec: NOW + 3600 });
+    const { db } = createTestDb([session]);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "revoked");
+  });
+
+  it("authorizes active admin with existing patron_override", async () => {
+    const session = createSessionFixture({ id: "sess-admin", role: "admin", patron_id: "admin-user", expires_at_sec: NOW + 3600 });
+    const override = { patron_id: "admin-user", role: "admin" };
+    const { db } = createTestDb([session], [override]);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "authorized");
+  });
+
+  it("authorizes active comp with existing patron_override", async () => {
+    const session = createSessionFixture({ id: "sess-comp", role: "comp", patron_id: "comp-user", expires_at_sec: NOW + 3600 });
+    const override = { patron_id: "comp-user", role: "comp" };
+    const { db } = createTestDb([session], [override]);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "authorized");
+  });
+
+  it("transactionally revokes admin session when patron_override is deleted", async () => {
+    const session = createSessionFixture({ id: "sess-admin-deleted", role: "admin", patron_id: "admin-deleted", expires_at_sec: NOW + 3600 });
+    const { db, sessions } = createTestDb([session], []);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "override_deleted");
+    assert.equal(sessions.get("sess-admin-deleted")?.revoked, 1);
+  });
+
+  it("transactionally revokes comp session when patron_override is deleted", async () => {
+    const session = createSessionFixture({ id: "sess-comp-deleted", role: "comp", patron_id: "comp-deleted", expires_at_sec: NOW + 3600 });
+    const { db, sessions } = createTestDb([session], []);
+    const signed = await signValue(session.id, SECRET);
+    const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
+    assert.equal(res.status, "override_deleted");
+    assert.equal(sessions.get("sess-comp-deleted")?.revoked, 1);
   });
 });

@@ -147,5 +147,28 @@
     "pl": "Polski",
     "ja": "日本語",
     "zh": "简体中文"
+  },
+  "paywall": {
+    "badge": "PATRON EXCLUSIVE",
+    "title": "SUPPORTER ACCESS REQUIRED",
+    "subtitle": "Join our Patreon campaign at the $5+ tier to unlock the web browser game and access current and future releases.",
+    "allTiersInclude": "All $5–$50 tiers include full web game access and origin-stable save backup.",
+    "loginWithPatreon": "Login with Patreon",
+    "pledgeOnPatreon": "Pledge on Patreon",
+    "perMonth": "/mo",
+    "tier1Name": "Ork Patron",
+    "tier1Desc": "Web Browser Player Access, Save Data Persistence",
+    "tier2Name": "Ogre Pimp",
+    "tier2Desc": "High-Res Illustration Previews, Early Chapter Updates",
+    "tier3Name": "Elf Sybarite",
+    "tier3Desc": "Exclusive Discord Role, Monthly Art Poll Voting",
+    "tier4Name": "Horseman Aesthete",
+    "tier4Desc": "Special Patron Credits, Concept Art Pack",
+    "tier5Name": "Mind Fucker Avatar",
+    "tier5Desc": "Archival Game Builds, VIP Studio Lounge",
+    "bannerRevoked": "Your temporary access pass has been revoked or expired. Please pledge on Patreon to continue playing.",
+    "bannerLapsed": "Your Patreon subscription is currently paused or inactive. Please update your pledge on Patreon to resume playing.",
+    "bannerAuthRequired": "Active patron session ($5+ tier) and 21+ age verification required to access the game player.",
+    "dismiss": "Dismiss notification"
   }
 }

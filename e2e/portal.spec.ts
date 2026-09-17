@@ -18,3 +18,53 @@ test.describe("portal landing", () => {
     expect(headers["content-security-policy"]).toContain("frame-ancestors 'self'");
   });
 });
+
+test.describe("paywall interstitial", () => {
+  test("shows no banner or tier matrix on the plain landing page", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByLabel("Access notification")).toHaveCount(0);
+    await expect(page.locator("#paywall-section")).toHaveCount(0);
+  });
+
+  for (const paywall of ["revoked", "lapsed", "required"] as const) {
+    test(`renders the banner and five-tier matrix for ?paywall=${paywall}`, async ({
+      page,
+    }) => {
+      await page.goto(`/?paywall=${paywall}`);
+
+      await expect(page.getByLabel("Access notification")).toBeVisible();
+      await expect(page.locator("#paywall-section")).toBeVisible();
+      await expect(page.locator("#paywall-section")).toContainText("$5");
+      await expect(page.locator("#paywall-section")).toContainText("$50");
+      await expect(
+        page.locator("#paywall-section a[href='/api/auth/patreon']")
+      ).toBeVisible();
+      await expect(
+        page.locator(
+          "#paywall-section a[href='https://www.patreon.com/join/Ropoductions']"
+        )
+      ).toBeVisible();
+    });
+  }
+
+  test("collapses ?auth_required=true onto the required interstitial", async ({
+    page,
+  }) => {
+    await page.goto("/?auth_required=true");
+
+    await expect(page.getByLabel("Access notification")).toBeVisible();
+    await expect(page.locator("#paywall-section")).toBeVisible();
+  });
+
+  test("dismissing the banner keeps the tier matrix on the page", async ({
+    page,
+  }) => {
+    await page.goto("/?paywall=lapsed");
+
+    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
+    await page.getByLabel("Dismiss notification").click();
+    await expect(page.getByLabel("Access notification")).toHaveCount(0);
+    await expect(page.locator("#paywall-section")).toBeVisible();
+  });
+});
