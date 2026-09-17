@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, X, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -20,6 +20,12 @@ export function PaywallNotificationBanner({
 }: PaywallNotificationBannerProps) {
   const [dismissed, setDismissed] = useState(false);
   const t = useTranslations("paywall");
+
+  useEffect(() => {
+    const section = document.getElementById("paywall-section");
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    section?.focus({ preventScroll: true });
+  }, []);
 
   if (dismissed) {
     return null;
@@ -44,19 +50,21 @@ export function PaywallNotificationBanner({
             href={campaignUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/25 transition-colors cursor-pointer min-h-[44px]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/25 transition-colors cursor-pointer min-h-[44px]"
           >
             <span>{t("pledgeOnPatreon")}</span>
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           </a>
-          <button
-            type="button"
-            onClick={() => setDismissed(true)}
-            aria-label={t("dismiss")}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors cursor-pointer min-h-[44px] min-w-[44px]"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          {type === "required" && (
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              aria-label={t("dismiss")}
+              className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

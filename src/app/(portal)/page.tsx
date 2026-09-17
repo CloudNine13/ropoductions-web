@@ -38,7 +38,7 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
 
           {/* Patreon Supporter Access Paywall Matrix */}
           {paywallType && (
-            <div id="paywall-section" className="pt-8">
+            <div id="paywall-section" tabIndex={-1} className="pt-8 scroll-mt-24 outline-none">
               <PatreonPaywallCard />
             </div>
           )}

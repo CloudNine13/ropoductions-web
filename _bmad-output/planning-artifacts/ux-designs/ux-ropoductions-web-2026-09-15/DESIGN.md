@@ -174,7 +174,7 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 * Auto-dimming: After 4 seconds of mouse/touch inactivity, the dock opacity gently lowers to 30%, returning to 100% on hover/tap.
 
 ### 4. Language Switcher
-* Compact select trigger with globe SVG icon (from Lucide).
+* Compact select trigger with flag emoji icon showing the active locale code (approved owner exception to the Lucide-only icon rule).
 * Dropdown menu with frosted-glass panel (`bg-card/90 backdrop-blur-md border border-border`).
 * Hover states with 150ms smooth transition, showing active locale checkmark.
 * Touch target 44x44px for mobile header/footer placement.

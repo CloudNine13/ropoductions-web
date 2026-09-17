@@ -1,6 +1,7 @@
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
 import {
   OAUTH_VERIFIER_COOKIE_NAME,
+  isSecureCookieScope,
   parseCookies,
   serializeCookie,
   SESSION_COOKIE_MAX_AGE,
@@ -19,7 +20,18 @@ import {
   getPatronIdentity,
 } from "@/lib/patreon";
 import type { CreateSessionInput } from "@/types/database";
+
 export const dynamic = "force-dynamic";
+
+const PROVIDER_ERROR_ALLOWLIST = [
+  "access_denied",
+  "invalid_request",
+  "unauthorized_client",
+  "unsupported_response_type",
+  "invalid_scope",
+  "server_error",
+  "temporarily_unavailable",
+];
 
 export async function GET(request: Request): Promise<Response> {
   const requestUrl = new URL(request.url);
@@ -27,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
   const state = requestUrl.searchParams.get("state");
   const error = requestUrl.searchParams.get("error");
 
-  const isSecure = requestUrl.protocol === "https:";
+  const isSecure = isSecureCookieScope(requestUrl);
   const clearCookieHeader = serializeCookie(OAUTH_VERIFIER_COOKIE_NAME, "", {
     maxAge: 0,
     path: "/",
@@ -37,10 +49,13 @@ export async function GET(request: Request): Promise<Response> {
   });
 
   if (error) {
+    const providerError = PROVIDER_ERROR_ALLOWLIST.includes(error)
+      ? error
+      : "provider_error";
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `/?auth_error=${encodeURIComponent(error)}`,
+        Location: `/?auth_error=${encodeURIComponent(providerError)}`,
         "Set-Cookie": clearCookieHeader,
         "Cache-Control": "no-store, max-age=0",
       },
@@ -351,14 +366,11 @@ export async function GET(request: Request): Promise<Response> {
       status: 302,
       headers,
     });
-  } catch (err) {
-    const rawMessage =
-      err instanceof Error ? err.message : "token_exchange_failed";
-    const sanitizedMessage = rawMessage.slice(0, 120);
+  } catch {
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `/?auth_error=${encodeURIComponent(sanitizedMessage)}`,
+        Location: "/?auth_error=token_exchange_failed",
         "Set-Cookie": clearCookieHeader,
         "Cache-Control": "no-store, max-age=0",
       },

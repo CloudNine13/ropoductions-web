@@ -2,6 +2,7 @@ import { getAuthEnv } from "@/lib/cloudflare";
 import {
   OAUTH_VERIFIER_COOKIE_MAX_AGE,
   OAUTH_VERIFIER_COOKIE_NAME,
+  isSecureCookieScope,
   serializeCookie,
 } from "@/lib/cookies";
 import { generatePkcePair, generateRandomString, signValue } from "@/lib/crypto";
@@ -44,7 +45,7 @@ export async function GET(request: Request): Promise<Response> {
     codeChallenge: pkce.challenge,
   });
 
-  const isSecure = requestUrl.protocol === "https:";
+  const isSecure = isSecureCookieScope(requestUrl);
   const cookie = serializeCookie(OAUTH_VERIFIER_COOKIE_NAME, signedPayload, {
     maxAge: OAUTH_VERIFIER_COOKIE_MAX_AGE,
     httpOnly: true,

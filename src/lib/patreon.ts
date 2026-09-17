@@ -180,12 +180,14 @@ export async function getPatronCampaignMembership(
   let memberData: PatreonResource<PatreonMemberAttributes> | undefined;
   if (Array.isArray(payload.data)) {
     if (patronId) {
-      memberData =
-        payload.data.find((m) => {
-          const userData = m?.relationships?.user?.data;
-          const uId = Array.isArray(userData) ? userData[0]?.id : userData?.id;
-          return uId === patronId;
-        }) ?? payload.data[0];
+      memberData = payload.data.find((m) => {
+        const userData = m?.relationships?.user?.data;
+        const uId = Array.isArray(userData) ? userData[0]?.id : userData?.id;
+        return uId === patronId;
+      });
+      if (!memberData && payload.data.length === 1) {
+        memberData = payload.data[0];
+      }
     } else {
       memberData = payload.data[0];
     }

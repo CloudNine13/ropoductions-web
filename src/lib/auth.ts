@@ -27,7 +27,10 @@ export function findApprovedTier(
       (tier) => tier.name.toLowerCase() === normalizedName
     );
     if (byName) {
-      return byName;
+      if (cents === undefined || cents === null || cents >= byName.cents) {
+        return byName;
+      }
+      return undefined;
     }
   }
 
@@ -89,14 +92,16 @@ export async function validateSessionAccess(options: {
     return { status: "not_found" };
   }
 
-  let sessionId = sessionCookie;
-  if (sessionSecret) {
-    const verified = await verifySignedValue(sessionCookie, sessionSecret);
-    if (!verified) {
-      return { status: "invalid_signature" };
-    }
-    sessionId = verified;
+  if (!sessionSecret) {
+    return { status: "invalid_signature" };
   }
+
+  let sessionId = sessionCookie;
+  const verified = await verifySignedValue(sessionCookie, sessionSecret);
+  if (!verified) {
+    return { status: "invalid_signature" };
+  }
+  sessionId = verified;
 
   const session = await getSessionById(db, sessionId);
   if (!session) {

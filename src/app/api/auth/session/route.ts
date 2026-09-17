@@ -1,4 +1,4 @@
-import { SESSION_COOKIE_NAME, serializeCookie } from "@/lib/cookies";
+import { SESSION_COOKIE_NAME, isSecureCookieScope, serializeCookie } from "@/lib/cookies";
 import type { PaywallType } from "@/lib/paywall";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET(request: Request): Promise<Response> {
   const paywall: PaywallType = PAYWALL_ALLOWLIST.includes(requested as PaywallType)
     ? (requested as PaywallType)
     : "required";
-  const isSecure = requestUrl.protocol === "https:";
+  const isSecure = isSecureCookieScope(requestUrl);
   const clearSessionHeader = serializeCookie(SESSION_COOKIE_NAME, "", {
     maxAge: 0,
     path: "/",
