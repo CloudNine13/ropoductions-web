@@ -51,7 +51,7 @@ development_status:
 
   epic-3: in-progress
   3-1-sandboxed-same-origin-game-iframe-responsive-16-9-viewport-c: review
-  3-2-authenticated-r2-asset-streaming-route-edge-middleware-prote: backlog
+  3-2-authenticated-r2-asset-streaming-route-edge-middleware-prote: review
   3-3-upstream-game-release-ingestion-r2-sync-workflow: backlog
   epic-3-retrospective: optional
 
