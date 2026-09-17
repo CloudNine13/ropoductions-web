@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Final Orginity</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #090A0F;
+      color: #E2E8F0;
+      overflow: hidden;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background-color: #090A0F;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      touch-action: none;
+      background-color: #090A0F;
+    }
+    #statusOverlay {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: rgba(226, 232, 240, 0.4);
+      pointer-events: none;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    <div id="statusOverlay">RPG Maker MZ Engine Ready • 1280×720</div>
+  </div>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById('gameCanvas');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      let lastInput = { type: 'NONE', x: 0, y: 0 };
+
+      function render() {
+        ctx.fillStyle = '#090A0F';
+        ctx.fillRect(0, 0, 1280, 720);
+
+        // Ambient radial background glow
+        const gradient = ctx.createRadialGradient(640, 360, 50, 640, 360, 500);
+        gradient.addColorStop(0, 'rgba(34, 197, 94, 0.12)');
+        gradient.addColorStop(1, 'rgba(9, 10, 15, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 1280, 720);
+
+        // Outer border
+        ctx.strokeStyle = '#23283E';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, 1278, 718);
+
+        // Title
+        ctx.font = 'bold 36px sans-serif';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText('Final Orginity', 640, 320);
+
+        // Subtitle
+        ctx.font = '16px monospace';
+        ctx.fillStyle = '#22C55E';
+        ctx.fillText('RPG Maker MZ Web Canvas • Same-Origin Engine Shell', 640, 365);
+
+        // Touch/Input status
+        ctx.font = '14px monospace';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.6)';
+        if (lastInput.type !== 'NONE') {
+          ctx.fillText(`Input Detected: ${lastInput.type} at (${Math.round(lastInput.x)}, ${Math.round(lastInput.y)})`, 640, 420);
+        } else {
+          ctx.fillText('Touch canvas or click to test coordinate mapping', 640, 420);
+        }
+      }
+
+      function updateInput(e, type) {
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+
+        if (e.touches && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+          clientX = e.changedTouches[0].clientX;
+          clientY = e.changedTouches[0].clientY;
+        }
+
+        if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
+
+        // Account for letterboxing/pillarboxing inside object-fit: contain
+        const canvasAspect = canvas.width / canvas.height;
+        const elementAspect = rect.width / rect.height;
+        let renderW = rect.width;
+        let renderH = rect.height;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (elementAspect > canvasAspect) {
+          renderW = rect.height * canvasAspect;
+          offsetX = (rect.width - renderW) / 2;
+        } else {
+          renderH = rect.width / canvasAspect;
+          offsetY = (rect.height - renderH) / 2;
+        }
+
+        const localX = clientX - rect.left - offsetX;
+        const localY = clientY - rect.top - offsetY;
+        const scale = canvas.width / renderW;
+
+        lastInput = {
+          type: type,
+          x: Math.max(0, Math.min(canvas.width, localX * scale)),
+          y: Math.max(0, Math.min(canvas.height, localY * scale))
+        };
+        render();
+      }
+
+      if (window.PointerEvent) {
+        canvas.addEventListener('pointerdown', (e) => updateInput(e, 'POINTER_DOWN'), { passive: true });
+      } else {
+        canvas.addEventListener('touchstart', (e) => updateInput(e, 'TOUCH_START'), { passive: true });
+        canvas.addEventListener('mousedown', (e) => updateInput(e, 'MOUSE_DOWN'), { passive: true });
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

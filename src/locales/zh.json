@@ -170,5 +170,12 @@
     "bannerLapsed": "您的Patreon赞助目前已暂停或未激活。请在Patreon上更新赞助以继续游戏。",
     "bannerAuthRequired": "需要有效的赞助者会话（$5或更高级别）及21岁以上年龄验证方可进入游戏。",
     "dismiss": "关闭通知"
+  },
+  "game": {
+    "fullscreenEnter": "进入全屏",
+    "fullscreenExit": "退出全屏",
+    "returnToPortal": "返回工作室门户",
+    "title": "Final Orginity: 第一章",
+    "iframeTitle": "Final Orginity"
   }
 }

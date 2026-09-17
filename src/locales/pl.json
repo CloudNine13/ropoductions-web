@@ -170,5 +170,12 @@
     "bannerLapsed": "Twoja subskrypcja na Patreon została wstrzymana lub jest nieaktywna. Zaktualizuj wsparcie na Patreon, aby wznowić grę.",
     "bannerAuthRequired": "Do wejścia do gry wymagana jest aktywna sesja patrona (od poziomu $5) oraz potwierdzenie ukończenia 21 lat.",
     "dismiss": "Zamknij powiadomienie"
+  },
+  "game": {
+    "fullscreenEnter": "Pełny ekran",
+    "fullscreenExit": "Wyjdź z pełnego ekranu",
+    "returnToPortal": "Wróć do portalu studia",
+    "title": "Final Orginity: Rozdział 1",
+    "iframeTitle": "Final Orginity"
   }
 }

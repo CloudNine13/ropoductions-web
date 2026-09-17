@@ -170,5 +170,12 @@
     "bannerLapsed": "Patreonのサブスクリプションが一時停止または無効になっています。プレイを再開するには支援を更新してください。",
     "bannerAuthRequired": "ゲームプレイヤーにアクセスするには、アクティブなパトロンセッション（$5以上）と21歳以上の年齢確認が必要です。",
     "dismiss": "通知を閉じる"
+  },
+  "game": {
+    "fullscreenEnter": "全画面表示",
+    "fullscreenExit": "全画面表示を終了",
+    "returnToPortal": "スタジオポータルに戻る",
+    "title": "Final Orginity: 第1章",
+    "iframeTitle": "Final Orginity"
   }
 }
