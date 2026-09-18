@@ -418,8 +418,9 @@ describe("admin overrides directory UI and design system tokens", () => {
     assert.match(tableSrc, /data-testid="override-tier-sealed"/);
     assert.match(tableSrc, /data-testid="override-tier-panel"/);
     assert.match(tableSrc, /data-testid="override-sealed-indicator"/);
-    assert.match(tableSrc, /Creator Admin \(Sealed\)/);
-    assert.match(tableSrc, /Panel Admin/);
+    assert.match(tableSrc, /ADMIN_CREATOR_TIER_LABEL/);
+    assert.match(tableSrc, /ADMIN_PANEL_TIER_LABEL/);
+    assert.match(tableSrc, /title=\{override\.notes \|\| undefined\}/);
   });
 
   it("wires Server Component page with requireAdminSession, listPatronOverrides, and design layout", () => {
@@ -437,6 +438,7 @@ describe("admin overrides directory UI and design system tokens", () => {
     assert.match(actionSrc, /['"]use server['"]/);
     assert.match(actionSrc, /revalidatePath/);
     assert.match(actionSrc, /requireAdminSession/);
+    assert.match(actionSrc, /isSealedCreatorAdmin/);
     assert.match(actionSrc, /upsertOverrideAction/);
   });
 });

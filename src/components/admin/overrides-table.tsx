@@ -1,6 +1,10 @@
 import { Lock, Shield, UserCheck, Users } from "lucide-react";
 import type { PatronOverrideRecord } from "@/types/database";
-import { isSealedCreatorAdmin } from "@/lib/admin";
+import {
+  ADMIN_CREATOR_TIER_LABEL,
+  ADMIN_PANEL_TIER_LABEL,
+  isSealedCreatorAdmin,
+} from "@/lib/admin";
 
 export interface OverridesTableProps {
   overrides: PatronOverrideRecord[];
@@ -88,19 +92,22 @@ export function OverridesTable({ overrides, creatorAdminIds }: OverridesTablePro
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/20"
                       >
                         <Lock className="h-3 w-3" aria-hidden="true" />
-                        Creator Admin (Sealed)
+                        {ADMIN_CREATOR_TIER_LABEL}
                       </span>
                     ) : (
                       <span
                         data-testid="override-tier-panel"
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/20"
                       >
-                        Panel Admin
+                        {ADMIN_PANEL_TIER_LABEL}
                       </span>
                     )}
                   </td>
 
-                  <td className="py-3.5 px-4 max-w-xs truncate text-xs text-muted-foreground">
+                  <td
+                    title={override.notes || undefined}
+                    className="py-3.5 px-4 max-w-xs truncate text-xs text-muted-foreground"
+                  >
                     {override.notes || "—"}
                   </td>
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdminSession, validatePatreonId } from "@/lib/admin";
+import { isSealedCreatorAdmin, requireAdminSession, validatePatreonId } from "@/lib/admin";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
 import { getPatronOverride, upsertPatronOverride } from "@/lib/db";
 import { isCreatorAdmin } from "@/lib/patreon";
@@ -79,10 +79,7 @@ export async function handleUpsertOverrideCore(
     };
   }
 
-  if (
-    existing &&
-    (existing.granted_by === "creator_bootstrap" || existing.granted_by === "system_bootstrap")
-  ) {
+  if (existing && isSealedCreatorAdmin(existing, creatorAdminIds)) {
     return {
       success: false,
       error: "Creator Admin accounts are permanently sealed and cannot be modified.",
