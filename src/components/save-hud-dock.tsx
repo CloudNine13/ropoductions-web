@@ -10,6 +10,7 @@ export interface SaveHudDockLabels {
   export?: string;
   exportSuccess?: string;
   exporting?: string;
+  exportError?: string;
   import?: string;
   fullscreen?: string;
   exitFullscreen?: string;
@@ -61,6 +62,7 @@ export function SaveHudDock({
     export: labels?.export ?? t("saveHudExport"),
     exportSuccess: labels?.exportSuccess ?? t("saveHudExportSuccess"),
     exporting: labels?.exporting ?? t("saveHudExporting"),
+    exportError: labels?.exportError ?? t("saveExportError"),
     import: labels?.import ?? t("saveHudImport"),
     fullscreen: labels?.fullscreen ?? t("saveHudFullscreen"),
     exitFullscreen: labels?.exitFullscreen ?? t("saveHudExitFullscreen"),
@@ -120,12 +122,13 @@ export function SaveHudDock({
       }, 2000);
     } catch (error) {
       if (!mountedRef.current) return;
-      setExportError(error instanceof Error ? error.message : "Save export failed");
+      const customMessage = error instanceof Error && error.message && error.message !== "Save export failed" ? error.message : resolvedLabels.exportError;
+      setExportError(customMessage);
       setInternalExportStatus("error");
     } finally {
       exportingRef.current = false;
     }
-  }, [onExport, isControlledExport]);
+  }, [onExport, isControlledExport, resolvedLabels.exportError]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {

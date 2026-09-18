@@ -7,7 +7,7 @@ export const INVALID_SAVE_FORMAT_ERROR =
 export const MAX_SLOT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB per slot
 export const MAX_TOTAL_ARCHIVE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB aggregate cap
 export const MAX_ZIP_ENTRY_COUNT = 64;
-export const SAVE_DIALOG_DISMISS_MS = 1200;
+export { SAVE_DIALOG_DISMISS_MS } from "../types/save";
 export interface ImportSavesOptions {
   targetOrigin?: string;
   timeoutMs?: number;

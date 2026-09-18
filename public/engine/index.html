@@ -174,7 +174,7 @@
   </script>
   <script>
     // Decoupled Mock Harness Testing Invariant (Contract Section 6)
-    if (typeof StorageManager === 'undefined') {
+    if (typeof StorageManager === 'undefined' || typeof StorageManager.saveObject !== 'function') {
       const mockStorage = new Map();
       window.StorageManager = {
         isLocalMode: () => false,

@@ -180,6 +180,7 @@
     "saveHudExport": "Export (.zip)",
     "saveHudExportSuccess": "Exported",
     "saveHudExporting": "Exporting…",
+    "saveExportError": "Failed to export save archive. Please try again.",
     "saveHudImport": "Import",
     "saveHudFullscreen": "Fullscreen",
     "saveHudExitFullscreen": "Exit Fullscreen",

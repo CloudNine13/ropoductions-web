@@ -5,7 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, RotateCcw, X, Loader2, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { resetSaves } from "@/lib/save-bridge";
-import { SAVE_DIALOG_DISMISS_MS } from "@/lib/save-import";
+import { SAVE_DIALOG_DISMISS_MS } from "@/types/save";
 
 export interface SaveResetDialogProps {
   open: boolean;

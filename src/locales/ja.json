@@ -180,6 +180,7 @@
     "saveHudExport": "エクスポート (.zip)",
     "saveHudExportSuccess": "エクスポート完了",
     "saveHudExporting": "エクスポート中…",
+    "saveExportError": "セーブアーカイブのエクスポートに失敗しました。もう一度お試しください。",
     "saveHudImport": "インポート",
     "saveHudFullscreen": "全画面表示",
     "saveHudExitFullscreen": "全画面表示を終了",

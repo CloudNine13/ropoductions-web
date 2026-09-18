@@ -19,7 +19,6 @@
   const ALLOWED_SLOT_REGEX = /^(file([1-9]|1[0-9]|20)|global|config)(\.rpgsave)?$/;
   const MAX_SLOT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB per slot
   const MAX_TOTAL_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50MB total response cap
-  // TODO (Epic 4 Story 4.3): JSZip export size budgeting and stream chunking for save archives exceeding 50MB.
 
   function getByteLength(str) {
     if (typeof str !== "string") return 0;

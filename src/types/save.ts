@@ -67,3 +67,5 @@ export type SaveBridgeResponse =
   | SetSavesSuccessResponse
   | ResetSavesSuccessResponse
   | SaveErrorResponse;
+
+export const SAVE_DIALOG_DISMISS_MS = 1200;

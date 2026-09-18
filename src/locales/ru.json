@@ -180,6 +180,7 @@
     "saveHudExport": "Экспорт (.zip)",
     "saveHudExportSuccess": "Экспортировано",
     "saveHudExporting": "Экспорт…",
+    "saveExportError": "Не удалось экспортировать архив сохранений. Пожалуйста, повторите попытку.",
     "saveHudImport": "Импорт",
     "saveHudFullscreen": "Полный экран",
     "saveHudExitFullscreen": "Выйти из полноэкранного режима",
