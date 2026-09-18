@@ -11,7 +11,7 @@
   --color-border: #23283E;
   --color-input: #1A1E2F;
   --color-ring: #22C55E;
-  --color-destructive: #EF4444;
+  --color-destructive: #E11D48;
 
   --color-primary: #22C55E;
   --color-primary-foreground: #090A0F;
@@ -20,6 +20,7 @@
   --color-accent-foreground: #090A0F;
   --color-tier-gold: #FBBF24;
   --color-tier-gold-foreground: #181204;
+  --color-comp-blue: #38BDF8;
 
   --font-display: var(--font-chakra-petch), Chakra Petch, sans-serif;
   --font-body: var(--font-geist-sans), Inter, sans-serif;
@@ -28,6 +29,7 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-2xl: 16px;
   --radius-full: 9999px;
 
   --spacing-touch-target: 44px;
@@ -45,7 +47,7 @@
   --border: #23283E;
   --input: #1A1E2F;
   --ring: #22C55E;
-  --destructive: #EF4444;
+  --destructive: #E11D48;
   --primary: #22C55E;
   --primary-foreground: #090A0F;
   --primary-hover: #16A34A;
@@ -53,6 +55,7 @@
   --accent-foreground: #090A0F;
   --tier-gold: #FBBF24;
   --tier-gold-foreground: #181204;
+  --comp-blue: #38BDF8;
 }
 
 body {

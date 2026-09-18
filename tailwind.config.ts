@@ -25,7 +25,7 @@ const config: Config = {
         border: "#23283E",
         input: "#1A1E2F",
         ring: "#22C55E",
-        destructive: "#EF4444",
+        destructive: "#E11D48",
         primary: {
           DEFAULT: "#22C55E",
           foreground: "#090A0F",
@@ -39,6 +39,7 @@ const config: Config = {
           DEFAULT: "#FBBF24",
           foreground: "#181204",
         },
+        "comp-blue": "#38BDF8",
       },
       fontFamily: {
         display: ["var(--font-chakra-petch)", "Chakra Petch", "sans-serif"],
@@ -49,6 +50,7 @@ const config: Config = {
         sm: "4px",
         md: "8px",
         lg: "12px",
+        "2xl": "16px",
         full: "9999px",
       },
       spacing: {
