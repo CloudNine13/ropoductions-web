@@ -182,7 +182,11 @@
     "saveHudFullscreen": "全画面表示",
     "saveHudExitFullscreen": "全画面表示を終了",
     "saveHudReset": "リセット",
-    "saveHudDockAria": "セーブと表示のコントロール"
+    "saveHudDockAria": "セーブと表示のコントロール",
+    "saveHudToggleControls": "セーブ操作の表示切替",
+    "engineLoading": "ゲームを読み込み中…",
+    "engineLoadError": "ゲームの読み込みに失敗しました。",
+    "engineRetry": "再試行"
   },
   "authError": {
     "dismiss": "通知を閉じる",

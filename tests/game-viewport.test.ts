@@ -92,7 +92,7 @@ describe("game viewport and engine container contract", () => {
 
     // iOS Safari fallback (pseudo-fullscreen)
     assert.ok(src.includes("isPseudoFullscreen"), "Must implement pseudo-fullscreen fallback for iOS Safari");
-    assert.ok(src.includes("fixed inset-0 z-50"), "Active fullscreen must expand to fixed inset-0 z-50");
+    assert.ok(src.includes("fixed inset-0 z-40"), "Active fullscreen must expand to fixed inset-0 z-40");
     assert.ok(src.includes("rounded-none border-0"), "Active fullscreen must strip rounded corners and borders");
 
     // Strict React Rules of Hooks compliance (no try/catch wrapping hooks)
@@ -119,5 +119,38 @@ describe("game viewport and engine container contract", () => {
       src.includes("env(safe-area-inset-bottom)"),
       "SaveHudDock wrapper must respect env(safe-area-inset-bottom)"
     );
+  });
+
+  it("renders the dock as a static sibling in standard layout and overlays it only in fullscreen", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.ok(src.includes("isHudCollapsed"), "Must track user-invoked HUD collapse state");
+    assert.ok(
+      src.includes('data-testid="save-hud-collapse-fab"'),
+      "Fullscreen overlay must expose a 44px collapse FAB"
+    );
+    assert.ok(src.includes("aria-expanded={!isHudCollapsed}"), "FAB must expose aria-expanded");
+    assert.ok(src.includes("aria-controls={hudId}"), "FAB must expose aria-controls pointing at the dock");
+    assert.ok(src.includes("h-11 w-11"), "FAB must meet the 44px touch target floor");
+    assert.ok(
+      src.includes("pointer-events-none"),
+      "Fullscreen overlay dock wrapper must stay click-through outside the pill"
+    );
+    assert.ok(
+      src.includes('[role="dialog"][data-state="open"]'),
+      "Viewport Escape handler must no-op while a dialog is open"
+    );
+  });
+
+  it("shows a determinate loading state and an error fallback for the engine iframe", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.ok(src.includes('role="progressbar"'), "Loading overlay must expose role=progressbar");
+    assert.ok(src.includes("aria-valuenow"), "Loading overlay must expose aria-valuenow");
+    assert.ok(src.includes("hud-load-pulse"), "Loading emblem may pulse as the sanctioned live-state exception");
+    assert.ok(src.includes("motion-reduce:animate-none"), "Loading pulse must stop under reduced-motion");
+    assert.ok(src.includes("onError={handleIframeError}"), "Iframe must surface load errors");
+    assert.ok(src.includes("engineLoadError"), "Load error fallback must render localized copy");
+    assert.ok(src.includes("engineRetry"), "Load error fallback must offer a retry action");
   });
 });

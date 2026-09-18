@@ -182,7 +182,11 @@
     "saveHudFullscreen": "全屏",
     "saveHudExitFullscreen": "退出全屏",
     "saveHudReset": "重置",
-    "saveHudDockAria": "存档与显示控制"
+    "saveHudDockAria": "存档与显示控制",
+    "saveHudToggleControls": "切换存档控件",
+    "engineLoading": "正在加载游戏…",
+    "engineLoadError": "游戏加载失败。",
+    "engineRetry": "重试"
   },
   "authError": {
     "dismiss": "关闭通知",

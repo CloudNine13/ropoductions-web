@@ -136,3 +136,19 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+@keyframes hudLoadPulse {
+  0%,
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+  50% {
+    opacity: 0.6;
+    scale: 1.04;
+  }
+}
+
+.hud-load-pulse {
+  animation: hudLoadPulse 1600ms ease-in-out infinite;
+}

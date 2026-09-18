@@ -182,7 +182,11 @@
     "saveHudFullscreen": "Pełny ekran",
     "saveHudExitFullscreen": "Wyjdź z pełnego ekranu",
     "saveHudReset": "Resetuj",
-    "saveHudDockAria": "Sterowanie zapisem i wyświetlaniem"
+    "saveHudDockAria": "Sterowanie zapisem i wyświetlaniem",
+    "saveHudToggleControls": "Przełącz panel zapisów",
+    "engineLoading": "Ładowanie gry…",
+    "engineLoadError": "Nie udało się wczytać gry.",
+    "engineRetry": "Ponów"
   },
   "authError": {
     "dismiss": "Zamknij powiadomienie",

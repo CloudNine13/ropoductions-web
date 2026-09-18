@@ -182,7 +182,11 @@
     "saveHudFullscreen": "Fullscreen",
     "saveHudExitFullscreen": "Exit Fullscreen",
     "saveHudReset": "Reset",
-    "saveHudDockAria": "Save and display controls"
+    "saveHudDockAria": "Save and display controls",
+    "saveHudToggleControls": "Toggle save controls",
+    "engineLoading": "Loading game…",
+    "engineLoadError": "The game failed to load.",
+    "engineRetry": "Retry"
   },
   "authError": {
     "dismiss": "Dismiss notification",

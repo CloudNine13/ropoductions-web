@@ -182,7 +182,11 @@
     "saveHudFullscreen": "Полный экран",
     "saveHudExitFullscreen": "Выйти из полноэкранного режима",
     "saveHudReset": "Сброс",
-    "saveHudDockAria": "Управление сохранением и отображением"
+    "saveHudDockAria": "Управление сохранением и отображением",
+    "saveHudToggleControls": "Показать или скрыть панель сохранений",
+    "engineLoading": "Загрузка игры…",
+    "engineLoadError": "Не удалось загрузить игру.",
+    "engineRetry": "Повторить"
   },
   "authError": {
     "dismiss": "Закрыть уведомление",

@@ -26,23 +26,42 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
     assert.ok(src.includes("bg-[#090A0F]/75"), "Must declare bg-[#090A0F]/75 frosted background (rgba(9,10,15,0.75))");
     assert.ok(src.includes("backdrop-blur-md"), "Must declare backdrop-blur-md for frosted glass effect");
     assert.ok(src.includes("rounded-full"), "Must declare rounded-full pill ergonomics");
-    assert.ok(src.includes("border border-white/10"), "Must declare subtle 1px white/10 border stroke");
+    assert.ok(src.includes("border-white/10"), "Active chrome must declare subtle 1px white/10 border stroke");
+    assert.ok(src.includes("border-white/5"), "Dimmed chrome must declare subtle 1px white/5 border stroke");
     assert.ok(src.includes("shadow-2xl"), "Must declare shadow-2xl elevation");
   });
 
-  it("enforces single source of truth for opacity and smooth transition curve", () => {
+  it("dims chrome only and never drops labels icons or rings below AA contrast", () => {
     const src = readSource(saveHudPath);
 
-    // Single source of truth: CSS classes only, no conflicting inline opacity style
-    assert.ok(!src.includes("style={{ opacity:"), "Must NOT set inline style opacity to allow CSS transition to function");
-    assert.ok(src.includes('isDimmed ? "opacity-25" : "opacity-100"'), "Must reflect opacity-25 and opacity-100 Tailwind classes");
+    // Chrome-only dim: container background/border shift, no whole-toolbar opacity
+    assert.ok(!src.includes("opacity-25"), "Must NOT apply opacity-25 to the toolbar element");
+    assert.ok(!src.includes('"opacity-100"'), "Must NOT toggle opacity-100 on the toolbar element");
+    assert.ok(src.includes("bg-[#090A0F]/40"), "Dimmed chrome must fall back to bg-[#090A0F]/40");
+    assert.ok(src.includes("border-white/5"), "Dimmed chrome must fall back to border-white/5");
+    assert.ok(src.includes("bg-[#090A0F]/75"), "Active chrome must keep bg-[#090A0F]/75 frosted background");
+    assert.ok(src.includes("backdrop-blur-md"), "Active chrome must keep backdrop-blur-md frosted glass");
     assert.ok(src.includes("data-dimmed"), "Must declare data-dimmed state attribute for DOM querying");
 
-    // Smooth transition
-    assert.ok(src.includes("transition-opacity"), "Must declare transition-opacity for smooth fade");
+    // Smooth chrome transition
+    assert.ok(src.includes("transition-[background-color,border-color]"), "Must transition chrome colors, never opacity");
     assert.ok(src.includes("duration-300"), "Must declare transition duration");
     assert.ok(src.includes("ease-out"), "Must declare ease-out curve");
     assert.ok(src.includes("motion-reduce:transition-none"), "Must respect prefers-reduced-motion");
+  });
+
+  it("keeps the Export label visible and drops Coming-soon tooltips", () => {
+    const src = readSource(saveHudPath);
+
+    assert.ok(
+      src.includes('<span className="whitespace-nowrap">{resolvedLabels.export}</span>'),
+      "Export label must stay visible at all viewport sizes"
+    );
+    assert.ok(!src.includes("(Coming soon)"), "Must NOT ship Coming-soon title tooltips");
+    assert.ok(
+      src.includes("max-w-[calc(100dvw-2rem)]"),
+      "Dock must bound itself to the viewport width when labels stay visible"
+    );
   });
 
   it("listens to active gameplay interactions and postMessage bridge activity with throttling", () => {
@@ -164,10 +183,14 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
       "GameViewport must pass activeFullscreen state to SaveHudDock"
     );
 
-    // Verify removal of duplicate top-right button
+    // Fullscreen toggle lives only in the dock; the top-right FAB collapses the HUD, never toggles fullscreen
     assert.ok(
-      !viewportSrc.includes("env(safe-area-inset-top)"),
-      "GameViewport must NOT mount duplicate top-right fullscreen button"
+      !viewportSrc.includes("env(safe-area-inset-top)") || viewportSrc.includes("save-hud-collapse-fab"),
+      "GameViewport must NOT mount a duplicate top-right fullscreen button"
+    );
+    assert.ok(
+      viewportSrc.includes('data-testid="save-hud-collapse-fab"'),
+      "Top-right control must be the HUD collapse FAB with a stable testid"
     );
   });
 });

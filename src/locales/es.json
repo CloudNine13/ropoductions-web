@@ -182,7 +182,11 @@
     "saveHudFullscreen": "Pantalla completa",
     "saveHudExitFullscreen": "Salir de pantalla completa",
     "saveHudReset": "Restablecer",
-    "saveHudDockAria": "Controles de guardado y visualización"
+    "saveHudDockAria": "Controles de guardado y visualización",
+    "saveHudToggleControls": "Mostrar u ocultar los controles de guardado",
+    "engineLoading": "Cargando el juego…",
+    "engineLoadError": "No se pudo cargar el juego.",
+    "engineRetry": "Reintentar"
   },
   "authError": {
     "dismiss": "Cerrar notificación",
