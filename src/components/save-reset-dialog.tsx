@@ -5,11 +5,13 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, RotateCcw, X, Loader2, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { resetSaves } from "@/lib/save-bridge";
+import { SAVE_DIALOG_DISMISS_MS } from "@/lib/save-import";
 
 export interface SaveResetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetWindow?: Window | null;
+  getTargetWindow?: () => Window | null;
   targetOrigin?: string;
   container?: HTMLElement | null;
   onSuccess?: () => void;
@@ -19,6 +21,7 @@ export function SaveResetDialog({
   open,
   onOpenChange,
   targetWindow,
+  getTargetWindow,
   targetOrigin,
   container,
   onSuccess,
@@ -27,7 +30,7 @@ export function SaveResetDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const t = useTranslations("game");
-  const dismissTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+  const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -59,29 +62,37 @@ export function SaveResetDialog({
     [onOpenChange, resetState, status]
   );
 
+  const inFlightRef = useRef(false);
   const handleReset = useCallback(async () => {
-    if (!targetWindow) {
+    if (inFlightRef.current) {
+      return;
+    }
+    const engineWindow = getTargetWindow?.() ?? targetWindow ?? null;
+    if (!engineWindow) {
       setStatus("error");
       setErrorMessage(t("engineLoadError"));
       return;
     }
 
+    inFlightRef.current = true;
     setStatus("resetting");
     setErrorMessage(null);
 
     try {
-      await resetSaves(targetWindow, targetOrigin);
+      await resetSaves(engineWindow, targetOrigin);
       setStatus("success");
       onSuccess?.();
 
       dismissTimeoutRef.current = setTimeout(() => {
         handleOpenChange(false);
-      }, 1200);
+      }, SAVE_DIALOG_DISMISS_MS);
     } catch (err) {
       setStatus("error");
       setErrorMessage(err instanceof Error ? err.message : t("engineLoadError"));
+    } finally {
+      inFlightRef.current = false;
     }
-  }, [targetWindow, targetOrigin, onSuccess, handleOpenChange, t]);
+  }, [targetWindow, getTargetWindow, targetOrigin, onSuccess, handleOpenChange, t]);
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -89,7 +100,7 @@ export function SaveResetDialog({
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl transition-opacity motion-reduce:transition-none" />
         <Dialog.Content
           data-testid="save-reset-dialog"
-          className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] outline-none sm:p-8 select-none"
+          className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] outline-none sm:p-8"
         >
           <div className="flex items-center justify-between pb-4 border-b border-border/60">
             <div className="flex items-center gap-3">
@@ -148,7 +159,7 @@ export function SaveResetDialog({
                 type="button"
                 data-testid="save-reset-cancel-button"
                 onClick={() => handleOpenChange(false)}
-                disabled={status === "resetting" || status === "success"}
+                disabled={status === "resetting"}
                 className="w-full sm:w-auto inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border/80 bg-background/80 px-4 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t("saveResetCancel")}
@@ -157,7 +168,7 @@ export function SaveResetDialog({
                 type="button"
                 data-testid="save-reset-confirm-button"
                 onClick={handleReset}
-                disabled={status === "resetting" || status === "success"}
+                disabled={status === "resetting"}
                 className="w-full sm:w-auto inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg bg-[#E11D48] px-5 text-xs font-semibold text-white hover:bg-[#E11D48]/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E11D48] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {status === "resetting" ? (

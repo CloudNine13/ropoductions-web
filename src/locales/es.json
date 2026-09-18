@@ -195,7 +195,7 @@
     "saveImportBrowse": "Seleccionar archivo",
     "saveImportSelectedFile": "Archivo seleccionado: {name}",
     "saveImportFormatHint": "Formatos aceptados: archivos .zip o archivos .rpgsave (máximo 10 MB por ranura)",
-    "saveImportError": "Invalid save file format. Please upload a valid .zip archive or .rpgsave file.",
+    "saveImportError": "Formato de archivo de guardado no válido. Sube un archivo .zip o .rpgsave válido.",
     "saveImportSuccess": "¡Partidas restauradas con éxito! Menú de carga del juego actualizado.",
     "saveImporting": "Importando partidas…",
     "saveImportConfirm": "Importar partidas",

@@ -26,10 +26,11 @@ describe("save import and reset dialogs contract (Story 4.4)", () => {
     assert.ok(src.includes("Dialog.Description"), "Must use Dialog.Description");
     assert.ok(src.includes("Dialog.Close"), "Must use Dialog.Close");
     assert.ok(src.includes("container={container}"), "Dialog.Portal must forward container prop for fullscreen top-layer rendering");
-    assert.ok(src.includes('status === "success"'), "Confirm and cancel buttons must disable during success auto-dismiss delay");
+    assert.ok(src.includes("SAVE_DIALOG_DISMISS_MS"), "Must use shared SAVE_DIALOG_DISMISS_MS instead of a magic timeout");
+    assert.ok(!src.includes("NodeJS.Timeout"), "Browser dialog must not depend on NodeJS.Timeout typing");
   });
 
-  it("SaveImportDialog provides dropzone, file input, and error banner with spec testids", () => {
+  it("SaveImportDialog provides keyboard-operable dropzone, file input, and error banner with spec testids", () => {
     const src = readSource(importDialogPath);
 
     assert.ok(src.includes('data-testid="save-import-dialog"'), "Must declare save-import-dialog testid");
@@ -39,6 +40,13 @@ describe("save import and reset dialogs contract (Story 4.4)", () => {
     assert.ok(src.includes('data-testid="save-import-error-banner"'), "Must declare save-import-error-banner testid");
     assert.ok(src.includes('role="alert"'), "Error banner must declare role='alert' for screen readers");
     assert.ok(src.includes('accept=".zip,.rpgsave'), "File input must accept .zip and .rpgsave files");
+    assert.ok(src.includes('role="button"'), "Dropzone must expose role=button for keyboard users");
+    assert.ok(src.includes("tabIndex={0}"), "Dropzone must be focusable via keyboard");
+    assert.ok(src.includes("onKeyDown"), "Dropzone must handle Enter/Space keyboard activation");
+    assert.ok(src.includes("getTargetWindow"), "Dialog must resolve the engine window via getter at click time");
+    assert.ok(src.includes('t("saveImportSelectedFile"'), "Selected file must use the saveImportSelectedFile translation key");
+    assert.ok(src.includes('t("saveImportError")'), "Invalid-format errors must map to the localized saveImportError copy");
+    assert.ok(!src.includes("pointer-events-none"), "Dropzone affordance must remain interactive");
   });
 
   it("exports SaveResetDialog with destructive warning modal and 44px touch targets", () => {
@@ -53,7 +61,10 @@ describe("save import and reset dialogs contract (Story 4.4)", () => {
     assert.ok(src.includes("bg-[#E11D48]"), "Destructive confirmation button must declare #E11D48 crimson style");
     assert.ok(src.includes("min-h-[44px]"), "Buttons must respect 44px minimum touch target size");
     assert.ok(src.includes("container={container}"), "Dialog.Portal must forward container prop for fullscreen top-layer rendering");
-    assert.ok(src.includes('status === "success"'), "Confirm button must disable during success auto-dismiss delay");
+    assert.ok(src.includes("getTargetWindow"), "Dialog must resolve the engine window via getter at click time");
+    assert.ok(src.includes("SAVE_DIALOG_DISMISS_MS"), "Must use shared SAVE_DIALOG_DISMISS_MS instead of a magic timeout");
+    assert.ok(src.includes("inFlightRef"), "Reset must guard against double-submit dispatches");
+    assert.ok(!src.includes("NodeJS.Timeout"), "Browser dialog must not depend on NodeJS.Timeout typing");
   });
 
   it("integrates SaveImportDialog and SaveResetDialog into GameViewport and wires HUD triggers", () => {
@@ -63,6 +74,10 @@ describe("save import and reset dialogs contract (Story 4.4)", () => {
     assert.ok(src.includes("SaveResetDialog"), "GameViewport must import and mount SaveResetDialog");
     assert.ok(src.includes("isImportOpen") || src.includes("importDialogOpen") || src.includes("setIsImportOpen"), "GameViewport must manage import dialog open state");
     assert.ok(src.includes("isResetOpen") || src.includes("resetDialogOpen") || src.includes("setIsResetOpen"), "GameViewport must manage reset dialog open state");
-    assert.ok(src.includes("container={containerRef.current}"), "GameViewport must supply containerRef.current to dialogs for fullscreen rendering");
+    assert.ok(src.includes("getEngineWindow"), "GameViewport must resolve the engine window lazily via getter");
+    assert.ok(src.includes("getTargetWindow={getEngineWindow}"), "GameViewport must pass the engine window getter to dialogs");
+    assert.ok(src.includes("container={portalElement}"), "GameViewport must supply a live portal element to dialogs for fullscreen rendering");
+    assert.ok(!src.includes("targetWindow={iframeRef.current"), "Dialogs must not receive a stale render-time contentWindow snapshot");
+    assert.ok(!src.includes("container={containerRef.current}"), "Dialogs must not receive a stale render-time container snapshot");
   });
 });

@@ -195,7 +195,7 @@
     "saveImportBrowse": "ファイルを選択",
     "saveImportSelectedFile": "選択されたファイル: {name}",
     "saveImportFormatHint": "対応フォーマット: .zipアーカイブまたは.rpgsaveファイル（スロットあたり最大10MB）",
-    "saveImportError": "Invalid save file format. Please upload a valid .zip archive or .rpgsave file.",
+    "saveImportError": "セーブファイルの形式が無効です。有効な.zipアーカイブまたは.rpgsaveファイルをアップロードしてください。",
     "saveImportSuccess": "セーブデータが正常に復元されました！ゲーム内のロード画面が更新されました。",
     "saveImporting": "セーブデータをインポート中…",
     "saveImportConfirm": "セーブデータをインポート",

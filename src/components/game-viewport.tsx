@@ -40,6 +40,7 @@ export function GameViewport({
   const [engineKey, setEngineKey] = useState(0);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
+  const [portalElement, setPortalElement] = useState<HTMLDivElement | null>(null);
   const hudId = useId();
   const t = useTranslations("game");
   const enterLabel = t("fullscreenEnter");
@@ -171,6 +172,11 @@ export function GameViewport({
     }
   }, [onReset]);
 
+  const getEngineWindow = useCallback(() => iframeRef.current?.contentWindow ?? null, []);
+
+  useEffect(() => {
+    setPortalElement(containerRef.current);
+  }, [isFullscreen, isPseudoFullscreen]);
 
   const toggleFullscreen = useCallback(async () => {
     const doc = document as unknown as {
@@ -337,14 +343,14 @@ export function GameViewport({
         <SaveImportDialog
           open={isImportOpen}
           onOpenChange={setIsImportOpen}
-          targetWindow={iframeRef.current?.contentWindow}
-          container={containerRef.current}
+          getTargetWindow={getEngineWindow}
+          container={portalElement}
         />
         <SaveResetDialog
           open={isResetOpen}
           onOpenChange={setIsResetOpen}
-          targetWindow={iframeRef.current?.contentWindow}
-          container={containerRef.current}
+          getTargetWindow={getEngineWindow}
+          container={portalElement}
         />
       </div>
     );
@@ -377,14 +383,14 @@ export function GameViewport({
       <SaveImportDialog
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
-        targetWindow={iframeRef.current?.contentWindow}
-        container={containerRef.current}
+        getTargetWindow={getEngineWindow}
+        container={portalElement}
       />
       <SaveResetDialog
         open={isResetOpen}
         onOpenChange={setIsResetOpen}
-        targetWindow={iframeRef.current?.contentWindow}
-        container={containerRef.current}
+        getTargetWindow={getEngineWindow}
+        container={portalElement}
       />
     </div>
   );

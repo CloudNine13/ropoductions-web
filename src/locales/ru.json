@@ -195,7 +195,7 @@
     "saveImportBrowse": "Выбрать файл",
     "saveImportSelectedFile": "Выбранный файл: {name}",
     "saveImportFormatHint": "Поддерживаемые форматы: архивы .zip или файлы .rpgsave (до 10 МБ на слот)",
-    "saveImportError": "Invalid save file format. Please upload a valid .zip archive or .rpgsave file.",
+    "saveImportError": "Недопустимый формат файла сохранения. Загрузите корректный архив .zip или файл .rpgsave.",
     "saveImportSuccess": "Сохранения успешно восстановлены! Меню загрузки в игре обновлено.",
     "saveImporting": "Импорт сохранений…",
     "saveImportConfirm": "Импортировать сохранения",

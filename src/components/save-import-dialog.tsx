@@ -4,12 +4,13 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Upload, X, AlertCircle, Check, Loader2, FileArchive } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { importSaves, INVALID_SAVE_FORMAT_ERROR, type ImportSavesResult } from "@/lib/save-import";
+import { importSaves, INVALID_SAVE_FORMAT_ERROR, SAVE_DIALOG_DISMISS_MS, type ImportSavesResult } from "@/lib/save-import";
 
 export interface SaveImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetWindow?: Window | null;
+  getTargetWindow?: () => Window | null;
   targetOrigin?: string;
   container?: HTMLElement | null;
   onSuccess?: (result: ImportSavesResult) => void;
@@ -19,6 +20,7 @@ export function SaveImportDialog({
   open,
   onOpenChange,
   targetWindow,
+  getTargetWindow,
   targetOrigin,
   container,
   onSuccess,
@@ -31,7 +33,7 @@ export function SaveImportDialog({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslations("game");
-  const dismissTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+  const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -104,12 +106,27 @@ export function SaveImportDialog({
       e.stopPropagation();
       setIsDragOver(false);
 
+      if (e.dataTransfer.files.length !== 1) {
+        setStatus("error");
+        setErrorMessage(t("saveImportError"));
+        return;
+      }
       const droppedFile = e.dataTransfer.files?.[0];
       if (droppedFile) {
         handleFileSelect(droppedFile);
       }
     },
-    [handleFileSelect]
+    [handleFileSelect, t]
+  );
+
+  const handleDropzoneKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      }
+    },
+    []
   );
 
   const handleImport = useCallback(async () => {
@@ -117,7 +134,8 @@ export function SaveImportDialog({
       return;
     }
 
-    if (!targetWindow) {
+    const engineWindow = getTargetWindow?.() ?? targetWindow ?? null;
+    if (!engineWindow) {
       setStatus("error");
       setErrorMessage(t("engineLoadError"));
       return;
@@ -127,7 +145,7 @@ export function SaveImportDialog({
     setErrorMessage(null);
 
     try {
-      const result = await importSaves(targetWindow, file, file.name, {
+      const result = await importSaves(engineWindow, file, file.name, {
         targetOrigin,
       });
 
@@ -135,16 +153,15 @@ export function SaveImportDialog({
       setSuccessCount(result.slotCount);
       onSuccess?.(result);
 
-      // Dismiss dialog after a brief delay so player sees positive feedback
       dismissTimeoutRef.current = setTimeout(() => {
         handleOpenChange(false);
-      }, 1200);
+      }, SAVE_DIALOG_DISMISS_MS);
     } catch (err) {
       setStatus("error");
       const message = err instanceof Error ? err.message : INVALID_SAVE_FORMAT_ERROR;
-      setErrorMessage(message);
+      setErrorMessage(message === INVALID_SAVE_FORMAT_ERROR ? t("saveImportError") : message);
     }
-  }, [file, targetWindow, targetOrigin, onSuccess, handleOpenChange, t]);
+  }, [file, targetWindow, getTargetWindow, targetOrigin, onSuccess, handleOpenChange, t]);
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -152,7 +169,7 @@ export function SaveImportDialog({
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl transition-opacity motion-reduce:transition-none" />
         <Dialog.Content
           data-testid="save-import-dialog"
-          className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] outline-none sm:p-8 select-none"
+          className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] outline-none sm:p-8"
         >
           <div className="flex items-center justify-between pb-4 border-b border-border/60">
             <div className="flex items-center gap-3">
@@ -182,7 +199,11 @@ export function SaveImportDialog({
             {/* Drag and Drop Zone */}
             <div
               data-testid="save-import-dropzone"
+              role="button"
+              tabIndex={0}
+              aria-label={file ? file.name : t("saveImportDropzone")}
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={handleDropzoneKeyDown}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -206,18 +227,18 @@ export function SaveImportDialog({
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">
-                  {file ? file.name : t("saveImportDropzone")}
+                  {file ? t("saveImportSelectedFile", { name: file.name }) : t("saveImportDropzone")}
                 </p>
                 <p className="text-xs text-muted-foreground/80">
                   {t("saveImportFormatHint")}
                 </p>
               </div>
-              <button
-                type="button"
-                className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted hover:text-white pointer-events-none"
+              <span
+                aria-hidden="true"
+                className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted hover:text-white"
               >
                 {t("saveImportBrowse")}
-              </button>
+              </span>
             </div>
 
             {/* Error Banner */}
@@ -252,7 +273,7 @@ export function SaveImportDialog({
                 type="button"
                 data-testid="save-import-cancel-button"
                 onClick={() => handleOpenChange(false)}
-                disabled={status === "importing" || status === "success"}
+                disabled={status === "importing"}
                 className="w-full sm:w-auto inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border/80 bg-background/80 px-4 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t("saveImportCancel")}
@@ -261,7 +282,7 @@ export function SaveImportDialog({
                 type="button"
                 data-testid="save-import-confirm-button"
                 onClick={handleImport}
-                disabled={!file || status === "importing" || status === "success"}
+                disabled={!file || status === "importing"}
                 className="w-full sm:w-auto inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {status === "importing" ? (

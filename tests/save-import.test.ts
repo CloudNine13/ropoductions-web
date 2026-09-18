@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import JSZip from "jszip";
 import {
   INVALID_SAVE_FORMAT_ERROR,
+  MAX_SLOT_SIZE_BYTES,
+  MAX_ZIP_ENTRY_COUNT,
+  SAVE_DIALOG_DISMISS_MS,
   validateSaveFileName,
   parseAndValidateZipArchive,
   parseAndValidateSaveFile,
@@ -358,6 +361,82 @@ describe("save-import client utilities (Story 4.4)", () => {
       } finally {
         (globalThis as unknown as { window: unknown }).window = prevWindow;
       }
+    });
+  });
+
+  describe("review hardening (PR #38 follow-up)", () => {
+    test("exposes shared dismiss delay and zip entry cap", () => {
+      assert.equal(SAVE_DIALOG_DISMISS_MS, 1200);
+      assert.ok(MAX_ZIP_ENTRY_COUNT >= 22);
+    });
+
+    test("rejects duplicate slot entries instead of last-wins overwrite", async () => {
+      const zip = new JSZip();
+      zip.file("file1.rpgsave", JSON.stringify({ a: 1 }));
+      zip.file("saves/FILE1.RPGSAVE", JSON.stringify({ a: 2 }));
+      const buffer = await zip.generateAsync({ type: "nodebuffer" });
+
+      await assert.rejects(
+        () => parseAndValidateZipArchive(buffer),
+        (err: Error) => {
+          assert.equal(err.message, INVALID_SAVE_FORMAT_ERROR);
+          return true;
+        }
+      );
+    });
+
+    test("rejects archives exceeding the entry count cap", async () => {
+      const zip = new JSZip();
+      for (let i = 0; i < MAX_ZIP_ENTRY_COUNT + 1; i++) {
+        zip.file(`notes-${i}.txt`, "filler");
+      }
+      const buffer = await zip.generateAsync({ type: "nodebuffer" });
+
+      await assert.rejects(
+        () => parseAndValidateZipArchive(buffer),
+        (err: Error) => {
+          assert.equal(err.message, INVALID_SAVE_FORMAT_ERROR);
+          return true;
+        }
+      );
+    });
+
+    test("skips case-variant macOS metadata entries", async () => {
+      const zip = new JSZip();
+      zip.file("file2.rpgsave", JSON.stringify({ actors: [] }));
+      zip.file("__macosx/._file2.rpgsave", "binary-junk");
+      const buffer = await zip.generateAsync({ type: "nodebuffer" });
+      const result = await parseAndValidateZipArchive(buffer);
+
+      assert.equal(Object.keys(result).length, 1);
+      assert.ok(result.file2);
+    });
+
+    test("accepts saves nested under dot-directories by basename", async () => {
+      const zip = new JSZip();
+      zip.file("saves/.hidden/file3.rpgsave", JSON.stringify({ stepCount: 7 }));
+      const buffer = await zip.generateAsync({ type: "nodebuffer" });
+      const result = await parseAndValidateZipArchive(buffer);
+
+      assert.equal(Object.keys(result).length, 1);
+      assert.ok(result.file3);
+    });
+
+    test("strips BOM from single .rpgsave files", async () => {
+      const blob = new Blob(["﻿" + JSON.stringify({ hero: "Lyra" })], {
+        type: "application/octet-stream",
+      });
+      const result = await parseAndValidateSaveFile(blob, "file1.rpgsave");
+
+      assert.equal(result.file1, JSON.stringify({ hero: "Lyra" }));
+    });
+
+    test("accepts a single .rpgsave at exactly the per-slot byte limit", async () => {
+      const content = "x".repeat(MAX_SLOT_SIZE_BYTES);
+      const blob = new Blob([content], { type: "application/octet-stream" });
+      const result = await parseAndValidateSaveFile(blob, "file1.rpgsave");
+
+      assert.equal(result.file1, content);
     });
   });
 });

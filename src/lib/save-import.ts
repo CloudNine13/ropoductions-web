@@ -6,6 +6,8 @@ export const INVALID_SAVE_FORMAT_ERROR =
 
 export const MAX_SLOT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB per slot
 export const MAX_TOTAL_ARCHIVE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB aggregate cap
+export const MAX_ZIP_ENTRY_COUNT = 64;
+export const SAVE_DIALOG_DISMISS_MS = 1200;
 export interface ImportSavesOptions {
   targetOrigin?: string;
   timeoutMs?: number;
@@ -65,9 +67,6 @@ export function validateSaveFileName(filename: string): string | null {
 }
 
 function getByteLength(str: string): number {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.byteLength(str, "utf8");
-  }
   return new TextEncoder().encode(str).length;
 }
 
@@ -98,6 +97,9 @@ export async function parseAndValidateZipArchive(
   }
 
   const entries = Object.values(zip.files);
+  if (entries.length > MAX_ZIP_ENTRY_COUNT) {
+    throw new Error(INVALID_SAVE_FORMAT_ERROR);
+  }
   const result: Record<string, string> = {};
   let totalExtractedBytes = 0;
 
@@ -107,30 +109,29 @@ export async function parseAndValidateZipArchive(
     }
 
     const entryPath = entry.name;
-    // Skip macOS metadata and dotfiles
-    if (
-      entryPath.includes("__MACOSX/") ||
-      entryPath.startsWith(".") ||
-      entryPath.includes("/.")
-    ) {
+    const basename = entryPath.split(/[/\\]/).pop()?.trim() ?? "";
+    if (!basename || basename.startsWith(".") || basename === "__MACOSX") {
+      continue;
+    }
+    if (entryPath.toUpperCase().includes("__MACOSX/")) {
       continue;
     }
 
-    const basename = entryPath.split(/[/\\]/).pop()?.trim() ?? "";
     // Case-insensitive normalization so FILE1.RPGSAVE or global.rpgsave are valid
     const slotKey = normalizeSlotKey(basename.toLowerCase());
     if (!slotKey) {
       continue;
     }
-
-    // Pre-decompression size check if metadata is available
-    const uncompressedSize = (entry as unknown as { _data?: { uncompressedSize?: number } })
-      ._data?.uncompressedSize;
-    if (typeof uncompressedSize === "number" && uncompressedSize > MAX_SLOT_SIZE_BYTES) {
+    if (slotKey in result) {
       throw new Error(INVALID_SAVE_FORMAT_ERROR);
     }
 
-    const content = await entry.async("string");
+    const raw = await entry.async("uint8array");
+    if (raw.length === 0 || raw.length > MAX_SLOT_SIZE_BYTES) {
+      throw new Error(INVALID_SAVE_FORMAT_ERROR);
+    }
+
+    const content = new TextDecoder().decode(raw).replace(/^\uFEFF/, "");
     if (!content || content.trim().length === 0) {
       continue;
     }
@@ -189,7 +190,8 @@ export async function parseAndValidateSaveFile(
     if (!slotKey) {
       throw new Error(INVALID_SAVE_FORMAT_ERROR);
     }
-    const text = await file.text();
+    const rawText = await file.text();
+    const text = rawText.replace(/^\uFEFF/, "");
     if (!text || text.trim().length === 0) {
       throw new Error(INVALID_SAVE_FORMAT_ERROR);
     }

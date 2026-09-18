@@ -195,7 +195,7 @@
     "saveImportBrowse": "选择文件",
     "saveImportSelectedFile": "已选文件：{name}",
     "saveImportFormatHint": "支持的格式：.zip 压缩包或 .rpgsave 文件（每个槽位上限 10MB）",
-    "saveImportError": "Invalid save file format. Please upload a valid .zip archive or .rpgsave file.",
+    "saveImportError": "存档文件格式无效。请上传有效的 .zip 压缩包或 .rpgsave 文件。",
     "saveImportSuccess": "存档恢复成功！游戏内读取菜单已更新。",
     "saveImporting": "正在导入存档…",
     "saveImportConfirm": "导入存档",
