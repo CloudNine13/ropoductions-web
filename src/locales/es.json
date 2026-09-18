@@ -178,6 +178,8 @@
     "title": "Final Orginity: Capítulo 1",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "Exportar (.zip)",
+    "saveHudExportSuccess": "Exportado",
+    "saveHudExporting": "Exportando…",
     "saveHudImport": "Importar",
     "saveHudFullscreen": "Pantalla completa",
     "saveHudExitFullscreen": "Salir de pantalla completa",

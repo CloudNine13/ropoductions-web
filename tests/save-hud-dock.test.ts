@@ -131,6 +131,16 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
     assert.ok(src.includes("disabled={isImportDisabled}"), "Import button must be disabled when onImport is undefined");
     assert.ok(src.includes("disabled={isResetDisabled}"), "Reset button must be disabled when onReset is undefined");
   });
+  it("renders temporary checkmark indicator and Studio Emerald accent on export confirmation (Story 4.3)", () => {
+    const src = readSource(saveHudPath);
+
+    assert.ok(src.includes("Check"), "Must import Check icon from lucide-react for export confirmation");
+    assert.ok(src.includes('data-testid="save-hud-export-success-icon"'), "Must render Check icon with save-hud-export-success-icon testid on success");
+    assert.ok(src.includes("data-export-status={currentExportStatus}"), "Export button must expose data-export-status attribute");
+    assert.ok(src.includes("#22C55E"), "Export success must highlight with Studio Emerald (#22C55E) token");
+    assert.ok(src.includes("isExportSuccess"), "Must conditionally check export success state");
+  });
+
 
   it("enforces strict 44x44px minimum touch target size across all action buttons", () => {
     const src = readSource(saveHudPath);

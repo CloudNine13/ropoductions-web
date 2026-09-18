@@ -5,12 +5,13 @@ import Image from "next/image";
 import { ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SaveHudDock } from "./save-hud-dock";
+import { exportSaves } from "../lib/save-export";
 
 export interface GameViewportProps {
   engineSrc?: string;
   title?: string;
   className?: string;
-  onExport?: () => void;
+  onExport?: () => Promise<void> | void;
   onImport?: () => void;
   onReset?: () => void;
 }
@@ -141,6 +142,18 @@ export function GameViewport({
     setLoadProgress(0);
     setEngineKey((current) => current + 1);
   }, []);
+  const handleExport = useCallback(async () => {
+    if (onExport) {
+      await onExport();
+      return;
+    }
+    const targetWindow = iframeRef.current?.contentWindow;
+    if (!targetWindow) {
+      throw new Error("Game engine iframe is not ready");
+    }
+    await exportSaves(targetWindow);
+  }, [onExport]);
+
 
   const toggleFullscreen = useCallback(async () => {
     const doc = document as unknown as {
@@ -280,7 +293,7 @@ export function GameViewport({
           <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
             <SaveHudDock
               id={hudId}
-              onExport={onExport}
+              onExport={handleExport}
               onImport={onImport}
               onReset={onReset}
               onToggleFullscreen={toggleFullscreen}
@@ -325,7 +338,7 @@ export function GameViewport({
       <div className="flex w-full shrink-0 items-center justify-center">
         <SaveHudDock
           id={hudId}
-          onExport={onExport}
+          onExport={handleExport}
           onImport={onImport}
           onReset={onReset}
           onToggleFullscreen={toggleFullscreen}

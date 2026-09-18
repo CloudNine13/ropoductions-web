@@ -178,6 +178,8 @@
     "title": "Final Orginity: 第1章",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "エクスポート (.zip)",
+    "saveHudExportSuccess": "エクスポート完了",
+    "saveHudExporting": "エクスポート中…",
     "saveHudImport": "インポート",
     "saveHudFullscreen": "全画面表示",
     "saveHudExitFullscreen": "全画面表示を終了",

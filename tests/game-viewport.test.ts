@@ -120,6 +120,14 @@ describe("game viewport and engine container contract", () => {
       "SaveHudDock wrapper must respect env(safe-area-inset-bottom)"
     );
   });
+  it("wires client save export via exportSaves and guards against unready iframe", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.ok(src.includes("import { exportSaves }"), "GameViewport must import exportSaves");
+    assert.ok(src.includes("onExport={handleExport}"), "GameViewport must wire handleExport to SaveHudDock");
+    assert.ok(src.includes('throw new Error("Game engine iframe is not ready")'), "Must throw error if iframe targetWindow is unavailable");
+  });
+
 
   it("renders the dock as a static sibling in standard layout and overlays it only in fullscreen", () => {
     const src = readSource(gameViewportPath);
