@@ -37,6 +37,13 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  // Protect /admin routes: anti-enumeration guard
+  // Must NEVER redirect unauthorized visitors (which leaks route existence).
+  // Passes to (admin)/layout.tsx where authoritative D1 session evaluation returns notFound() (404).
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
