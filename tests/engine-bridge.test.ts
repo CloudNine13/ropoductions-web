@@ -180,9 +180,9 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
 
     await dispatchMessage({ type: "ROPODUCTIONS_SET_SAVES", payload: newSaves });
 
-    assert.equal(storageStore["file1"], newSaves.file1);
-    assert.equal(storageStore["file2"], newSaves.file2);
-    assert.equal(storageStore["global"], newSaves.global);
+    assert.equal(JSON.stringify(storageStore["file1"]), newSaves.file1);
+    assert.equal(JSON.stringify(storageStore["file2"]), newSaves.file2);
+    assert.equal(JSON.stringify(storageStore["global"]), newSaves.global);
     assert.equal(globalInfoLoaded, true);
     assert.equal(postedMessages.length, 1);
     assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SET_SAVES_SUCCESS");
@@ -199,7 +199,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(Object.hasOwn(storageStore, "constructor"), false);
   });
 
-  it("rejects invalid save slot keys in ROPODUCTIONS_SET_SAVES", async () => {
+  it("rejects invalid save slot keys in ROPODUCTIONS_SET_SAVES and emits error on zero saved", async () => {
     loadPlugin();
     const invalidPayload: Record<string, string> = {
       unauthorized_slot: "some-data",
@@ -210,6 +210,76 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
 
     assert.equal(storageStore["unauthorized_slot"], undefined);
     assert.equal(storageStore["file99"], undefined);
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SAVE_ERROR");
+  });
+
+  it("handles StorageManager.saveObject rejection and emits ROPODUCTIONS_SAVE_ERROR", async () => {
+    loadPlugin();
+    (sandbox.StorageManager as { saveObject: unknown }).saveObject = () =>
+      Promise.reject(new Error("DiskQuotaExceeded"));
+
+    await dispatchMessage({
+      type: "ROPODUCTIONS_SET_SAVES",
+      payload: { file1: '{"level":1}' },
+    });
+
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SAVE_ERROR");
+  });
+
+  it("handles DataManager.loadGlobalInfo rejection without throwing", async () => {
+    loadPlugin();
+    (sandbox.DataManager as { loadGlobalInfo: unknown }).loadGlobalInfo = () =>
+      Promise.reject(new Error("CorruptGlobalInfo"));
+
+    await dispatchMessage({
+      type: "ROPODUCTIONS_SET_SAVES",
+      payload: { file1: '{"level":1}' },
+    });
+
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SET_SAVES_SUCCESS");
+  });
+
+  it("handles non-object engine payload and emits ROPODUCTIONS_SAVE_ERROR", async () => {
+    loadPlugin();
+    await dispatchMessage({
+      type: "ROPODUCTIONS_SET_SAVES",
+      payload: "not-an-object",
+    });
+
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SAVE_ERROR");
+  });
+
+  it("strictly ignores message when event.source is null in nested iframe", async () => {
+    loadPlugin();
+    await dispatchMessage(
+      { type: "ROPODUCTIONS_RESET_SAVES" },
+      "https://ropoductions.com",
+      null
+    );
+
+    assert.equal(postedMessages.length, 0);
+  });
+
+  it("skips slots exceeding 10MB byte limit", async () => {
+    loadPlugin();
+    const oversizedPayload = {
+      file1: "x".repeat(10 * 1024 * 1024 + 10),
+      file2: '{"valid":true}',
+    };
+
+    await dispatchMessage({
+      type: "ROPODUCTIONS_SET_SAVES",
+      payload: oversizedPayload,
+    });
+
+    assert.equal(storageStore["file1"], undefined);
+    assert.equal(JSON.stringify(storageStore["file2"]), JSON.stringify({ valid: true }));
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SET_SAVES_SUCCESS");
   });
 
   it("handles ROPODUCTIONS_RESET_SAVES and purges storage slots", async () => {
@@ -226,5 +296,18 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(globalInfoLoaded, true);
     assert.equal(postedMessages.length, 1);
     assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_RESET_SAVES_SUCCESS");
+  });
+
+  it("single-source verification: src and public copies of Ropoductions_WebBridge.js are byte-for-byte identical", () => {
+    const srcFile = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
+    const publicFile = path.resolve(process.cwd(), "public/engine/js/plugins/Ropoductions_WebBridge.js");
+
+    assert.ok(fs.existsSync(srcFile), "src/engine-plugins/Ropoductions_WebBridge.js must exist");
+    assert.ok(fs.existsSync(publicFile), "public/engine/js/plugins/Ropoductions_WebBridge.js must exist");
+
+    const srcContent = fs.readFileSync(srcFile);
+    const publicContent = fs.readFileSync(publicFile);
+
+    assert.deepEqual(srcContent, publicContent, "Engine plugin copies must be byte-for-byte identical");
   });
 });

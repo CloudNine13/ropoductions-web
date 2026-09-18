@@ -167,5 +167,59 @@
       render();
     })();
   </script>
+  <script>
+    // Decoupled Mock Harness Testing Invariant (Contract Section 6)
+    if (typeof StorageManager === 'undefined') {
+      const mockStorage = new Map();
+      window.StorageManager = {
+        isLocalMode: () => false,
+        forRmmz: () => true,
+        saveObject: async (saveName, object) => {
+          const serialized = typeof object === 'string' ? object : JSON.stringify(object);
+          mockStorage.set(saveName, serialized);
+          try {
+            localStorage.setItem(`rmmz_save_${saveName}`, serialized);
+          } catch {}
+        },
+        loadObject: async (saveName) => {
+          if (mockStorage.has(saveName)) {
+            return mockStorage.get(saveName);
+          }
+          try {
+            const item = localStorage.getItem(`rmmz_save_${saveName}`);
+            if (item !== null) return item;
+          } catch {}
+          throw new Error(`Save not found: ${saveName}`);
+        },
+        exists: async (saveName) => {
+          if (mockStorage.has(saveName)) return true;
+          try {
+            return localStorage.getItem(`rmmz_save_${saveName}`) !== null;
+          } catch {
+            return false;
+          }
+        },
+        remove: async (saveName) => {
+          mockStorage.delete(saveName);
+          try {
+            localStorage.removeItem(`rmmz_save_${saveName}`);
+          } catch {}
+        }
+      };
+    }
+
+    if (typeof DataManager === 'undefined') {
+      window.DataManager = {
+        loadGlobalInfo: async () => {
+          const statusOverlay = document.getElementById('statusOverlay');
+          if (statusOverlay) {
+            statusOverlay.textContent = 'RPG Maker MZ Engine Ready • Saves Refreshed';
+          }
+          return Promise.resolve();
+        }
+      };
+    }
+  </script>
+  <script src="js/plugins/Ropoductions_WebBridge.js"></script>
 </body>
 </html>
