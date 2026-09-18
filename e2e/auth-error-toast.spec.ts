@@ -20,9 +20,18 @@ test.describe("auth error toast", () => {
 
     await toast(page).getByRole("button", { name: "Dismiss notification" }).click();
     await expect(toast(page)).toHaveCount(0);
-    expect(page.url()).toBe("http://127.0.0.1:3100/");
+    const currentUrl = new URL(page.url());
+    expect(currentUrl.pathname).toBe("/");
+    expect(currentUrl.searchParams.has("auth_error")).toBe(false);
   });
 
+  test("renders the client-configuration toast variant", async ({ page }) => {
+    await page.goto("/?auth_error=client_configuration_error");
+    await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
+
+    await expect(toast(page)).toBeVisible();
+    await expect(toast(page)).toContainText("Client Configuration Error");
+  });
   test("renders the server-configuration toast variant", async ({ page }) => {
     await page.goto("/?auth_error=server_configuration_error");
     await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
