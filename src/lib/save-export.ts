@@ -17,6 +17,9 @@ export interface ExportSavesResult {
 }
 
 export function formatSaveZipFilename(date: Date = new Date()): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    throw new Error("Invalid export date");
+  }
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
@@ -26,14 +29,15 @@ export function formatSaveZipFilename(date: Date = new Date()): string {
 export function normalizeSaveFileMap(payload: SaveSlotsPayload): Record<string, string> {
   const result: Record<string, string> = {};
 
-  if (!payload || typeof payload !== "object") {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return result;
   }
 
-  if (payload.slots && typeof payload.slots === "object") {
+  if (payload.slots && typeof payload.slots === "object" && !Array.isArray(payload.slots)) {
     for (const [key, content] of Object.entries(payload.slots)) {
       const normalizedKey = normalizeSlotKey(key);
       if (!normalizedKey) continue;
+      if (normalizedKey === "global" || normalizedKey === "config") continue;
       if (typeof content !== "string" || content.trim().length === 0) continue;
       result[`${normalizedKey}.rpgsave`] = content;
     }
@@ -50,9 +54,8 @@ export function normalizeSaveFileMap(payload: SaveSlotsPayload): Record<string, 
   return result;
 }
 
-export async function buildSaveZip(payload: SaveSlotsPayload): Promise<Blob> {
+export async function buildSaveZipFromMap(fileMap: Record<string, string>): Promise<Blob> {
   const zip = new JSZip();
-  const fileMap = normalizeSaveFileMap(payload);
 
   for (const [filename, content] of Object.entries(fileMap)) {
     zip.file(filename, content);
@@ -65,9 +68,15 @@ export async function buildSaveZip(payload: SaveSlotsPayload): Promise<Blob> {
   });
 }
 
+export async function buildSaveZip(payload: SaveSlotsPayload): Promise<Blob> {
+  return buildSaveZipFromMap(normalizeSaveFileMap(payload));
+}
+
+const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
+
 export function triggerDownload(blob: Blob, filename: string): void {
   if (typeof window === "undefined" || typeof document === "undefined") {
-    return;
+    throw new Error("Save export download requires a browser environment");
   }
 
   const url = URL.createObjectURL(blob);
@@ -76,12 +85,15 @@ export function triggerDownload(blob: Blob, filename: string): void {
   anchor.download = filename;
   anchor.style.display = "none";
   document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
+  try {
+    anchor.click();
+  } finally {
+    document.body.removeChild(anchor);
+  }
 
   setTimeout(() => {
     URL.revokeObjectURL(url);
-  }, 1000);
+  }, DOWNLOAD_URL_REVOKE_DELAY_MS);
 }
 
 export async function exportSaves(
@@ -89,15 +101,28 @@ export async function exportSaves(
   targetOriginOrOptions?: string | ExportSavesOptions,
   legacyTimeoutMs?: number
 ): Promise<ExportSavesResult> {
-  const options: ExportSavesOptions =
+  const baseOptions: ExportSavesOptions =
     typeof targetOriginOrOptions === "string"
       ? { targetOrigin: targetOriginOrOptions, timeoutMs: legacyTimeoutMs }
       : targetOriginOrOptions ?? {};
+  const options: ExportSavesOptions =
+    targetOriginOrOptions === undefined && legacyTimeoutMs !== undefined
+      ? { timeoutMs: legacyTimeoutMs }
+      : baseOptions;
 
   const timeoutMs = options.timeoutMs ?? DEFAULT_BRIDGE_TIMEOUT_MS;
+  if (options.date !== undefined && (!(options.date instanceof Date) || Number.isNaN(options.date.getTime()))) {
+    throw new Error("Invalid export date");
+  }
   const payload = await requestSaves(targetWindow, options.targetOrigin, timeoutMs);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Invalid save data received from game engine");
+  }
   const fileMap = normalizeSaveFileMap(payload);
-  const blob = await buildSaveZip(payload);
+  if (Object.keys(fileMap).length === 0) {
+    throw new Error("No populated saves to export");
+  }
+  const blob = await buildSaveZipFromMap(fileMap);
   const filename = formatSaveZipFilename(options.date);
 
   if (!options.skipDownload) {

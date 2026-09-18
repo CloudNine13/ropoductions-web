@@ -58,8 +58,8 @@ describe("client-side zip save export (Story 4.3)", () => {
       const payload: SaveSlotsPayload = {
         slots: {
           "file2.rpgsave": "slot_2_data",
-          "global.rpgsave": "global_slot_data",
         },
+        global: "global_slot_data",
       };
 
       const result = normalizeSaveFileMap(payload);
@@ -115,6 +115,31 @@ describe("client-side zip save export (Story 4.3)", () => {
       assert.deepEqual(normalizeSaveFileMap(null as unknown as SaveSlotsPayload), {});
       assert.deepEqual(normalizeSaveFileMap(undefined as unknown as SaveSlotsPayload), {});
     });
+
+    it("rejects invalid export dates instead of writing NaN filenames", () => {
+      assert.throws(() => formatSaveZipFilename(new Date(Number.NaN)), /Invalid export date/);
+    });
+
+    it("ignores global and config keys nested inside slots to avoid collisions", () => {
+      const payload: SaveSlotsPayload = {
+        slots: {
+          "global.rpgsave": "nested_global",
+          "config.rpgsave": "nested_config",
+          file1: "legit_slot",
+        },
+        global: "top_level_global",
+      };
+
+      assert.deepEqual(normalizeSaveFileMap(payload), {
+        "file1.rpgsave": "legit_slot",
+        "global.rpgsave": "top_level_global",
+      });
+    });
+
+    it("returns an empty map when slots is an array", () => {
+      const payload = { slots: ["file1"] } as unknown as SaveSlotsPayload;
+      assert.deepEqual(normalizeSaveFileMap(payload), {});
+    });
   });
 
   describe("buildSaveZip client-side compression via JSZip", () => {
@@ -164,6 +189,7 @@ describe("client-side zip save export (Story 4.3)", () => {
   describe("triggerDownload DOM orchestration", () => {
     let originalWindow: unknown;
     let originalDocument: unknown;
+    let originalURL: unknown;
     let appendedElements: unknown[];
     let clickedAnchors: Array<{ download: string; href: string }>;
     let revokedUrls: string[];
@@ -182,6 +208,7 @@ describe("client-side zip save export (Story 4.3)", () => {
     beforeEach(() => {
       originalWindow = globalScope.window;
       originalDocument = globalScope.document;
+      originalURL = globalScope.URL;
       appendedElements = [];
       clickedAnchors = [];
       revokedUrls = [];
@@ -224,6 +251,7 @@ describe("client-side zip save export (Story 4.3)", () => {
     afterEach(() => {
       globalScope.window = originalWindow;
       globalScope.document = originalDocument;
+      globalScope.URL = originalURL as GlobalDOMScope["URL"];
     });
 
     it("creates an invisible anchor, clicks it with download filename, and detaches", () => {
@@ -236,15 +264,15 @@ describe("client-side zip save export (Story 4.3)", () => {
       assert.equal(appendedElements.length, 0, "Anchor must be detached after click");
     });
 
-    it("safely handles non-browser environment without throwing", () => {
+    it("throws outside a browser environment instead of reporting success", () => {
       const globalScope = globalThis as unknown as { window?: unknown; document?: unknown };
       globalScope.window = undefined;
       globalScope.document = undefined;
 
       const blob = new Blob(["content"]);
-      assert.doesNotThrow(() => {
+      assert.throws(() => {
         triggerDownload(blob, "test.zip");
-      });
+      }, /browser environment/);
     });
   });
 
@@ -319,14 +347,66 @@ describe("client-side zip save export (Story 4.3)", () => {
     });
 
     it("supports legacy positional arguments (targetOrigin, timeoutMs)", async () => {
-      const result = await exportSaves(
-        mockIframeWindow,
-        "https://ropoductions.com",
-        3000
-      );
+      const scope = globalThis as unknown as {
+        document?: unknown;
+        URL?: unknown;
+      };
+      const savedDocument = scope.document;
+      const savedURL = scope.URL;
+      scope.document = {
+        createElement: () => ({ style: {}, click: () => {} }),
+        body: { appendChild: () => {}, removeChild: () => {} },
+      };
+      scope.URL = {
+        createObjectURL: () => "blob:mock-legacy",
+        revokeObjectURL: () => {},
+      };
+      try {
+        const result = await exportSaves(
+          mockIframeWindow,
+          "https://ropoductions.com",
+          3000
+        );
 
-      assert.ok(result.filename.startsWith("ropoductions_saves_"));
-      assert.equal(result.fileCount, 4);
+        assert.ok(result.filename.startsWith("ropoductions_saves_"));
+        assert.equal(result.fileCount, 4);
+      } finally {
+        scope.document = savedDocument;
+        scope.URL = savedURL;
+      }
+    });
+
+    it("rejects empty save sets instead of downloading an empty zip", async () => {
+      const emptyIframeWindow = {
+        postMessage: (message: { type: string; requestId: string }, targetOrigin: string) => {
+          assert.equal(targetOrigin, "https://ropoductions.com");
+          if (message.type === "ROPODUCTIONS_GET_SAVES") {
+            const responseEvent = {
+              origin: "https://ropoductions.com",
+              source: emptyIframeWindow,
+              data: {
+                type: "ROPODUCTIONS_SAVES_DATA",
+                requestId: message.requestId,
+                payload: { slots: {} },
+              },
+            } as MessageEvent;
+
+            queueMicrotask(() => {
+              for (const listener of [...mockParentListeners]) {
+                listener(responseEvent);
+              }
+            });
+          }
+        },
+      } as unknown as Window;
+
+      await assert.rejects(
+        exportSaves(emptyIframeWindow, {
+          targetOrigin: "https://ropoductions.com",
+          skipDownload: true,
+        }),
+        /No populated saves to export/
+      );
     });
   });
 });

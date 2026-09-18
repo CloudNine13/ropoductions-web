@@ -54,7 +54,7 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
     const src = readSource(saveHudPath);
 
     assert.ok(
-      src.includes('<span className="whitespace-nowrap">{resolvedLabels.export}</span>'),
+      src.includes("{exportButtonLabel}"),
       "Export label must stay visible at all viewport sizes"
     );
     assert.ok(!src.includes("(Coming soon)"), "Must NOT ship Coming-soon title tooltips");
@@ -139,6 +139,11 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
     assert.ok(src.includes("data-export-status={currentExportStatus}"), "Export button must expose data-export-status attribute");
     assert.ok(src.includes("#22C55E"), "Export success must highlight with Studio Emerald (#22C55E) token");
     assert.ok(src.includes("isExportSuccess"), "Must conditionally check export success state");
+    assert.ok(src.includes('data-testid="save-hud-export-error-icon"'), "Must render error icon with save-hud-export-error-icon testid on failure");
+    assert.ok(src.includes("#E11D48"), "Export error must highlight with crimson (#E11D48) token");
+    assert.ok(src.includes('aria-live="polite"'), "Export label must announce status changes via aria-live");
+    assert.ok(src.includes("exportingRef"), "Must guard concurrent exports against stale-closure double clicks");
+    assert.ok(src.includes("isControlledExport"), "Must resolve controlled exportStatus vs internal state ownership");
   });
 
 
@@ -165,7 +170,8 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
     assert.ok(src.includes("aria-pressed={isFullscreen}"), "Fullscreen button must declare aria-pressed state");
 
     // Accessible name and tooltip title on all 4 buttons
-    assert.ok(src.includes("aria-label={resolvedLabels.export}"), "Export button must declare aria-label");
+    assert.ok(src.includes("aria-label={exportAccessibleName}"), "Export button must declare error-aware accessible name");
+    assert.ok(src.includes("aria-busy={isExporting}"), "Export button must expose aria-busy while exporting");
     assert.ok(src.includes("title="), "Buttons must declare title tooltips");
     assert.ok(src.includes("aria-label={resolvedLabels.import}"), "Import button must declare aria-label");
     assert.ok(src.includes("aria-label={resolvedLabels.reset}"), "Reset button must declare aria-label");
