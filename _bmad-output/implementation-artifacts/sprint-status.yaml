@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-17-2026 12:00
+last_updated: 09-18-2026 13:20
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -49,10 +49,10 @@ development_status:
   2-4-paywall-interstitial-graceful-navigation-session-verificatio: done
   epic-2-retrospective: done
 
-  epic-3: in-progress
-  3-1-sandboxed-same-origin-game-iframe-responsive-16-9-viewport-c: review
-  3-2-authenticated-r2-asset-streaming-route-edge-middleware-prote: review
-  3-3-upstream-game-release-ingestion-r2-sync-workflow: review
+  epic-3: done
+  3-1-sandboxed-same-origin-game-iframe-responsive-16-9-viewport-c: done
+  3-2-authenticated-r2-asset-streaming-route-edge-middleware-prote: done
+  3-3-upstream-game-release-ingestion-r2-sync-workflow: done
   epic-3-retrospective: optional
 
   epic-4: backlog
@@ -101,14 +101,14 @@ action_items:
     action: "Map auth_error parameters (insufficient_pledge, inactive_patron) in resolvePaywallType
       and PortalPageProps to show paywall modal on pledge rejections"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-2-retro-item-2-patreon-init-secret-guard"
     epic: 2
     action: "Guard SESSION_SECRET in /api/auth/patreon/route.ts and redirect to /?auth_error=server_configuration_error
       instead of signing with empty secret or emitting raw 500 JSON"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-2-retro-item-3-dedupe-auth-callback-session-issuance"
     epic: 2
@@ -122,7 +122,7 @@ action_items:
     action: "Export unquoteCookieValue from src/lib/cookies.ts and replace duplicate
       regex calls across proxy.ts, layout.tsx, and play/page.tsx"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-2-retro-item-5-document-server-component-cookie-route-pattern"
     epic: 2
@@ -132,3 +132,42 @@ action_items:
     owner: "architect"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
+priorities:
+  # P0 = next up, P1 = tech debt / hardening, P2 = internal admin, P3 = optional hygiene.
+  # Order within Epic 4 is strict: 4-1 unblocks 4-2, which unblocks 4-3/4-4.
+  # NOTE: epics.md retitled stories 2-1..2-4 and 3-3, so `generate --dry-run` reports
+  # them as dropped orphans plus new entries. Do NOT regenerate until reconciled;
+  # transplant done statuses with --set <new-key>=done per generate-tracking.md.
+  - rank: P0
+    item: "4-1-in-game-postmessage-web-bridge-ropoductions_webbridge-js-wit"
+    why: "Save bridge unblocks the whole Epic 4 HUD; plugin scaffold already in src/engine-plugins/"
+  - rank: P0
+    item: "4-2-floating-frosted-glass-save-hud-dock-with-auto-dimming"
+    why: "Second in Epic 4 sequence; depends on the 4-1 bridge"
+  - rank: P0
+    item: "4-3-client-side-zip-save-export-compression-via-jszip"
+    why: "Third in sequence; jszip 3.10.1 already installed"
+  - rank: P0
+    item: "4-4-save-import-validation-dialog-safe-storage-reset-modal"
+    why: "Closes Epic 4 (FR-13..FR-16); depends on the 4-1 bridge"
+  - rank: P1
+    item: "epic-2-retro-item-3-dedupe-auth-callback-session-issuance"
+    why: "Remove duplicated session-issuance code before Epic 4/5 add more auth-touching routes"
+  - rank: P1
+    item: "epic-2-retro-item-5-document-server-component-cookie-route-pattern"
+    why: "Records the cookie-mutation constraint Epic 4/5 Server Components will rely on"
+  - rank: P1
+    item: "deferred-work: revoked/lapsed session enforcement on /api/game/[...asset]"
+    why: "Story 2-4 covers /play only; fold into 3-2 hardening per deferred-work.md"
+  - rank: P2
+    item: "5-1-restricted-admin-layout-authentication-guard"
+    why: "Internal admin shell; starts Epic 5 after player-facing saves ship"
+  - rank: P2
+    item: "5-2-patron-override-directory-creation-interface"
+    why: "Depends on the 5-1 guard"
+  - rank: P2
+    item: "5-3-override-revocation-self-lockout-prevention"
+    why: "Depends on the 5-2 directory"
+  - rank: P3
+    item: "epic-3-retrospective"
+    why: "Optional hygiene; Epic 3 verified done (200/200 unit tests pass)"
