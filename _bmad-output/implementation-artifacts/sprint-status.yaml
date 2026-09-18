@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-18-2026 13:20
+last_updated: 09-18-2026 23:45
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -55,11 +55,11 @@ development_status:
   3-3-upstream-game-release-ingestion-r2-sync-workflow: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-in-game-postmessage-web-bridge-ropoductions_webbridge-js-wit: done
   4-2-floating-frosted-glass-save-hud-dock-with-auto-dimming: done
   4-3-client-side-zip-save-export-compression-via-jszip: done
-  4-4-save-import-validation-dialog-safe-storage-reset-modal: review
+  4-4-save-import-validation-dialog-safe-storage-reset-modal: done
   epic-4-retrospective: optional
 
   epic-5: backlog
@@ -115,7 +115,7 @@ action_items:
     action: "Extract duplicate session creation, AES encryption, D1 upsert, signed
       cookie formatting, and headers in /api/auth/callback into a unified helper"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-2-retro-item-4-unify-cookie-quote-stripping"
     epic: 2

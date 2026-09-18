@@ -5,12 +5,12 @@ import {
   parseCookies,
   serializeCookie,
   SESSION_COOKIE_MAX_AGE,
-  SESSION_COOKIE_NAME,
 } from "@/lib/cookies";
-import { encryptToken, signValue, verifySignedValue } from "@/lib/crypto";
-import { getPatronOverride, upsertSession } from "@/lib/db";
+import { encryptToken, verifySignedValue } from "@/lib/crypto";
+import { getPatronOverride } from "@/lib/db";
 import {
   findApprovedTier,
+  issueSessionResponse,
   MINIMUM_PLEDGE_CENTS,
 } from "@/lib/auth";
 import {
@@ -20,8 +20,6 @@ import {
   getPatronIdentity,
   resolveOAuthOriginContext,
 } from "@/lib/patreon";
-import type { CreateSessionInput } from "@/types/database";
-
 export const dynamic = "force-dynamic";
 
 const PROVIDER_ERROR_ALLOWLIST = [
@@ -211,51 +209,23 @@ export async function GET(request: Request): Promise<Response> {
 
     const override = await getPatronOverride(db, identity.patronId);
     if (override && (override.role === "admin" || override.role === "comp")) {
-      const sessionId = crypto.randomUUID();
-      const sessionRecord: CreateSessionInput = {
-        id: sessionId,
-        patron_id: identity.patronId,
+      return await issueSessionResponse({
+        db,
+        sessionSecret: authEnv.sessionSecret,
+        patronId: identity.patronId,
         email: identity.email,
         role: override.role,
-        tier_id: `override_${override.role}`,
-        tier_name:
+        tierId: `override_${override.role}`,
+        tierName:
           override.role === "admin" ? "Studio Admin" : "Complimentary Pass",
-        pledge_cents: 0,
-        encrypted_access_token: encryptedAccessToken,
-        encrypted_refresh_token: encryptedRefreshToken,
-        token_expires_at_sec: tokenExpiresAtSec,
-        expires_at_sec: sessionExpiresAtSec,
-        revoked: 0,
-        created_at_sec: nowSec,
-        last_verified_at_sec: nowSec,
-      };
-
-      await upsertSession(db, sessionRecord);
-
-      const signedSessionId = await signValue(
-        sessionId,
-        authEnv.sessionSecret
-      );
-      const sessionCookieHeader = serializeCookie(
-        SESSION_COOKIE_NAME,
-        signedSessionId,
-        {
-          maxAge: SESSION_COOKIE_MAX_AGE,
-          httpOnly: true,
-          sameSite: "Lax",
-          secure: isSecure,
-          path: "/",
-        }
-      );
-
-      const headers = new Headers();
-      headers.set("Location", "/play");
-      headers.append("Set-Cookie", clearCookieHeader);
-      headers.append("Set-Cookie", sessionCookieHeader);
-      headers.set("Cache-Control", "no-store, max-age=0");
-      return new Response(null, {
-        status: 302,
-        headers,
+        pledgeCents: 0,
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        tokenExpiresAtSec,
+        sessionExpiresAtSec,
+        nowSec,
+        isSecure,
+        clearCookieHeader,
       });
     }
 
@@ -334,50 +304,22 @@ export async function GET(request: Request): Promise<Response> {
     const tierId = membership.tierId || `tier_${approvedTier.cents}`;
     const pledgeCents = membership.currentlyEntitledAmountCents;
 
-    const sessionId = crypto.randomUUID();
-    const sessionRecord: CreateSessionInput = {
-      id: sessionId,
-      patron_id: identity.patronId,
+    return await issueSessionResponse({
+      db,
+      sessionSecret: authEnv.sessionSecret,
+      patronId: identity.patronId,
       email: identity.email,
       role: "patron",
-      tier_id: tierId,
-      tier_name: tierName,
-      pledge_cents: pledgeCents,
-      encrypted_access_token: encryptedAccessToken,
-      encrypted_refresh_token: encryptedRefreshToken,
-      token_expires_at_sec: tokenExpiresAtSec,
-      expires_at_sec: sessionExpiresAtSec,
-      revoked: 0,
-      created_at_sec: nowSec,
-      last_verified_at_sec: nowSec,
-    };
-
-    await upsertSession(db, sessionRecord);
-
-    const signedSessionId = await signValue(
-      sessionId,
-      authEnv.sessionSecret
-    );
-    const sessionCookieHeader = serializeCookie(
-      SESSION_COOKIE_NAME,
-      signedSessionId,
-      {
-        maxAge: SESSION_COOKIE_MAX_AGE,
-        httpOnly: true,
-        sameSite: "Lax",
-        secure: isSecure,
-        path: "/",
-      }
-    );
-
-    const headers = new Headers();
-    headers.set("Location", "/play");
-    headers.append("Set-Cookie", clearCookieHeader);
-    headers.append("Set-Cookie", sessionCookieHeader);
-    headers.set("Cache-Control", "no-store, max-age=0");
-    return new Response(null, {
-      status: 302,
-      headers,
+      tierId,
+      tierName,
+      pledgeCents,
+      encryptedAccessToken,
+      encryptedRefreshToken,
+      tokenExpiresAtSec,
+      sessionExpiresAtSec,
+      nowSec,
+      isSecure,
+      clearCookieHeader,
     });
   } catch {
     return new Response(null, {

@@ -4,10 +4,12 @@ import {
   APPROVED_TIERS,
   findApprovedTier,
   isAccessAuthorized,
+  issueSessionResponse,
   MINIMUM_PLEDGE_CENTS,
   validateSessionAccess,
 } from "../src/lib/auth";
-import { signValue } from "../src/lib/crypto";
+import { signValue, verifySignedValue } from "../src/lib/crypto";
+import { parseCookies, SESSION_COOKIE_MAX_AGE, SESSION_COOKIE_NAME } from "../src/lib/cookies";
 import {
   getPatronCampaignMembership,
   PATREON_CAMPAIGNS_URL,
@@ -787,5 +789,228 @@ describe("resolveOAuthOriginContext origin normalization and mismatch detection"
     const ctx = resolveOAuthOriginContext(req, "not a valid uri :::");
     assert.equal(ctx.redirectOrigin, "http://localhost:3000");
     assert.equal(ctx.redirectUri, "http://localhost:3000/api/auth/callback");
+  });
+});
+
+describe("issueSessionResponse unified session issuance helper", () => {
+  function createTestDb() {
+    const sessions = new Map<string, any>();
+    const db = {
+      prepare(sql: string) {
+        const stmt = {
+          params: [] as unknown[],
+          bind(...params: unknown[]) {
+            stmt.params = params;
+            return stmt;
+          },
+          async run() {
+            if (sql.includes("INSERT INTO sessions")) {
+              assert.equal(
+                stmt.params.length,
+                16,
+                "upsertSession must bind exactly 16 parameters (14 columns + 2 conflict guards)"
+              );
+              const [
+                id,
+                patron_id,
+                email,
+                role,
+                tier_id,
+                tier_name,
+                pledge_cents,
+                encrypted_access_token,
+                encrypted_refresh_token,
+                token_expires_at_sec,
+                expires_at_sec,
+                revoked,
+                created_at_sec,
+                last_verified_at_sec,
+                guard_role,
+                guard_revoked,
+              ] = stmt.params;
+              sessions.set(id as string, {
+                id,
+                patron_id,
+                email,
+                role,
+                tier_id,
+                tier_name,
+                pledge_cents,
+                encrypted_access_token,
+                encrypted_refresh_token,
+                token_expires_at_sec,
+                expires_at_sec,
+                revoked,
+                created_at_sec,
+                last_verified_at_sec,
+                guard_role,
+                guard_revoked,
+              });
+              return { success: true, meta: {} };
+            }
+            throw new Error(`Unhandled run SQL: ${sql}`);
+          },
+        };
+        return stmt;
+      },
+    } as unknown as D1Database;
+    return { db, sessions };
+  }
+
+  it("creates session in D1 with 16 bound parameters and returns 302 response to /play", async () => {
+    const { db, sessions } = createTestDb();
+    const secret = "test-secret-min-32-chars-for-hmac-sha256-signing!!";
+    const nowSec = 1700000000;
+
+    const response = await issueSessionResponse({
+      db,
+      sessionSecret: secret,
+      patronId: "patron-999",
+      email: "user@example.com",
+      role: "patron",
+      tierId: "tier_500",
+      tierName: "Ork Patron",
+      pledgeCents: 500,
+      encryptedAccessToken: "enc-access",
+      encryptedRefreshToken: "enc-refresh",
+      tokenExpiresAtSec: nowSec + 3600,
+      sessionExpiresAtSec: nowSec + SESSION_COOKIE_MAX_AGE,
+      nowSec,
+      isSecure: true,
+      clearCookieHeader: "ropoductions_oauth_verifier=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+    });
+
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("Location"), "/play");
+    assert.equal(response.headers.get("Cache-Control"), "no-store, max-age=0");
+
+    const setCookies = response.headers.getSetCookie();
+    assert.equal(setCookies.length, 2);
+    assert.ok(setCookies[0].includes("ropoductions_oauth_verifier="));
+    assert.ok(setCookies[1].includes("ropoductions_session="));
+    assert.ok(setCookies[1].includes("Secure"));
+    assert.ok(setCookies[1].includes("HttpOnly"));
+    assert.ok(setCookies[1].includes("SameSite=Lax"));
+    assert.ok(setCookies[1].includes("path=/"));
+    assert.ok(setCookies[1].includes(`max-age=${SESSION_COOKIE_MAX_AGE}`));
+
+    assert.equal(sessions.size, 1);
+    const [savedSession] = sessions.values();
+    assert.equal(savedSession.patron_id, "patron-999");
+    assert.equal(savedSession.email, "user@example.com");
+    assert.equal(savedSession.role, "patron");
+    assert.equal(savedSession.tier_id, "tier_500");
+    assert.equal(savedSession.tier_name, "Ork Patron");
+    assert.equal(savedSession.pledge_cents, 500);
+    assert.equal(savedSession.encrypted_access_token, "enc-access");
+    assert.equal(savedSession.encrypted_refresh_token, "enc-refresh");
+    assert.equal(savedSession.token_expires_at_sec, nowSec + 3600);
+    assert.equal(savedSession.expires_at_sec, nowSec + SESSION_COOKIE_MAX_AGE);
+    assert.equal(savedSession.revoked, 0);
+    assert.equal(savedSession.created_at_sec, nowSec);
+    assert.equal(savedSession.last_verified_at_sec, nowSec);
+    assert.equal(savedSession.guard_role, "patron");
+    assert.equal(savedSession.guard_revoked, 0);
+
+    const rawCookieVal = setCookies[1].split(";")[0].replace("ropoductions_session=", "");
+    const verifiedId = await verifySignedValue(rawCookieVal, secret);
+    assert.equal(verifiedId, savedSession.id);
+  });
+
+  it("redirects to server_configuration_error and writes no D1 session on missing or empty secret", async () => {
+    const { db, sessions } = createTestDb();
+    const clearCookieHeader = "ropoductions_oauth_verifier=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
+
+    const emptySecrets = ["", "   ", "\t\n"];
+    for (const secret of emptySecrets) {
+      const response = await issueSessionResponse({
+        db,
+        sessionSecret: secret,
+        patronId: "patron-no-secret",
+        role: "patron",
+        tierId: "tier_500",
+        tierName: "Ork Patron",
+        pledgeCents: 500,
+        encryptedAccessToken: "enc-access",
+        encryptedRefreshToken: "enc-refresh",
+        tokenExpiresAtSec: 1800000000,
+        sessionExpiresAtSec: 1800000000,
+        clearCookieHeader,
+      });
+
+      assert.equal(response.status, 302);
+      assert.equal(response.headers.get("Location"), "/?auth_error=server_configuration_error");
+      assert.equal(response.headers.get("Cache-Control"), "no-store, max-age=0");
+      const setCookies = response.headers.getSetCookie();
+      assert.equal(setCookies.length, 1);
+      assert.ok(setCookies[0].includes("ropoductions_oauth_verifier="));
+    }
+
+    assert.equal(sessions.size, 0, "No D1 session record should be written when secret is invalid");
+  });
+
+  it("handles comp and admin roles, omitted email, and default timestamps and security flag", async () => {
+    const { db, sessions } = createTestDb();
+    const secret = "test-secret-min-32-chars-for-hmac-sha256-signing!!";
+    const beforeSec = Math.floor(Date.now() / 1000);
+
+    const responseComp = await issueSessionResponse({
+      db,
+      sessionSecret: secret,
+      patronId: "comp-111",
+      role: "comp",
+      tierId: "override_comp",
+      tierName: "Complimentary Pass",
+      pledgeCents: 0,
+      encryptedAccessToken: "enc-comp-access",
+      encryptedRefreshToken: "enc-comp-refresh",
+      tokenExpiresAtSec: 1800000000,
+      sessionExpiresAtSec: 1800000000,
+      clearCookieHeader: "ropoductions_oauth_verifier=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+    });
+
+    assert.equal(responseComp.status, 302);
+    assert.equal(responseComp.headers.get("Location"), "/play");
+
+    const compCookies = responseComp.headers.getSetCookie();
+    assert.equal(compCookies.length, 2);
+    assert.ok(compCookies[1].includes("Secure"), "isSecure should default to true when omitted");
+
+    const compSession = Array.from(sessions.values()).find((s) => s.patron_id === "comp-111");
+    assert.ok(compSession);
+    assert.equal(compSession.role, "comp");
+    assert.equal(compSession.email, null, "Omitted email should default to null");
+    assert.equal(compSession.guard_role, "comp");
+    assert.ok(compSession.created_at_sec >= beforeSec);
+    assert.ok(compSession.last_verified_at_sec >= beforeSec);
+
+    const responseAdminInsecure = await issueSessionResponse({
+      db,
+      sessionSecret: secret,
+      patronId: "admin-222",
+      email: null,
+      role: "admin",
+      tierId: "override_admin",
+      tierName: "Studio Admin",
+      pledgeCents: 0,
+      encryptedAccessToken: "enc-admin-access",
+      encryptedRefreshToken: "enc-admin-refresh",
+      tokenExpiresAtSec: 1800000000,
+      sessionExpiresAtSec: 1800000000,
+      isSecure: false,
+      clearCookieHeader: "ropoductions_oauth_verifier=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+    });
+
+    assert.equal(responseAdminInsecure.status, 302);
+    assert.equal(responseAdminInsecure.headers.get("Location"), "/play");
+
+    const adminCookies = responseAdminInsecure.headers.getSetCookie();
+    assert.equal(adminCookies.length, 2);
+    assert.equal(adminCookies[1].includes("Secure"), false, "Explicit isSecure: false should omit Secure attribute");
+
+    const adminSession = Array.from(sessions.values()).find((s) => s.patron_id === "admin-222");
+    assert.ok(adminSession);
+    assert.equal(adminSession.role, "admin");
+    assert.equal(adminSession.guard_role, "admin");
   });
 });
