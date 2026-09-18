@@ -4,10 +4,12 @@ import {
   APPROVED_TIERS,
   findApprovedTier,
   isAccessAuthorized,
+  issueSessionResponse,
   MINIMUM_PLEDGE_CENTS,
   validateSessionAccess,
 } from "../src/lib/auth";
-import { signValue } from "../src/lib/crypto";
+import { signValue, verifySignedValue } from "../src/lib/crypto";
+import { parseCookies, SESSION_COOKIE_NAME } from "../src/lib/cookies";
 import {
   getPatronCampaignMembership,
   PATREON_CAMPAIGNS_URL,
@@ -787,5 +789,173 @@ describe("resolveOAuthOriginContext origin normalization and mismatch detection"
     const ctx = resolveOAuthOriginContext(req, "not a valid uri :::");
     assert.equal(ctx.redirectOrigin, "http://localhost:3000");
     assert.equal(ctx.redirectUri, "http://localhost:3000/api/auth/callback");
+  });
+});
+
+describe("issueSessionResponse unified session issuance helper", () => {
+  function createTestDb() {
+    const sessions = new Map<string, any>();
+    const db = {
+      prepare(sql: string) {
+        const stmt = {
+          params: [] as unknown[],
+          bind(...params: unknown[]) {
+            stmt.params = params;
+            return stmt;
+          },
+          async run() {
+            if (sql.includes("INSERT INTO sessions")) {
+              const [
+                id,
+                patron_id,
+                email,
+                role,
+                tier_id,
+                tier_name,
+                pledge_cents,
+                encrypted_access_token,
+                encrypted_refresh_token,
+                token_expires_at_sec,
+                expires_at_sec,
+                revoked,
+                created_at_sec,
+                last_verified_at_sec,
+              ] = stmt.params;
+              sessions.set(id as string, {
+                id,
+                patron_id,
+                email,
+                role,
+                tier_id,
+                tier_name,
+                pledge_cents,
+                encrypted_access_token,
+                encrypted_refresh_token,
+                token_expires_at_sec,
+                expires_at_sec,
+                revoked,
+                created_at_sec,
+                last_verified_at_sec,
+              });
+              return { success: true, meta: {} };
+            }
+            throw new Error(`Unhandled run SQL: ${sql}`);
+          },
+        };
+        return stmt;
+      },
+    } as unknown as D1Database;
+    return { db, sessions };
+  }
+
+  it("creates session in D1 and returns 302 response with signed cookie", async () => {
+    const { db, sessions } = createTestDb();
+    const secret = "test-secret-min-32-chars-for-hmac-sha256-signing!!";
+    const nowSec = 1700000000;
+
+    const response = await issueSessionResponse({
+      db,
+      sessionSecret: secret,
+      patronId: "patron-999",
+      email: "user@example.com",
+      role: "patron",
+      tierId: "tier_500",
+      tierName: "Ork Patron",
+      pledgeCents: 500,
+      encryptedAccessToken: "enc-access",
+      encryptedRefreshToken: "enc-refresh",
+      tokenExpiresAtSec: nowSec + 3600,
+      sessionExpiresAtSec: nowSec + 2592000,
+      nowSec,
+      isSecure: true,
+      clearCookieHeader: "ropoductions_oauth_verifier=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+    });
+
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("Location"), "/play");
+    assert.equal(response.headers.get("Cache-Control"), "no-store, max-age=0");
+
+    const setCookies = response.headers.getSetCookie();
+    assert.equal(setCookies.length, 2);
+    assert.ok(setCookies[0].includes("ropoductions_oauth_verifier="));
+    assert.ok(setCookies[1].includes("ropoductions_session="));
+    assert.ok(setCookies[1].includes("Secure"));
+    assert.ok(setCookies[1].includes("HttpOnly"));
+    assert.ok(setCookies[1].includes("SameSite=Lax"));
+
+    assert.equal(sessions.size, 1);
+    const [savedSession] = sessions.values();
+    assert.equal(savedSession.patron_id, "patron-999");
+    assert.equal(savedSession.role, "patron");
+    assert.equal(savedSession.tier_id, "tier_500");
+    assert.equal(savedSession.pledge_cents, 500);
+    assert.equal(savedSession.encrypted_access_token, "enc-access");
+    assert.equal(savedSession.encrypted_refresh_token, "enc-refresh");
+    assert.equal(savedSession.created_at_sec, nowSec);
+    assert.equal(savedSession.last_verified_at_sec, nowSec);
+
+    const rawCookieVal = setCookies[1].split(";")[0].replace("ropoductions_session=", "");
+    const verifiedId = await verifySignedValue(rawCookieVal, secret);
+    assert.equal(verifiedId, savedSession.id);
+  });
+
+  it("supports custom redirectTo and omitted clearCookieHeader", async () => {
+    const { db, sessions } = createTestDb();
+    const secret = "test-secret-min-32-chars-for-hmac-sha256-signing!!";
+
+    const response = await issueSessionResponse({
+      db,
+      sessionSecret: secret,
+      patronId: "admin-111",
+      email: null,
+      role: "admin",
+      tierId: "override_admin",
+      tierName: "Studio Admin",
+      pledgeCents: 0,
+      encryptedAccessToken: "enc-admin-access",
+      encryptedRefreshToken: "enc-admin-refresh",
+      tokenExpiresAtSec: 1800000000,
+      sessionExpiresAtSec: 1800000000,
+      isSecure: false,
+      redirectTo: "/admin/overrides",
+    });
+
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("Location"), "/admin/overrides");
+
+    const setCookies = response.headers.getSetCookie();
+    assert.equal(setCookies.length, 1);
+    assert.ok(setCookies[0].includes("ropoductions_session="));
+    assert.equal(setCookies[0].includes("Secure"), false);
+
+    const [savedSession] = sessions.values();
+    assert.equal(savedSession.role, "admin");
+    assert.equal(savedSession.tier_id, "override_admin");
+    assert.equal(savedSession.email, null);
+  });
+
+  it("prevents open redirect attempts by falling back to /play on absolute or scheme-relative paths", async () => {
+    const { db } = createTestDb();
+    const secret = "test-secret-min-32-chars-for-hmac-sha256-signing!!";
+
+    const evilUrls = ["https://evil.com", "//evil.com/play", "javascript:alert(1)", ""];
+    for (const evilUrl of evilUrls) {
+      const response = await issueSessionResponse({
+        db,
+        sessionSecret: secret,
+        patronId: "patron-safe",
+        role: "patron",
+        tierId: "tier_500",
+        tierName: "Ork Patron",
+        pledgeCents: 500,
+        encryptedAccessToken: "enc",
+        encryptedRefreshToken: "enc",
+        tokenExpiresAtSec: 1800000000,
+        sessionExpiresAtSec: 1800000000,
+        isSecure: false,
+        redirectTo: evilUrl,
+      });
+      assert.equal(response.headers.get("Location"), "/play");
+    }
   });
 });

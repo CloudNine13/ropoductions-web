@@ -1,7 +1,12 @@
-import type { SessionRecord } from "@/types/database";
+import type { CreateSessionInput, SessionRecord } from "@/types/database";
 import { getPatronOverride, getSessionById, revokeSession, upsertSession } from "./db";
-import { verifySignedValue } from "./crypto";
+import { signValue, verifySignedValue } from "./crypto";
 import { bootstrapInitialAdminIfEligible } from "./patreon";
+import {
+  SESSION_COOKIE_MAX_AGE,
+  SESSION_COOKIE_NAME,
+  serializeCookie,
+} from "./cookies";
 export interface ApprovedTier {
   name: string;
   cents: number;
@@ -174,4 +179,77 @@ export async function validateSessionAccess(options: {
   }
 
   return { status: "unauthorized", session };
+}
+
+export interface IssueSessionResponseOptions {
+  db: D1Database;
+  sessionSecret: string;
+  patronId: string;
+  email?: string | null;
+  role: "admin" | "comp" | "patron";
+  tierId: string;
+  tierName: string;
+  pledgeCents: number;
+  encryptedAccessToken: string;
+  encryptedRefreshToken: string;
+  tokenExpiresAtSec: number;
+  sessionExpiresAtSec: number;
+  nowSec?: number;
+  isSecure: boolean;
+  clearCookieHeader?: string;
+  redirectTo?: string;
+}
+
+export async function issueSessionResponse(
+  options: IssueSessionResponseOptions
+): Promise<Response> {
+  const nowSec = options.nowSec ?? Math.floor(Date.now() / 1000);
+  const sessionId = crypto.randomUUID();
+  const sessionRecord: CreateSessionInput = {
+    id: sessionId,
+    patron_id: options.patronId,
+    email: options.email ?? null,
+    role: options.role,
+    tier_id: options.tierId,
+    tier_name: options.tierName,
+    pledge_cents: options.pledgeCents,
+    encrypted_access_token: options.encryptedAccessToken,
+    encrypted_refresh_token: options.encryptedRefreshToken,
+    token_expires_at_sec: options.tokenExpiresAtSec,
+    expires_at_sec: options.sessionExpiresAtSec,
+    revoked: 0,
+    created_at_sec: nowSec,
+    last_verified_at_sec: nowSec,
+  };
+
+  await upsertSession(options.db, sessionRecord);
+
+  const signedSessionId = await signValue(sessionId, options.sessionSecret);
+  const sessionCookieHeader = serializeCookie(
+    SESSION_COOKIE_NAME,
+    signedSessionId,
+    {
+      maxAge: SESSION_COOKIE_MAX_AGE,
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: options.isSecure,
+      path: "/",
+    }
+  );
+
+  const headers = new Headers();
+  const safeRedirect =
+    options.redirectTo && /^\/[^/\\]/.test(options.redirectTo)
+      ? options.redirectTo
+      : "/play";
+  headers.set("Location", safeRedirect);
+  if (options.clearCookieHeader) {
+    headers.append("Set-Cookie", options.clearCookieHeader);
+  }
+  headers.append("Set-Cookie", sessionCookieHeader);
+  headers.set("Cache-Control", "no-store, max-age=0");
+  return new Response(null, {
+    status: 302,
+    headers,
+  });
 }
