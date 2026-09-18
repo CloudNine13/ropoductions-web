@@ -468,7 +468,7 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(signedVerifier);
 
 
-  const mismatchRequest = new Request("http://127.0.0.1:3000/api/auth/patreon", {
+  const mismatchRequest = new Request("http://127.0.0.1:3000/api/auth/patreon?returnTo=%2Fplay&locale=ja", {
     method: "GET",
     headers: {
       Host: "127.0.0.1:3000",
@@ -478,9 +478,67 @@ async function testRouteHandlers(): Promise<void> {
   assert.equal(mismatchResponse.status, 302);
   assert.equal(
     mismatchResponse.headers.get("Location"),
-    "http://localhost:3000/api/auth/patreon"
+    "http://localhost:3000/api/auth/patreon?returnTo=%2Fplay&locale=ja"
   );
   assert.equal(mismatchResponse.headers.get("Set-Cookie"), null);
+  assert.ok(mismatchResponse.headers.get("Vary")?.includes("Host"));
+
+  const customPortRequest = new Request("http://127.0.0.1:3005/api/auth/patreon", {
+    method: "GET",
+    headers: {
+      Host: "127.0.0.1:3005",
+    },
+  });
+  const customPortResponse = await initiateAuth(customPortRequest);
+  assert.equal(customPortResponse.status, 302);
+  assert.equal(
+    customPortResponse.headers.get("Location"),
+    "http://localhost:3005/api/auth/patreon"
+  );
+
+  const ipv6Request = new Request("http://[::1]:3000/api/auth/patreon", {
+    method: "GET",
+    headers: {
+      Host: "[::1]:3000",
+    },
+  });
+  const ipv6Response = await initiateAuth(ipv6Request);
+  assert.equal(ipv6Response.status, 302);
+  assert.equal(
+    ipv6Response.headers.get("Location"),
+    "http://localhost:3000/api/auth/patreon"
+  );
+
+  const spoofedDomainRequest = new Request("http://localhost.evil.com:3000/api/auth/patreon", {
+    method: "GET",
+    headers: {
+      Host: "localhost.evil.com:3000",
+    },
+  });
+  const spoofedResponse = await initiateAuth(spoofedDomainRequest);
+  assert.equal(spoofedResponse.status, 302);
+  assert.notEqual(
+    spoofedResponse.headers.get("Location"),
+    "http://localhost:3000/api/auth/patreon"
+  );
+
+  const callbackMismatchRequest = new Request(
+    "http://127.0.0.1:3000/api/auth/callback?code=some_code&state=some_state",
+    {
+      method: "GET",
+      headers: {
+        Host: "127.0.0.1:3000",
+      },
+    }
+  );
+  const callbackMismatchResponse = await callbackAuth(callbackMismatchRequest);
+  assert.equal(callbackMismatchResponse.status, 302);
+  assert.equal(
+    callbackMismatchResponse.headers.get("Location"),
+    "http://localhost:3000/api/auth/callback?code=some_code&state=some_state"
+  );
+  assert.equal(callbackMismatchResponse.headers.get("Set-Cookie"), null);
+  assert.ok(callbackMismatchResponse.headers.get("Vary")?.includes("Host"));
   delete process.env.PATREON_CLIENT_ID;
   const missingClientIdResponse = await initiateAuth(initRequest);
   assert.equal(missingClientIdResponse.status, 302);
@@ -619,10 +677,14 @@ async function testRouteHandlers(): Promise<void> {
     let campaignMembershipData: unknown = null;
     let campaignMembershipIncluded: unknown[] = [];
     let campaignApiCalled = false;
+    let capturedTokenRequestBody: URLSearchParams | null = null;
 
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const urlStr = input.toString();
       if (urlStr === PATREON_TOKEN_URL) {
+        if (init?.body) {
+          capturedTokenRequestBody = new URLSearchParams(init.body.toString());
+        }
         return new Response(
           JSON.stringify({
             access_token: "live_access_token_xyz",
@@ -682,6 +744,12 @@ async function testRouteHandlers(): Promise<void> {
     const signedSessionId1 = callbackCookies[SESSION_COOKIE_NAME];
     assert.ok(signedSessionId1, "Session cookie must be issued for admin override");
     assert.ok(validCallbackResponse.headers.get("Set-Cookie")?.includes("max-age=0"));
+
+    assert.equal(
+      (capturedTokenRequestBody as URLSearchParams | null)?.get("redirect_uri"),
+      "http://localhost:3000/api/auth/callback",
+      "Token exchange redirect_uri must match canonical redirect URI"
+    );
 
     const rawSetCookies = validCallbackResponse.headers.getSetCookie
       ? validCallbackResponse.headers.getSetCookie()

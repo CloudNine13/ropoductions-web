@@ -6,7 +6,7 @@ import {
   serializeCookie,
 } from "@/lib/cookies";
 import { generatePkcePair, generateRandomString, signValue } from "@/lib/crypto";
-import { buildPatreonAuthorizeUrl } from "@/lib/patreon";
+import { buildPatreonAuthorizeUrl, resolveOAuthOriginContext } from "@/lib/patreon";
 
 export const dynamic = "force-dynamic";
 
@@ -33,33 +33,22 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const requestUrl = new URL(request.url);
-  const host =
-    request.headers.get("x-forwarded-host") ||
-    request.headers.get("host") ||
-    requestUrl.host;
-  const proto =
-    request.headers.get("x-forwarded-proto") ||
-    (isSecureCookieScope(requestUrl) ? "https" : requestUrl.protocol.replace(":", ""));
-  const clientOrigin = `${proto}://${host}`;
+  const originCtx = resolveOAuthOriginContext(request, authEnv.redirectUri);
 
-  const canonicalOrigin =
-    host.startsWith("127.0.0.1") || host.startsWith("localhost")
-      ? `http://localhost:${requestUrl.port || "3000"}`
-      : clientOrigin;
-
-  const redirectUri =
-    authEnv.redirectUri || `${canonicalOrigin}/api/auth/callback`;
-  const redirectOrigin = new URL(redirectUri).origin;
-
-  if (clientOrigin !== redirectOrigin) {
+  if (originCtx.isOriginMismatch) {
+    const bounceUrl = new URL(`${originCtx.redirectOrigin}/api/auth/patreon`);
+    bounceUrl.search = requestUrl.search;
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `${redirectOrigin}/api/auth/patreon`,
+        Location: bounceUrl.toString(),
+        Vary: "Host, X-Forwarded-Host, X-Forwarded-Proto",
         "Cache-Control": "no-store, max-age=0",
       },
     });
   }
+
+  const redirectUri = originCtx.redirectUri;
   const state = generateRandomString(32);
   const pkce = await generatePkcePair(64);
 
@@ -74,7 +63,7 @@ export async function GET(request: Request): Promise<Response> {
     codeChallenge: pkce.challenge,
   });
 
-  const isSecure = isSecureCookieScope(requestUrl);
+  const isSecure = isSecureCookieScope(new URL(originCtx.redirectOrigin));
   const cookie = serializeCookie(OAUTH_VERIFIER_COOKIE_NAME, signedPayload, {
     maxAge: OAUTH_VERIFIER_COOKIE_MAX_AGE,
     httpOnly: true,

@@ -11,6 +11,7 @@ import { signValue } from "../src/lib/crypto";
 import {
   getPatronCampaignMembership,
   PATREON_CAMPAIGNS_URL,
+  resolveOAuthOriginContext,
 } from "../src/lib/patreon";
 import type { SessionRecord } from "../src/types/database";
 
@@ -710,5 +711,81 @@ describe("session access validation and transactional override revocation valida
     const res = await validateSessionAccess({ db, sessionCookie: signed, sessionSecret: SECRET, nowSec: NOW });
     assert.equal(res.status, "override_deleted");
     assert.equal(sessions.get("sess-comp-deleted")?.revoked, 1);
+  });
+});
+
+describe("resolveOAuthOriginContext origin normalization and mismatch detection", () => {
+  it("detects origin mismatch and normalizes 127.0.0.1 loopback to localhost", () => {
+    const req = new Request("http://127.0.0.1:3000/api/auth/patreon", {
+      headers: { Host: "127.0.0.1:3000" },
+    });
+    const ctx = resolveOAuthOriginContext(req);
+    assert.equal(ctx.clientOrigin, "http://127.0.0.1:3000");
+    assert.equal(ctx.redirectOrigin, "http://localhost:3000");
+    assert.equal(ctx.redirectUri, "http://localhost:3000/api/auth/callback");
+    assert.equal(ctx.isOriginMismatch, true);
+  });
+
+  it("reports no mismatch when client requests on localhost", () => {
+    const req = new Request("http://localhost:3000/api/auth/patreon", {
+      headers: { Host: "localhost:3000" },
+    });
+    const ctx = resolveOAuthOriginContext(req);
+    assert.equal(ctx.clientOrigin, "http://localhost:3000");
+    assert.equal(ctx.redirectOrigin, "http://localhost:3000");
+    assert.equal(ctx.isOriginMismatch, false);
+  });
+
+  it("preserves custom dev port on loopback addresses", () => {
+    const req = new Request("http://127.0.0.1:8787/api/auth/patreon", {
+      headers: { Host: "127.0.0.1:8787" },
+    });
+    const ctx = resolveOAuthOriginContext(req);
+    assert.equal(ctx.clientOrigin, "http://127.0.0.1:8787");
+    assert.equal(ctx.redirectOrigin, "http://localhost:8787");
+    assert.equal(ctx.redirectUri, "http://localhost:8787/api/auth/callback");
+    assert.equal(ctx.isOriginMismatch, true);
+  });
+
+  it("handles IPv6 loopback [::1] with port preservation", () => {
+    const req = new Request("http://[::1]:3001/api/auth/patreon", {
+      headers: { Host: "[::1]:3001" },
+    });
+    const ctx = resolveOAuthOriginContext(req);
+    assert.equal(ctx.clientOrigin, "http://[::1]:3001");
+    assert.equal(ctx.redirectOrigin, "http://localhost:3001");
+    assert.equal(ctx.isOriginMismatch, true);
+  });
+
+  it("does not treat subdomain spoofs as loopback", () => {
+    const req = new Request("http://localhost.evil.com:3000/api/auth/patreon", {
+      headers: { Host: "localhost.evil.com:3000" },
+    });
+    const ctx = resolveOAuthOriginContext(req);
+    assert.equal(ctx.clientOrigin, "http://localhost.evil.com:3000");
+    assert.notEqual(ctx.redirectOrigin, "http://localhost:3000");
+    assert.equal(ctx.isOriginMismatch, false);
+  });
+
+  it("parses first proto from multi-value x-forwarded-proto header", () => {
+    const req = new Request("http://ropoductions.com/api/auth/patreon", {
+      headers: {
+        Host: "ropoductions.com",
+        "x-forwarded-proto": "https, http",
+      },
+    });
+    const ctx = resolveOAuthOriginContext(req, "https://ropoductions.com/api/auth/callback");
+    assert.equal(ctx.clientOrigin, "https://ropoductions.com");
+    assert.equal(ctx.redirectOrigin, "https://ropoductions.com");
+    assert.equal(ctx.isOriginMismatch, false);
+  });
+
+  it("safely recovers from malformed configured redirect URI without throwing", () => {
+    const req = new Request("http://localhost:3000/api/auth/patreon", {
+      headers: { Host: "localhost:3000" },
+    });
+    const ctx = resolveOAuthOriginContext(req, "not a valid uri :::");
+    assert.equal(ctx.redirectOrigin, "http://localhost:3000");
+    assert.equal(ctx.redirectUri, "http://localhost:3000/api/auth/callback");
   });
 });
