@@ -63,8 +63,8 @@ development_status:
   epic-4-retrospective: done
 
   epic-5: in-progress
-  5-1-restricted-admin-layout-authentication-guard: review
-  5-2-patron-override-directory-creation-interface: backlog
+  5-1-restricted-admin-layout-authentication-guard: done
+  5-2-patron-override-directory-creation-interface: review
   5-3-override-revocation-self-lockout-prevention: backlog
   epic-5-retrospective: optional
 action_items:

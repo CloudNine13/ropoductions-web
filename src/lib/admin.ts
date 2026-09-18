@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
-import type { SessionRecord } from "@/types/database";
+import type { PatronOverrideRecord, SessionRecord } from "@/types/database";
 import { validateSessionAccess } from "@/lib/auth";
 import { getPatronOverride } from "@/lib/db";
-import { bootstrapInitialAdminIfEligible } from "@/lib/patreon";
+import { bootstrapInitialAdminIfEligible, isCreatorAdmin } from "@/lib/patreon";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
 import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME, unquoteCookieValue } from "@/lib/cookies";
 
@@ -12,6 +12,32 @@ export const ADMIN_BACKGROUND_COLOR = "#090A0F";
 export const ADMIN_CARD_SURFACE = "#121522";
 export const ADMIN_BORDER_COLOR = "#23283E";
 export const ADMIN_BADGE_GOLD = "#FBBF24";
+export const ADMIN_ROLE_ADMIN_COLOR = "#FBBF24";
+export const ADMIN_ROLE_COMP_COLOR = "#38BDF8";
+export const ADMIN_CREATOR_TIER_LABEL = "Creator Admin (Sealed)";
+export const ADMIN_PANEL_TIER_LABEL = "Panel Admin";
+
+export const PATREON_ID_REGEX = /^\d{1,20}$/;
+
+export function validatePatreonId(patronId: string): boolean {
+  return PATREON_ID_REGEX.test(patronId);
+}
+
+export function isSealedCreatorAdmin(
+  override: PatronOverrideRecord,
+  creatorAdminIds?: string | null
+): boolean {
+  if (
+    override.granted_by === "creator_bootstrap" ||
+    override.granted_by === "system_bootstrap"
+  ) {
+    return true;
+  }
+  if (creatorAdminIds && isCreatorAdmin(override.patron_id, creatorAdminIds)) {
+    return true;
+  }
+  return false;
+}
 
 export interface ValidateAdminSessionOptions {
   db: D1Database;
