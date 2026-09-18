@@ -180,6 +180,7 @@
     "saveHudExport": "导出 (.zip)",
     "saveHudExportSuccess": "已导出",
     "saveHudExporting": "正在导出…",
+    "saveExportError": "导出存档压缩包失败。请重试。",
     "saveHudImport": "导入",
     "saveHudFullscreen": "全屏",
     "saveHudExitFullscreen": "退出全屏",

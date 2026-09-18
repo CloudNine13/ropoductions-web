@@ -180,6 +180,7 @@
     "saveHudExport": "Eksportuj (.zip)",
     "saveHudExportSuccess": "Wyeksportowano",
     "saveHudExporting": "Eksportowanie…",
+    "saveExportError": "Nie udało się wyeksportować archiwum zapisów. Spróbuj ponownie.",
     "saveHudImport": "Importuj",
     "saveHudFullscreen": "Pełny ekran",
     "saveHudExitFullscreen": "Wyjdź z pełnego ekranu",

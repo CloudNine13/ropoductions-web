@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-18-2026 23:45
+last_updated: 09-19-2026 00:19
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -60,7 +60,7 @@ development_status:
   4-2-floating-frosted-glass-save-hud-dock-with-auto-dimming: done
   4-3-client-side-zip-save-export-compression-via-jszip: done
   4-4-save-import-validation-dialog-safe-storage-reset-modal: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-restricted-admin-layout-authentication-guard: backlog
@@ -132,6 +132,43 @@ action_items:
     owner: "architect"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
+  - id: "epic-4-retro-item-1-reconcile-story-4-4-sprint-status"
+    epic: 4
+    action: "Reconcile 4-4-save-import-validation-dialog-safe-storage-reset-modal
+      to done in sprint-status.yaml reflecting merged PR #38"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-18.md"
+  - id: "epic-4-retro-item-2-localize-save-export-error"
+    epic: 4
+    action: "Add saveExportError key across all 6 locales (en, es, ja, pl, ru, zh)
+      and display localized fallback in SaveHudDock on export failure instead of raw
+      technical bridge errors"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-18.md"
+  - id: "epic-4-retro-item-3-decouple-save-dialog-dismiss-timing"
+    epic: 4
+    action: "Extract SAVE_DIALOG_DISMISS_MS from src/lib/save-import.ts into src/types/save.ts
+      or a shared UI config, removing cross-feature coupling in SaveResetDialog"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-18.md"
+  - id: "epic-4-retro-item-4-remove-task-referencing-comment"
+    epic: 4
+    action: "Strip the deprecated // TODO (Epic 4 Story 4.3) comment from Ropoductions_WebBridge.js
+      in both src/engine-plugins/ and public/engine/js/plugins/ per repository rules"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-18.md"
+  - id: "epic-4-retro-item-5-add-play-save-hud-e2e-test"
+    epic: 4
+    action: "Add a Playwright end-to-end test suite (e2e/save-hud.spec.ts) verifying
+      /play Save HUD dock mounting, auto-dimming state attributes, and accessible
+      modal opening"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-18.md"
 priorities:
   # P0 = next up, P1 = tech debt / hardening, P2 = internal admin, P3 = optional hygiene.
   # Order within Epic 4 is strict: 4-1 unblocks 4-2, which unblocks 4-3/4-4.
@@ -152,10 +189,12 @@ priorities:
     why: "Closes Epic 4 (FR-13..FR-16); depends on the 4-1 bridge"
   - rank: P1
     item: "epic-2-retro-item-3-dedupe-auth-callback-session-issuance"
-    why: "Remove duplicated session-issuance code before Epic 4/5 add more auth-touching routes"
+    why: "Remove duplicated session-issuance code before Epic 4/5 add more auth-touching
+      routes"
   - rank: P1
     item: "epic-2-retro-item-5-document-server-component-cookie-route-pattern"
-    why: "Records the cookie-mutation constraint Epic 4/5 Server Components will rely on"
+    why: "Records the cookie-mutation constraint Epic 4/5 Server Components will rely
+      on"
   - rank: P1
     item: "deferred-work: revoked/lapsed session enforcement on /api/game/[...asset]"
     why: "Story 2-4 covers /play only; fold into 3-2 hardening per deferred-work.md"

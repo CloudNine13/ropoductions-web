@@ -180,6 +180,7 @@
     "saveHudExport": "Exportar (.zip)",
     "saveHudExportSuccess": "Exportado",
     "saveHudExporting": "Exportando…",
+    "saveExportError": "Error al exportar el archivo de guardado. Inténtelo de nuevo.",
     "saveHudImport": "Importar",
     "saveHudFullscreen": "Pantalla completa",
     "saveHudExitFullscreen": "Salir de pantalla completa",

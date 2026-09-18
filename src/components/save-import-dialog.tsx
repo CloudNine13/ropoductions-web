@@ -4,7 +4,8 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Upload, X, AlertCircle, Check, Loader2, FileArchive } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { importSaves, INVALID_SAVE_FORMAT_ERROR, SAVE_DIALOG_DISMISS_MS, type ImportSavesResult } from "@/lib/save-import";
+import { importSaves, INVALID_SAVE_FORMAT_ERROR, type ImportSavesResult } from "@/lib/save-import";
+import { SAVE_DIALOG_DISMISS_MS } from "@/types/save";
 
 export interface SaveImportDialogProps {
   open: boolean;
