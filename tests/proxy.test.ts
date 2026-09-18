@@ -95,4 +95,14 @@ describe("edge gate entry points", () => {
     const response = proxy(mockRequest("/") as never);
     assert.equal(response.status, 200);
   });
+
+  it("passes /admin and /admin/* routes through without redirect for anti-enumeration evaluation", async () => {
+    const unauthAdmin = proxy(mockRequest("/admin") as never);
+    assert.equal(unauthAdmin.status, 200);
+    assert.equal(unauthAdmin.headers.get("location"), null);
+
+    const unauthSubroute = proxy(mockRequest("/admin/overrides") as never);
+    assert.equal(unauthSubroute.status, 200);
+    assert.equal(unauthSubroute.headers.get("location"), null);
+  });
 });

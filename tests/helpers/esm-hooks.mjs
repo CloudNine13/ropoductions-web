@@ -16,6 +16,12 @@ export async function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
     };
   }
+  if (specifier === "next/navigation") {
+    return {
+      url: new URL("./next-navigation-shim.mjs", import.meta.url).href,
+      shortCircuit: true,
+    };
+  }
   if (specifier === "next-intl/config") {
     const projectRoot = path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
@@ -64,12 +70,17 @@ export async function resolve(specifier, context, nextResolve) {
     !path.extname(specifier) &&
     context.parentURL?.startsWith("file:")
   ) {
-    const candidate = path.resolve(
-      path.dirname(fileURLToPath(context.parentURL)),
-      `${specifier}.ts`
-    );
-    if (existsSync(candidate)) {
-      return { url: pathToFileURL(candidate).href, shortCircuit: true };
+    const parentDir = path.dirname(fileURLToPath(context.parentURL));
+    const candidates = [
+      path.resolve(parentDir, `${specifier}.ts`),
+      path.resolve(parentDir, `${specifier}.tsx`),
+      path.resolve(parentDir, specifier, "index.ts"),
+      path.resolve(parentDir, specifier, "index.tsx"),
+    ];
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return { url: pathToFileURL(candidate).href, shortCircuit: true };
+      }
     }
   }
   return nextResolve(specifier);
