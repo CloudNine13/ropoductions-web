@@ -603,6 +603,10 @@ describe("admin layout and dashboard design contract", () => {
     assert.ok(src.includes('href="/play"'), "Must link to web player");
     assert.ok(src.includes("min-h-[44px]"), "Action cards must adhere to 44px minimum touch targets");
     assert.ok(src.includes('dynamic = "force-dynamic"'), "Must force dynamic rendering");
+    assert.ok(src.includes("rounded-xl"), "Cards must use rounded-xl (token lg)");
+    assert.ok(src.includes("transition-colors"), "Action cards must use transition-colors per motion contract");
+    assert.ok(!src.includes("transition-all"), "Action cards must not use banned transition-all");
+    assert.ok(src.includes("focus-visible:ring-"), "Action cards must declare visible focus rings");
   });
 
   it("provisions AdminOverridesPage placeholder with protected admin guard", () => {
@@ -614,5 +618,7 @@ describe("admin layout and dashboard design contract", () => {
     assert.ok(src.includes("requireAdminSession"), "Admin overrides must enforce session via requireAdminSession");
     assert.ok(src.includes("Patron Overrides Directory"), "Must display patron overrides title");
     assert.ok(src.includes('href="/admin"'), "Must provide back link to /admin");
+    assert.ok(src.includes("rounded-xl"), "Placeholder card must use rounded-xl (token lg)");
+    assert.ok(src.includes("focus-visible:ring-"), "Back link must declare visible focus rings");
   });
 });

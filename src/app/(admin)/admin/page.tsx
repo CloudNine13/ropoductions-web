@@ -19,7 +19,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-        <div className="bg-[#121522] border border-[#23283E] rounded-lg p-5 flex flex-col gap-3">
+        <div className="bg-[#121522] border border-[#23283E] rounded-xl p-5 flex flex-col gap-3">
           <div className="flex items-center gap-2 text-primary font-medium text-sm">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             <span>Admin Credentials</span>
@@ -42,7 +42,7 @@ export default async function AdminDashboardPage() {
 
         <Link
           href="/admin/overrides"
-          className="group bg-[#121522] border border-[#23283E] hover:border-primary/50 rounded-lg p-5 flex flex-col justify-between gap-4 transition-all hover:bg-[#121522]/80 min-h-[44px]"
+          className="group bg-[#121522] border border-[#23283E] hover:border-primary/50 rounded-xl p-5 flex flex-col justify-between gap-4 transition-colors duration-150 hover:bg-[#121522]/80 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -63,7 +63,7 @@ export default async function AdminDashboardPage() {
 
         <Link
           href="/play"
-          className="group bg-[#121522] border border-[#23283E] hover:border-tier-gold/50 rounded-lg p-5 flex flex-col justify-between gap-4 transition-all hover:bg-[#121522]/80 min-h-[44px]"
+          className="group bg-[#121522] border border-[#23283E] hover:border-tier-gold/50 rounded-xl p-5 flex flex-col justify-between gap-4 transition-colors duration-150 hover:bg-[#121522]/80 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tier-gold"
         >
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">

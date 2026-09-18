@@ -24,14 +24,14 @@ export default async function AdminOverridesPage() {
 
         <Link
           href="/admin"
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors min-h-[44px] px-3 py-2 rounded-md border border-[#23283E] hover:border-border"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors min-h-[44px] px-3 py-2 rounded-md border border-[#23283E] hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           <span>Back to Dashboard</span>
         </Link>
       </div>
 
-      <div className="bg-[#121522] border border-[#23283E] rounded-lg p-6 flex flex-col items-center justify-center text-center gap-3 py-12">
+      <div className="bg-[#121522] border border-[#23283E] rounded-xl p-6 flex flex-col items-center justify-center text-center gap-3 py-12">
         <div className="rounded-full bg-primary/10 border border-primary/30 p-3 text-primary">
           <Users className="h-6 w-6" aria-hidden="true" />
         </div>

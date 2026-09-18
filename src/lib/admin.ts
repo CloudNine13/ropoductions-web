@@ -85,32 +85,34 @@ export const requireAdminSession = cache(
     const cookieStore = customCookieStore ?? (await cookies());
     const ageCookie = unquoteCookieValue(cookieStore.get(AGE_VERIFIED_COOKIE_NAME)?.value);
     const sessionCookie = unquoteCookieValue(cookieStore.get(SESSION_COOKIE_NAME)?.value);
-  if (!sessionCookie || ageCookie !== "true") {
-    notFound();
-  }
+    if (!sessionCookie || ageCookie !== "true") {
+      notFound();
+    }
 
-  let db: D1Database;
-  let authEnv;
-  try {
-    db = await getDatabase();
-    authEnv = await getAuthEnv();
-  } catch {
-    // Fail closed with 404 to avoid leaking route existence on infrastructure failure
-    notFound();
-  }
+    let db: D1Database;
+    let authEnv;
+    try {
+      db = await getDatabase();
+      authEnv = await getAuthEnv();
+    } catch (err) {
+      console.error("[requireAdminSession] Infrastructure initialization failed:", err);
+      // Fail closed with 404 to avoid leaking route existence on infrastructure failure
+      notFound();
+    }
 
-  let session: SessionRecord | null = null;
-  try {
-    session = await validateAdminSession({
-      db,
-      sessionCookie,
-      ageCookie,
-      sessionSecret: authEnv.sessionSecret,
-      initialAdminIds: authEnv.initialAdminPatreonIds,
-    });
-  } catch {
-    notFound();
-  }
+    let session: SessionRecord | null = null;
+    try {
+      session = await validateAdminSession({
+        db,
+        sessionCookie,
+        ageCookie,
+        sessionSecret: authEnv.sessionSecret,
+        initialAdminIds: authEnv.initialAdminPatreonIds,
+      });
+    } catch (err) {
+      console.error("[requireAdminSession] Session validation failed:", err);
+      notFound();
+    }
 
     if (!session) {
       notFound();
