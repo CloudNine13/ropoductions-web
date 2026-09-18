@@ -48,12 +48,12 @@ export function PaywallModal() {
             event.preventDefault();
             document.getElementById("paywall-section")?.focus({ preventScroll: true });
           }}
-          className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/80 outline-none p-0"
+          className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/80 bg-card shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] outline-none p-0"
         >
           <Dialog.Title className="sr-only">{t("title")}</Dialog.Title>
           <Dialog.Description className="sr-only">{t("subtitle")}</Dialog.Description>
           <Dialog.Close
-            className="absolute top-4 right-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/80 bg-background/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+            className="absolute top-4 right-4 z-10 inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border/80 bg-background/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
             aria-label={t("dismiss")}
           >
             <X className="h-4 w-4" aria-hidden="true" />

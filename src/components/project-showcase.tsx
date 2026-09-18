@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Sparkles, Maximize2, Shield, Users } from "lucide-react";
@@ -12,6 +12,7 @@ export function ProjectShowcase() {
   const t = useTranslations("showcase");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeScreenshotIndex, setActiveScreenshotIndex] = useState(0);
+  const triggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const screenshots: ScreenshotItem[] = useMemo(
     () => [
@@ -98,6 +99,12 @@ export function ProjectShowcase() {
     setLightboxOpen(true);
   };
 
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    const trigger = triggerRefs.current[activeScreenshotIndex];
+    requestAnimationFrame(() => trigger?.focus());
+  };
+
   return (
     <section id="showcase" className="w-full space-y-16 py-8">
       {/* Section Sub-heading */}
@@ -152,7 +159,7 @@ export function ProjectShowcase() {
               href="/play"
               scroll={false}
               onClick={saveLandingScrollPosition}
-              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer"
+              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
             >
               <Play className="h-5 w-5 fill-current" />
               {t("playInBrowser")}
@@ -229,9 +236,12 @@ export function ProjectShowcase() {
               <button
                 key={shot.id}
                 type="button"
+                ref={(el) => {
+                  triggerRefs.current[idx] = el;
+                }}
                 onClick={() => openLightbox(idx)}
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/60 text-left transition-all duration-200 hover:border-primary hover:shadow-lg hover:shadow-primary/10 min-h-[44px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label={`Open full screenshot preview: ${shot.title}`}
+                aria-label={`${t("expandScreenshot")}: ${shot.title}`}
               >
                 <div className="relative aspect-[16/9] w-full overflow-hidden bg-background">
                   <Image
@@ -317,7 +327,7 @@ export function ProjectShowcase() {
       {/* Lightbox Modal */}
       <ScreenshotLightbox
         isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
+        onClose={closeLightbox}
         screenshots={screenshots}
         currentIndex={activeScreenshotIndex}
         onNavigate={(idx) => setActiveScreenshotIndex(idx)}

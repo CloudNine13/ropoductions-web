@@ -99,7 +99,7 @@ export function SocialHub() {
                   href={ch.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background-secondary px-5 py-3 text-sm font-bold text-foreground transition-colors hover:bg-muted hover:border-foreground/30 min-h-[44px] cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background-secondary px-5 py-3 text-sm font-bold text-foreground transition-colors hover:bg-muted hover:border-foreground/30 min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                   aria-label={`${ch.ctaText} (opens in new tab)`}
                 >
                   <span>{ch.ctaText}</span>

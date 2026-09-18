@@ -99,7 +99,7 @@ export function AgeGateDialog({
               </button>
             </div>
 
-            <p className="mt-4 text-[11px] text-muted-foreground/70">
+            <p className="mt-4 text-xs text-muted-foreground text-balance">
               {t("disclaimer")}
             </p>
           </div>

@@ -78,7 +78,7 @@ export function StudioHeader() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="inline-flex items-center justify-center rounded-lg border border-border bg-card h-11 w-11 shrink-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden cursor-pointer"
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-card h-11 w-11 shrink-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
             aria-label={t("toggleMenu")}
             aria-expanded={mobileMenuOpen}
           >
