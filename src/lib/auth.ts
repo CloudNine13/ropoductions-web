@@ -195,16 +195,30 @@ export interface IssueSessionResponseOptions {
   tokenExpiresAtSec: number;
   sessionExpiresAtSec: number;
   nowSec?: number;
-  isSecure: boolean;
-  clearCookieHeader?: string;
-  redirectTo?: string;
+  isSecure?: boolean;
+  clearCookieHeader: string;
 }
 
 export async function issueSessionResponse(
   options: IssueSessionResponseOptions
 ): Promise<Response> {
+  if (!options.sessionSecret || options.sessionSecret.trim() === "") {
+    const headers = new Headers();
+    headers.set("Location", "/?auth_error=server_configuration_error");
+    if (options.clearCookieHeader) {
+      headers.append("Set-Cookie", options.clearCookieHeader);
+    }
+    headers.set("Cache-Control", "no-store, max-age=0");
+    return new Response(null, {
+      status: 302,
+      headers,
+    });
+  }
+
   const nowSec = options.nowSec ?? Math.floor(Date.now() / 1000);
   const sessionId = crypto.randomUUID();
+  const signedSessionId = await signValue(sessionId, options.sessionSecret);
+
   const sessionRecord: CreateSessionInput = {
     id: sessionId,
     patron_id: options.patronId,
@@ -224,7 +238,7 @@ export async function issueSessionResponse(
 
   await upsertSession(options.db, sessionRecord);
 
-  const signedSessionId = await signValue(sessionId, options.sessionSecret);
+  const isSecure = options.isSecure !== false;
   const sessionCookieHeader = serializeCookie(
     SESSION_COOKIE_NAME,
     signedSessionId,
@@ -232,20 +246,14 @@ export async function issueSessionResponse(
       maxAge: SESSION_COOKIE_MAX_AGE,
       httpOnly: true,
       sameSite: "Lax",
-      secure: options.isSecure,
+      secure: isSecure,
       path: "/",
     }
   );
 
   const headers = new Headers();
-  const safeRedirect =
-    options.redirectTo && /^\/[^/\\]/.test(options.redirectTo)
-      ? options.redirectTo
-      : "/play";
-  headers.set("Location", safeRedirect);
-  if (options.clearCookieHeader) {
-    headers.append("Set-Cookie", options.clearCookieHeader);
-  }
+  headers.set("Location", "/play");
+  headers.append("Set-Cookie", options.clearCookieHeader);
   headers.append("Set-Cookie", sessionCookieHeader);
   headers.set("Cache-Control", "no-store, max-age=0");
   return new Response(null, {
