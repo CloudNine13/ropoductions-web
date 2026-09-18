@@ -18,6 +18,7 @@ import {
   exchangeAuthorizationCode,
   getPatronCampaignMembership,
   getPatronIdentity,
+  resolveOAuthOriginContext,
 } from "@/lib/patreon";
 import type { CreateSessionInput } from "@/types/database";
 
@@ -35,11 +36,27 @@ const PROVIDER_ERROR_ALLOWLIST = [
 
 export async function GET(request: Request): Promise<Response> {
   const requestUrl = new URL(request.url);
+  const authEnv = await getAuthEnv();
+  const originCtx = resolveOAuthOriginContext(request, authEnv.redirectUri);
+
+  if (originCtx.isOriginMismatch) {
+    const bounceUrl = new URL(`${originCtx.redirectOrigin}/api/auth/callback`);
+    bounceUrl.search = requestUrl.search;
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: bounceUrl.toString(),
+        Vary: "Host, X-Forwarded-Host, X-Forwarded-Proto",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  }
+
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const error = requestUrl.searchParams.get("error");
 
-  const isSecure = isSecureCookieScope(requestUrl);
+  const isSecure = isSecureCookieScope(new URL(originCtx.redirectOrigin));
   const clearCookieHeader = serializeCookie(OAUTH_VERIFIER_COOKIE_NAME, "", {
     maxAge: 0,
     path: "/",
@@ -47,7 +64,6 @@ export async function GET(request: Request): Promise<Response> {
     sameSite: "Lax",
     secure: isSecure,
   });
-
   if (error) {
     const providerError = PROVIDER_ERROR_ALLOWLIST.includes(error)
       ? error
@@ -86,7 +102,6 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const authEnv = await getAuthEnv();
   if (!authEnv.sessionSecret || !authEnv.tokenEncryptionKey) {
     console.error("[AUTH] Missing SESSION_SECRET or TOKEN_ENCRYPTION_KEY");
     return new Response(null, {
@@ -155,9 +170,7 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const redirectUri =
-    authEnv.redirectUri || `${requestUrl.origin}/api/auth/callback`;
-
+  const redirectUri = originCtx.redirectUri;
   try {
     const tokens = await exchangeAuthorizationCode({
       code,

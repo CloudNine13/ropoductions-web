@@ -1,3 +1,4 @@
+import { isSecureCookieScope } from "@/lib/cookies";
 import { upsertPatronOverride } from "@/lib/db";
 import type {
   PatreonCampaignMembersResponse,
@@ -20,6 +21,90 @@ export const DEFAULT_PATREON_SCOPES = [
   "identity.memberships",
   "campaigns.members",
 ];
+
+export interface OAuthOriginContext {
+  clientOrigin: string;
+  redirectOrigin: string;
+  redirectUri: string;
+  isOriginMismatch: boolean;
+}
+
+export function resolveOAuthOriginContext(
+  request: Request,
+  configuredRedirectUri?: string
+): OAuthOriginContext {
+  const requestUrl = new URL(request.url);
+  const rawHost =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host") ||
+    requestUrl.host;
+
+  let hostname = rawHost;
+  let port = "";
+  if (rawHost.startsWith("[")) {
+    const closeBracketIdx = rawHost.indexOf("]");
+    if (closeBracketIdx !== -1) {
+      hostname = rawHost.slice(0, closeBracketIdx + 1);
+      const rest = rawHost.slice(closeBracketIdx + 1);
+      if (rest.startsWith(":")) {
+        port = rest.slice(1);
+      }
+    }
+  } else {
+    const colonIdx = rawHost.lastIndexOf(":");
+    if (colonIdx !== -1) {
+      hostname = rawHost.slice(0, colonIdx);
+      port = rawHost.slice(colonIdx + 1);
+    }
+  }
+
+  const rawProto =
+    request.headers.get("x-forwarded-proto") ||
+    requestUrl.protocol.replace(":", "");
+  const proto = rawProto.split(",")[0]?.trim().toLowerCase() === "https" ? "https" : "http";
+
+  const clientOrigin = `${proto}://${rawHost}`;
+
+  const isLoopback =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]";
+
+  let canonicalOrigin: string;
+  if (isLoopback) {
+    const resolvedPort = port || requestUrl.port || "3000";
+    canonicalOrigin = `http://localhost:${resolvedPort}`;
+  } else {
+    canonicalOrigin = clientOrigin;
+  }
+
+  let finalRedirectUri = configuredRedirectUri?.trim() || `${canonicalOrigin}/api/auth/callback`;
+
+  let redirectOrigin: string;
+  try {
+    redirectOrigin = new URL(finalRedirectUri).origin;
+  } catch {
+    finalRedirectUri = `${canonicalOrigin}/api/auth/callback`;
+    redirectOrigin = new URL(finalRedirectUri).origin;
+  }
+
+  let normalizedClientOrigin: string;
+  try {
+    normalizedClientOrigin = new URL(clientOrigin).origin;
+  } catch {
+    normalizedClientOrigin = clientOrigin;
+  }
+
+  const isOriginMismatch = normalizedClientOrigin !== redirectOrigin;
+
+  return {
+    clientOrigin: normalizedClientOrigin,
+    redirectOrigin,
+    redirectUri: finalRedirectUri,
+    isOriginMismatch,
+  };
+}
 
 export interface BuildAuthorizeUrlParams {
   clientId: string;
