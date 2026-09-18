@@ -178,6 +178,8 @@
     "title": "Final Orginity: Глава 1",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "Экспорт (.zip)",
+    "saveHudExportSuccess": "Экспортировано",
+    "saveHudExporting": "Экспорт…",
     "saveHudImport": "Импорт",
     "saveHudFullscreen": "Полный экран",
     "saveHudExitFullscreen": "Выйти из полноэкранного режима",

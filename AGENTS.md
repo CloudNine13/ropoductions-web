@@ -95,6 +95,7 @@ Don't wrap internal function calls in try/catch unless they actually throw.
 
 ## MUST rules
 
+- Don't wait GitHub CI to pass, it's human responsibility.
 - NEVER do git reset hard. You may do reset ONLY if it won't wipe out the work of others worktrees and agentic sessions.
 - Before preparing a PR you MUST check if there is merge conflicts.
 - Always use context7-mcp working with code base or tech tools.

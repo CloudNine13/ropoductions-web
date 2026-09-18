@@ -178,6 +178,8 @@
     "title": "Final Orginity: 第一章",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "导出 (.zip)",
+    "saveHudExportSuccess": "已导出",
+    "saveHudExporting": "正在导出…",
     "saveHudImport": "导入",
     "saveHudFullscreen": "全屏",
     "saveHudExitFullscreen": "退出全屏",

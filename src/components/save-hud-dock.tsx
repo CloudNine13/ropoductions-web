@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Download, Upload, Maximize2, Minimize2, RotateCcw } from "lucide-react";
+import { Download, Upload, Maximize2, Minimize2, RotateCcw, Check, Loader2, CircleX } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+export type SaveHudExportStatus = "idle" | "exporting" | "success" | "error";
 
 export interface SaveHudDockLabels {
   export?: string;
+  exportSuccess?: string;
+  exporting?: string;
   import?: string;
   fullscreen?: string;
   exitFullscreen?: string;
@@ -14,7 +18,8 @@ export interface SaveHudDockLabels {
 }
 
 export interface SaveHudDockProps {
-  onExport?: () => void;
+  onExport?: () => Promise<void> | void;
+  exportStatus?: SaveHudExportStatus;
   onImport?: () => void;
   onReset?: () => void;
   onToggleFullscreen?: () => void;
@@ -30,6 +35,7 @@ const ACTIVITY_THROTTLE_MS = 250;
 
 export function SaveHudDock({
   onExport,
+  exportStatus,
   onImport,
   onReset,
   onToggleFullscreen,
@@ -40,7 +46,12 @@ export function SaveHudDock({
   id,
 }: SaveHudDockProps) {
   const [isDimmed, setIsDimmed] = useState(false);
+  const [internalExportStatus, setInternalExportStatus] = useState<SaveHudExportStatus>("idle");
+  const [exportError, setExportError] = useState<string | null>(null);
   const timerRef = useRef<number | NodeJS.Timeout | null>(null);
+  const successTimerRef = useRef<number | NodeJS.Timeout | null>(null);
+  const exportingRef = useRef(false);
+  const mountedRef = useRef(true);
   const isHoveredOrFocusedRef = useRef(false);
   const lastActivityTimeRef = useRef(0);
 
@@ -48,12 +59,73 @@ export function SaveHudDock({
 
   const resolvedLabels = {
     export: labels?.export ?? t("saveHudExport"),
+    exportSuccess: labels?.exportSuccess ?? t("saveHudExportSuccess"),
+    exporting: labels?.exporting ?? t("saveHudExporting"),
     import: labels?.import ?? t("saveHudImport"),
     fullscreen: labels?.fullscreen ?? t("saveHudFullscreen"),
     exitFullscreen: labels?.exitFullscreen ?? t("saveHudExitFullscreen"),
     reset: labels?.reset ?? t("saveHudReset"),
     dockAria: labels?.dockAria ?? t("saveHudDockAria"),
   };
+
+  const isControlledExport = exportStatus !== undefined;
+  const currentExportStatus = exportStatus ?? internalExportStatus;
+  const isExporting = currentExportStatus === "exporting";
+  const isExportSuccess = currentExportStatus === "success";
+  const isExportError = currentExportStatus === "error";
+  const exportButtonLabel = isExporting
+    ? resolvedLabels.exporting
+    : isExportSuccess
+      ? resolvedLabels.exportSuccess
+      : resolvedLabels.export;
+  const exportAccessibleName =
+    isExportError && exportError ? exportError : exportButtonLabel;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (successTimerRef.current !== null) {
+        clearTimeout(successTimerRef.current);
+        successTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleExportClick = useCallback(async () => {
+    if (!onExport || exportingRef.current) return;
+    if (isControlledExport) {
+      exportingRef.current = true;
+      try {
+        await onExport();
+      } finally {
+        exportingRef.current = false;
+      }
+      return;
+    }
+    exportingRef.current = true;
+    try {
+      if (mountedRef.current) {
+        setExportError(null);
+        setInternalExportStatus("exporting");
+      }
+      await onExport();
+      if (!mountedRef.current) return;
+      setInternalExportStatus("success");
+      if (successTimerRef.current !== null) {
+        clearTimeout(successTimerRef.current);
+      }
+      successTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setInternalExportStatus("idle");
+      }, 2000);
+    } catch (error) {
+      if (!mountedRef.current) return;
+      setExportError(error instanceof Error ? error.message : "Save export failed");
+      setInternalExportStatus("error");
+    } finally {
+      exportingRef.current = false;
+    }
+  }, [onExport, isControlledExport]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -153,7 +225,7 @@ export function SaveHudDock({
     handleActivity();
   }, [handleActivity]);
 
-  const isExportDisabled = !onExport;
+  const isExportDisabled = !onExport || isExporting;
   const isImportDisabled = !onImport;
   const isResetDisabled = !onReset;
 
@@ -177,19 +249,33 @@ export function SaveHudDock({
       <button
         type="button"
         data-testid="save-hud-export-button"
-        onClick={onExport}
+        data-export-status={currentExportStatus}
+        onClick={handleExportClick}
         disabled={isExportDisabled}
         aria-disabled={isExportDisabled}
-        aria-label={resolvedLabels.export}
-        title={resolvedLabels.export}
+        aria-busy={isExporting}
+        aria-label={exportAccessibleName}
+        title={isExportError && exportError ? exportError : exportButtonLabel}
         className={`min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none ${
           isExportDisabled
             ? "text-white/40 cursor-not-allowed opacity-50"
+            : isExportSuccess
+            ? "text-[#22C55E] bg-[#22C55E]/15 hover:bg-[#22C55E]/20 cursor-pointer"
+            : isExportError
+            ? "text-[#E11D48] bg-[#E11D48]/15 hover:bg-[#E11D48]/20 cursor-pointer"
             : "text-white/90 hover:text-white hover:bg-white/10 active:bg-white/15 cursor-pointer"
         }`}
       >
-        <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="whitespace-nowrap">{resolvedLabels.export}</span>
+        {isExportSuccess ? (
+          <Check className="h-4 w-4 shrink-0 text-[#22C55E]" aria-hidden="true" data-testid="save-hud-export-success-icon" />
+        ) : isExporting ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" data-testid="save-hud-export-loading-icon" />
+        ) : isExportError ? (
+          <CircleX className="h-4 w-4 shrink-0 text-[#E11D48]" aria-hidden="true" data-testid="save-hud-export-error-icon" />
+        ) : (
+          <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+        )}
+        <span className="whitespace-nowrap" aria-live="polite">{exportButtonLabel}</span>
       </button>
 
       <button
