@@ -11,8 +11,8 @@ import {
   resetSaves,
   SAVE_BRIDGE_MESSAGE_TYPES,
   DEFAULT_BRIDGE_TIMEOUT_MS,
-} from "../src/lib/save-bridge.ts";
-import type { SaveSlotsPayload } from "../src/types/save.ts";
+} from "../src/lib/save-bridge";
+import type { SaveSlotsPayload } from "../src/types/save";
 
 describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
   describe("slot key validation and normalization", () => {
@@ -93,11 +93,17 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
     });
 
     function dispatchParentMessage(data: unknown, origin = "https://ropoductions.com", source: unknown = mockIframeWindow) {
+      const lastOutgoing = mockIframeMessages[mockIframeMessages.length - 1];
+      const lastRequestId = (lastOutgoing?.message as { requestId?: string })?.requestId;
+      const enrichedData =
+        typeof data === "object" && data !== null && lastRequestId && !("requestId" in (data as Record<string, unknown>))
+          ? { requestId: lastRequestId, ...(data as Record<string, unknown>) }
+          : data;
       const event = {
-        data,
+        data: enrichedData,
         origin,
         source,
-      } as MessageEvent;
+      } as unknown as MessageEvent;
       for (const listener of [...mockParentListeners]) {
         listener(event);
       }
@@ -151,7 +157,14 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
     it("rejects wildcard targetOrigin '*'", async () => {
       await assert.rejects(
         () => requestSaves(mockIframeWindow, "*"),
-        /wildcard targetorigin '\*' is strictly prohibited/i
+        /must equal window\.location\.origin/i
+      );
+    });
+
+    it("rejects targetOrigin that does not match window.location.origin", async () => {
+      await assert.rejects(
+        () => requestSaves(mockIframeWindow, "https://mismatched-origin.com"),
+        /must equal window\.location\.origin/i
       );
     });
 
@@ -168,6 +181,74 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       );
 
       await assert.rejects(() => promise, /timed out/i);
+    });
+
+    it("ignores response from wrong window source and times out", async () => {
+      const otherWindow = {} as Window;
+      const promise = requestSaves(mockIframeWindow, "https://ropoductions.com", 50);
+
+      dispatchParentMessage(
+        {
+          type: SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA,
+          payload: { slots: {}, global: "spoofed" },
+        },
+        "https://ropoductions.com",
+        otherWindow
+      );
+
+      await assert.rejects(() => promise, /timed out/i);
+    });
+
+    it("cleans up message event listener on success and on timeout", async () => {
+      assert.equal(mockParentListeners.length, 0);
+
+      const promiseSuccess = requestSaves(mockIframeWindow, "https://ropoductions.com", 1000);
+      assert.equal(mockParentListeners.length, 1);
+
+      dispatchParentMessage({
+        type: SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA,
+        payload: { slots: {} },
+      });
+      await promiseSuccess;
+      assert.equal(mockParentListeners.length, 0);
+
+      const promiseTimeout = requestSaves(mockIframeWindow, "https://ropoductions.com", 20);
+      assert.equal(mockParentListeners.length, 1);
+      await assert.rejects(() => promiseTimeout, /timed out/i);
+      assert.equal(mockParentListeners.length, 0);
+    });
+
+    it("isolates concurrent requests using correlation IDs without cross-resolving", async () => {
+      const promise1 = requestSaves(mockIframeWindow, "https://ropoductions.com", 1000);
+      const promise2 = requestSaves(mockIframeWindow, "https://ropoductions.com", 1000);
+
+      assert.equal(mockIframeMessages.length, 2);
+      const reqId1 = (mockIframeMessages[0].message as { requestId: string }).requestId;
+      const reqId2 = (mockIframeMessages[1].message as { requestId: string }).requestId;
+      assert.notEqual(reqId1, reqId2);
+
+      const payload1: SaveSlotsPayload = { slots: { file1: "req1-data" } };
+      const payload2: SaveSlotsPayload = { slots: { file2: "req2-data" } };
+
+      // Dispatch response for request 2 FIRST (out-of-order)
+      dispatchParentMessage({
+        type: SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA,
+        payload: payload2,
+        requestId: reqId2,
+      });
+
+      // Dispatch response for request 1 SECOND
+      dispatchParentMessage({
+        type: SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA,
+        payload: payload1,
+        requestId: reqId1,
+      });
+
+      const res1 = await promise1;
+      const res2 = await promise2;
+
+      assert.deepEqual(res1, payload1);
+      assert.deepEqual(res2, payload2);
     });
 
     it("restoreSaves sends ROPODUCTIONS_SET_SAVES and resolves on success", async () => {
@@ -196,6 +277,20 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       await assert.rejects(
         () => restoreSaves(mockIframeWindow, null as unknown as Record<string, string>),
         /invalid payload/i
+      );
+    });
+
+    it("restoreSaves rejects empty payload", async () => {
+      await assert.rejects(
+        () => restoreSaves(mockIframeWindow, {}),
+        /payload cannot be empty/i
+      );
+    });
+
+    it("restoreSaves rejects payload with no valid save slot keys", async () => {
+      await assert.rejects(
+        () => restoreSaves(mockIframeWindow, { invalid_key: "data", file99: "data" }),
+        /contains no valid save slot keys/i
       );
     });
 
@@ -255,7 +350,7 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
               data: message,
               origin: "https://ropoductions.com",
               source: iframeWindowMock,
-            } as MessageEvent);
+            } as unknown as MessageEvent);
           }
         },
       };
@@ -350,6 +445,18 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       assert.equal(storageStore["file1"], undefined);
       const afterReset = await requestSaves(iframeWindow, "https://ropoductions.com", 1000);
       assert.deepEqual({ ...afterReset.slots }, {});
+    });
+
+    it("handles non-JSON raw string saves round-trip intact", async () => {
+      const iframeWindow = setupEngineSandbox();
+      const rawStringSaves = {
+        file1: "plain-text-unserialized-save-content-not-json",
+      };
+
+      await restoreSaves(iframeWindow, rawStringSaves, "https://ropoductions.com", 1000);
+      const retrieved = await requestSaves(iframeWindow, "https://ropoductions.com", 1000);
+
+      assert.equal(retrieved.slots["file1"], rawStringSaves.file1);
     });
   });
 });

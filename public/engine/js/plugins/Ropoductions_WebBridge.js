@@ -18,7 +18,19 @@
 
   const ALLOWED_SLOT_REGEX = /^(file([1-9]|1[0-9]|20)|global|config)(\.rpgsave)?$/;
   const MAX_SLOT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB per slot
+  const MAX_TOTAL_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50MB total response cap
+  // TODO (Epic 4 Story 4.3): JSZip export size budgeting and stream chunking for save archives exceeding 50MB.
 
+  function getByteLength(str) {
+    if (typeof str !== "string") return 0;
+    if (typeof TextEncoder !== "undefined") {
+      return new TextEncoder().encode(str).length;
+    }
+    if (typeof Blob !== "undefined") {
+      return new Blob([str]).size;
+    }
+    return encodeURI(str).split(/%..|./).length - 1;
+  }
   const ALL_SLOTS = [];
   for (let i = 1; i <= 20; i++) {
     ALL_SLOTS.push(`file${i}`);
@@ -49,6 +61,7 @@
     const slots = {};
     let globalData = undefined;
     let configData = undefined;
+    let totalBytes = 0;
 
     if (typeof StorageManager !== "undefined") {
       for (const slotName of ALL_SLOTS) {
@@ -61,6 +74,7 @@
             const data = await StorageManager.loadObject(slotName);
             if (data !== undefined && data !== null) {
               const serialized = typeof data === "string" ? data : JSON.stringify(data);
+              totalBytes += getByteLength(serialized);
               if (slotName === "global") {
                 globalData = serialized;
               } else if (slotName === "config") {
@@ -74,6 +88,20 @@
           // Slot does not exist or failed to load
         }
       }
+    }
+
+    if (totalBytes > MAX_TOTAL_PAYLOAD_BYTES) {
+      if (window.parent && typeof window.parent.postMessage === "function") {
+        window.parent.postMessage(
+          {
+            type: "ROPODUCTIONS_SAVE_ERROR",
+            error: "Total save payload exceeds maximum size limit (50MB)",
+            ...(requestId ? { requestId } : {}),
+          },
+          window.location.origin
+        );
+      }
+      return;
     }
 
     const payload = {
@@ -107,44 +135,56 @@
       return;
     }
 
+    if (typeof StorageManager === "undefined") {
+      if (window.parent && typeof window.parent.postMessage === "function") {
+        window.parent.postMessage(
+          {
+            type: "ROPODUCTIONS_SAVE_ERROR",
+            error: "StorageManager is not available in engine runtime",
+            ...(requestId ? { requestId } : {}),
+          },
+          window.location.origin
+        );
+      }
+      return;
+    }
+
     let savedCount = 0;
     let errorCount = 0;
 
-    if (typeof StorageManager !== "undefined") {
-      const keys = Object.keys(rawPayload);
-      for (const key of keys) {
-        const normalizedKey = normalizeSlotKey(key);
-        if (!normalizedKey) {
-          continue;
-        }
+    const keys = Object.keys(rawPayload);
+    for (const key of keys) {
+      const normalizedKey = normalizeSlotKey(key);
+      if (!normalizedKey) {
+        continue;
+      }
 
-        const value = rawPayload[key];
-        if (typeof value !== "string" && !isPlainObject(value)) {
-          continue;
-        }
+      const value = rawPayload[key];
+      if (typeof value !== "string" && !isPlainObject(value)) {
+        continue;
+      }
 
-        const stringValue = typeof value === "string" ? value : JSON.stringify(value);
-        if (stringValue.length > MAX_SLOT_SIZE_BYTES) {
-          continue;
-        }
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+      if (getByteLength(stringValue) > MAX_SLOT_SIZE_BYTES) {
+        continue;
+      }
 
-        // Parse JSON string into object if possible to avoid double serialization in native RPG Maker MZ
-        let objectToSave = value;
-        if (typeof value === "string") {
-          try {
-            objectToSave = JSON.parse(value);
-          } catch {
-            objectToSave = value;
-          }
-        }
-
+      // Parse JSON string into object if possible to avoid double serialization in native RPG Maker MZ
+      let objectToSave = value;
+      if (typeof value === "string") {
         try {
-          await StorageManager.saveObject(normalizedKey, objectToSave);
-          savedCount++;
-        } catch (err) {
-          errorCount++;
-          console.error(`[Ropoductions_WebBridge] Failed to save slot ${normalizedKey}:`, err);
+          objectToSave = JSON.parse(value);
+        } catch {
+          objectToSave = value;
         }
+      }
+
+      try {
+        await StorageManager.saveObject(normalizedKey, objectToSave);
+        savedCount++;
+      } catch (err) {
+        errorCount++;
+        console.error(`[Ropoductions_WebBridge] Failed to save slot ${normalizedKey}:`, err);
       }
     }
 
@@ -157,11 +197,12 @@
     }
 
     if (window.parent && typeof window.parent.postMessage === "function") {
-      if (errorCount > 0 && savedCount === 0) {
+      if (savedCount === 0) {
+        const detail = errorCount > 0 ? "Storage persistence errors occurred" : "Zero valid slots saved to storage";
         window.parent.postMessage(
           {
             type: "ROPODUCTIONS_SAVE_ERROR",
-            error: "Failed to persist any save slots to storage",
+            error: `Failed to persist save slots: ${detail}`,
             ...(requestId ? { requestId } : {}),
           },
           window.location.origin

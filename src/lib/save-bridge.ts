@@ -1,7 +1,7 @@
 import type {
   SaveSlotsPayload,
   SaveBridgeResponse,
-} from "../types/save.ts";
+} from "../types/save";
 
 export const ALLOWED_SLOT_REGEX = /^(file([1-9]|1[0-9]|20)|global|config)(\.rpgsave)?$/;
 
@@ -51,16 +51,34 @@ export function isValidSlotKey(key: string): boolean {
 }
 
 function resolveOrigin(targetOrigin?: string): string {
-  if (targetOrigin === "*") {
-    throw new Error("Wildcard targetOrigin '*' is strictly prohibited");
+  const currentOrigin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : "";
+  if (!currentOrigin) {
+    throw new Error("Unable to resolve origin: window.location.origin is unavailable");
   }
-  if (targetOrigin) {
-    return targetOrigin;
+  if (targetOrigin && targetOrigin !== currentOrigin) {
+    throw new Error(`Invalid targetOrigin "${targetOrigin}": must equal window.location.origin "${currentOrigin}"`);
   }
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin;
+  return currentOrigin;
+}
+
+function clampTimeout(timeoutMs: number): number {
+  if (!Number.isFinite(timeoutMs)) {
+    return DEFAULT_BRIDGE_TIMEOUT_MS;
   }
-  throw new Error("Unable to resolve origin: window.location.origin is unavailable");
+  return Math.max(1, Math.min(timeoutMs, 60000));
+}
+
+function createResolvers<T>() {
+  if (typeof Promise.withResolvers === "function") {
+    return Promise.withResolvers<T>();
+  }
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 /**
@@ -73,8 +91,9 @@ function sendBridgeMessage<T>(
   targetOrigin?: string,
   timeoutMs: number = DEFAULT_BRIDGE_TIMEOUT_MS
 ): Promise<T> {
-  const { promise, resolve, reject } = Promise.withResolvers<T>();
+  const { promise, resolve, reject } = createResolvers<T>();
   const origin = resolveOrigin(targetOrigin);
+  const effectiveTimeout = clampTimeout(timeoutMs);
   const requestId =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
@@ -110,23 +129,31 @@ function sendBridgeMessage<T>(
       return;
     }
 
-    if (data.requestId && data.requestId !== requestId) {
+    // Strict requestId equality check: response must correlate strictly to this request
+    if (data.requestId !== requestId) {
       return;
     }
 
     if (data.type === SAVE_BRIDGE_MESSAGE_TYPES.SAVE_ERROR) {
       cleanup();
-      reject(new Error(data.error || "Save bridge operation failed"));
+      const errorMessage =
+        typeof data.error === "string" ? data.error : String(data.error ?? "Save bridge operation failed");
+      reject(new Error(errorMessage));
       return;
+    }
+
+    if (data.type === SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA) {
+      if (expectedResponseType === SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA) {
+        cleanup();
+        resolve(data.payload as unknown as T);
+        return;
+      }
     }
 
     if (data.type === expectedResponseType) {
       cleanup();
-      if ("payload" in data) {
-        resolve((data as { payload: T }).payload);
-      } else {
-        resolve(undefined as unknown as T);
-      }
+      resolve(undefined as T);
+      return;
     }
   };
 
@@ -136,8 +163,8 @@ function sendBridgeMessage<T>(
 
   timer = setTimeout(() => {
     cleanup();
-    reject(new Error(`Save bridge request ${message.type} timed out after ${timeoutMs}ms`));
-  }, timeoutMs);
+    reject(new Error(`Save bridge request ${message.type} timed out after ${effectiveTimeout}ms`));
+  }, effectiveTimeout);
 
   try {
     targetWindow.postMessage(outgoingMessage, origin);
@@ -173,6 +200,16 @@ export async function restoreSaves(
 ): Promise<void> {
   if (!isPlainObject(payload)) {
     throw new Error("Invalid payload: payload must be a key-value record of save slots");
+  }
+
+  const keys = Object.keys(payload);
+  if (keys.length === 0) {
+    throw new Error("Invalid payload: payload cannot be empty; at least one save slot is required");
+  }
+
+  const validNormalizedKeys = keys.map(normalizeSlotKey).filter((k): k is string => k !== null);
+  if (validNormalizedKeys.length === 0) {
+    throw new Error("Invalid payload: payload contains no valid save slot keys (must match file1..file20, global, or config)");
   }
 
   await sendBridgeMessage<void>(
