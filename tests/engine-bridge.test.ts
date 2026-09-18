@@ -112,12 +112,12 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     }
   }
 
-  function loadPlugin() {
+  function loadPlugin(targetPath = pluginPath) {
     assert.ok(
-      fs.existsSync(pluginPath),
-      `Expected plugin file to exist at ${pluginPath}`
+      fs.existsSync(targetPath),
+      `Expected plugin file to exist at ${targetPath}`
     );
-    const code = fs.readFileSync(pluginPath, "utf-8");
+    const code = fs.readFileSync(targetPath, "utf-8");
     const script = new vm.Script(code);
     const context = vm.createContext(sandbox);
     script.runInContext(context);
@@ -128,7 +128,9 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
   });
 
   it("fails when plugin file does not exist", () => {
-    loadPlugin();
+    assert.throws(() =>
+      loadPlugin(path.resolve(process.cwd(), "src/engine-plugins/Does_Not_Exist.js"))
+    );
   });
 
   it("strictly ignores messages from mismatched origin", async () => {

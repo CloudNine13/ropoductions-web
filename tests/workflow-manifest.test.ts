@@ -23,32 +23,31 @@ describe("workflow and upstream integration manifest verification", () => {
   it("verifies dual triggers: workflow_dispatch with main default and repository_dispatch with game_release_published", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");
+    const onBlock = content.match(/^on:\n([\s\S]*?)(?=^concurrency:)/m)?.[1] ?? "";
 
-    // Must declare workflow_dispatch with branch input defaulting to main
-    assert.match(content, /workflow_dispatch\s*:/);
-    assert.match(content, /branch\s*:/);
-    assert.match(content, /default:\s*["']?main["']?/);
+    // Must declare workflow_dispatch with a branch input defaulting to main
+    assert.match(onBlock, /workflow_dispatch:\s*\n\s*inputs:\s*\n\s*branch:/);
+    assert.match(onBlock, /branch:\s*\n(?:\s+.+\n)*?\s*default:\s*["']main["']/);
 
     // Must declare repository_dispatch with game_release_published
-    assert.match(content, /repository_dispatch\s*:/);
-    assert.match(content, /game_release_published/);
+    assert.match(onBlock, /repository_dispatch:\s*\n\s*types:\s*\n\s*-\s*game_release_published/);
   });
 
   it("verifies workflow concurrency group to prevent R2 and git race conditions", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");
+    const concurrencyBlock = content.match(/^concurrency:\n((?:\s+.+\n?)+)/m)?.[1] ?? "";
 
-    assert.match(content, /concurrency\s*:/);
-    assert.match(content, /group:\s*["']?sync-game-release["']?/);
-    assert.match(content, /cancel-in-progress:\s*false/);
+    assert.match(concurrencyBlock, /group:\s*sync-game-release/);
+    assert.match(concurrencyBlock, /cancel-in-progress:\s*false/);
   });
 
   it("verifies least-privilege permissions: contents: write", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");
+    const permissionsBlock = content.match(/^permissions:\n((?:\s+.+\n?)+)/m)?.[1] ?? "";
 
-    assert.match(content, /permissions\s*:/);
-    assert.match(content, /contents:\s*write/);
+    assert.match(permissionsBlock, /contents:\s*write/);
   });
 
   it("strictly enforces absence of --delete flag in aws s3 sync commands", () => {

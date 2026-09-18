@@ -73,20 +73,18 @@ describe("play status-to-redirect mapping mapSessionStatusToPlayRedirect", () =>
 describe("session clearing bounce sessionClearHref", () => {
   it("routes every non-authorized status through the clearing endpoint", () => {
     assert.equal(SESSION_CLEAR_HREF, "/api/auth/session");
-    for (const status of [
-      "invalid_signature",
-      "not_found",
-      "override_deleted",
-      "revoked",
-      "lapsed",
-      "unauthorized",
-    ] as const) {
+    const expected = {
+      invalid_signature: "/api/auth/session?paywall=required",
+      not_found: "/api/auth/session?paywall=required",
+      override_deleted: "/api/auth/session?paywall=revoked",
+      revoked: "/api/auth/session?paywall=revoked",
+      lapsed: "/api/auth/session?paywall=lapsed",
+      unauthorized: "/api/auth/session?paywall=lapsed",
+    } as const;
+    for (const status of Object.keys(expected) as (keyof typeof expected)[]) {
       const paywall = mapSessionStatusToPaywall(status);
       assert.ok(paywall, `missing paywall mapping for ${status}`);
-      assert.equal(
-        sessionClearHref(paywall!),
-        `/api/auth/session?paywall=${paywall}`
-      );
+      assert.equal(sessionClearHref(paywall), expected[status]);
     }
     assert.equal(mapSessionStatusToPaywall("authorized"), null);
   });

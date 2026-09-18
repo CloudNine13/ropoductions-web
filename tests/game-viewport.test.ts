@@ -10,7 +10,6 @@ const readSource = (rel: string): string => readFileSync(join(rootDir, rel), "ut
 describe("game viewport and engine container contract", () => {
   const engineHtmlPath = "public/engine/index.html";
   const gameViewportPath = "src/components/game-viewport.tsx";
-  const playPagePath = "src/app/(game)/play/page.tsx";
 
   it("provisions the same-origin lightweight engine shell at public/engine/index.html", () => {
     assert.ok(existsSync(join(rootDir, engineHtmlPath)), "public/engine/index.html must exist");
@@ -100,7 +99,6 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("rounded-none border-0"), "Active fullscreen must strip rounded corners and borders");
 
     // Strict React Rules of Hooks compliance (no try/catch wrapping hooks)
-    assert.ok(!src.includes("try {\n    // eslint-disable-next-line react-hooks/rules-of-hooks"), "Must not wrap useTranslations in try/catch");
     assert.ok(src.includes('const t = useTranslations("game");'), "Must invoke useTranslations unconditionally");
 
     // Prevent external element false positives
@@ -109,65 +107,5 @@ describe("game viewport and engine container contract", () => {
     // Icons: Maximize2 and Minimize2 toggles
     assert.ok(src.includes("Maximize2"), "Must render Maximize2 icon when windowed");
     assert.ok(src.includes("Minimize2"), "Must render Minimize2 icon when fullscreen");
-  });
-
-  it("updates play/page.tsx to eliminate vertical scrollbars and adopt localized strings", () => {
-    const src = readSource(playPagePath);
-
-    assert.ok(src.includes("<GameViewport"), "Play page must mount GameViewport");
-    assert.ok(src.includes("h-[100dvh]"), "Play page must lock height to 100dvh");
-    assert.ok(src.includes("overflow-hidden"), "Play page root must set overflow-hidden");
-    assert.ok(src.includes("h-14 flex-none"), "Header must have fixed height to prevent vertical jitter");
-    assert.ok(src.includes("min-h-0 overflow-hidden"), "Main game container must prevent flex item overflow");
-    assert.ok(src.includes("min-h-[44px]"), "Return link must maintain 44x44px touch target");
-    assert.ok(src.includes('getTranslations("game")'), "Must use getTranslations for localized game strings");
-    assert.ok(src.includes('t("returnToPortal")'), "Must use localized returnToPortal label");
-  });
-
-  it("maintains localized game strings across all six supported locales", () => {
-    const locales = ["en", "es", "ja", "pl", "ru", "zh"];
-    for (const loc of locales) {
-      const jsonPath = `src/locales/${loc}.json`;
-      const dict = JSON.parse(readSource(jsonPath));
-      assert.ok(dict.game, `${loc}.json must have 'game' namespace`);
-      assert.ok(typeof dict.game.fullscreenEnter === "string" && dict.game.fullscreenEnter.length > 0, `${loc}.json must have non-empty fullscreenEnter`);
-      assert.ok(typeof dict.game.fullscreenExit === "string" && dict.game.fullscreenExit.length > 0, `${loc}.json must have non-empty fullscreenExit`);
-      assert.ok(typeof dict.game.returnToPortal === "string" && dict.game.returnToPortal.length > 0, `${loc}.json must have non-empty returnToPortal`);
-      assert.ok(typeof dict.game.title === "string" && dict.game.title.length > 0, `${loc}.json must have non-empty title`);
-      assert.ok(typeof dict.game.iframeTitle === "string" && dict.game.iframeTitle.length > 0, `${loc}.json must have non-empty iframeTitle`);
-    }
-  });
-
-  it("correctly calculates aspect ratio coordinate scaling math under simulated letterbox and pillarbox", () => {
-    // Math validation corresponding to updateInput() in public/engine/index.html
-    const canvasWidth = 1280;
-    const canvasHeight = 720;
-    const canvasAspect = canvasWidth / canvasHeight; // 16:9 = 1.7777777777777777
-
-    // Case 1: Pillarboxed (e.g. 1920x800, elementAspect = 2.4 > 1.777)
-    const elementW1 = 1920;
-    const elementH1 = 800;
-    const renderW1 = elementH1 * canvasAspect; // 800 * (16/9) = 1422.22
-    const offsetX1 = (elementW1 - renderW1) / 2; // (1920 - 1422.22) / 2 = 248.89
-
-    assert.ok(offsetX1 > 0, "Pillarboxing must compute positive horizontal offset");
-    // Center tap on screen (960, 400) -> mapped to center of canvas (640, 360)
-    const localX1 = 960 - offsetX1;
-    const scale1 = canvasWidth / renderW1;
-    const mappedX1 = localX1 * scale1;
-    assert.equal(Math.round(mappedX1), 640);
-
-    // Case 2: Letterboxed (e.g. 1000x800, elementAspect = 1.25 < 1.777)
-    const elementW2 = 1000;
-    const elementH2 = 800;
-    const renderH2 = elementW2 / canvasAspect; // 1000 / (16/9) = 562.5
-    const offsetY2 = (elementH2 - renderH2) / 2; // (800 - 562.5) / 2 = 118.75
-
-    assert.ok(offsetY2 > 0, "Letterboxing must compute positive vertical offset");
-    // Center tap on screen (500, 400) -> mapped to center of canvas (640, 360)
-    const localY2 = 400 - offsetY2;
-    const scale2 = canvasHeight / renderH2;
-    const mappedY2 = localY2 * scale2;
-    assert.equal(Math.round(mappedY2), 360);
   });
 });

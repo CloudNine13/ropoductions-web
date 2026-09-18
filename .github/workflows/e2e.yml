@@ -1,0 +1,75 @@
+name: e2e
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - "src/**"
+      - "e2e/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "next.config.ts"
+      - "playwright.config.ts"
+  push:
+    branches: [develop]
+    paths:
+      - "src/**"
+      - "e2e/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "next.config.ts"
+      - "playwright.config.ts"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Chromium portal flows
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build:next
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Chromium shell
+        run: npx playwright install --only-shell chromium
+
+      - name: Run Chromium E2E suite
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
