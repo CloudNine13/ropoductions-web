@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -6,6 +7,37 @@ export async function resolve(specifier, context, nextResolve) {
   if (specifier === "next/server") {
     return {
       url: new URL("./next-server-shim.mjs", import.meta.url).href,
+      shortCircuit: true,
+    };
+  }
+  if (specifier === "next/headers") {
+    return {
+      url: new URL("./next-headers-shim.mjs", import.meta.url).href,
+      shortCircuit: true,
+    };
+  }
+  if (specifier === "next-intl/config") {
+    const projectRoot = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../.."
+    );
+    const requestPath = path.resolve(projectRoot, "src/i18n/request.ts");
+    return {
+      url: pathToFileURL(requestPath).href,
+      shortCircuit: true,
+    };
+  }
+  if (specifier === "next-intl/server") {
+    const projectRoot = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../.."
+    );
+    const serverPath = path.resolve(
+      projectRoot,
+      "node_modules/next-intl/dist/esm/production/server.react-server.js"
+    );
+    return {
+      url: pathToFileURL(serverPath).href,
       shortCircuit: true,
     };
   }
@@ -41,4 +73,16 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
   return nextResolve(specifier);
+}
+
+export async function load(url, context, nextLoad) {
+  if (url.endsWith(".json")) {
+    const content = await readFile(new URL(url), "utf8");
+    return {
+      format: "json",
+      source: content,
+      shortCircuit: true,
+    };
+  }
+  return nextLoad(url, context);
 }

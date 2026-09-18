@@ -3,6 +3,21 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  LANG_COOKIE_NAME,
+  LANG_COOKIE_MAX_AGE,
+  LOCALES,
+  getMessages,
+  getStoredLocale,
+  setStoredLocale,
+  deepMerge,
+} from "../src/lib/i18n-config";
+import type { Messages } from "../src/lib/i18n-config";
+import requestConfig from "../src/i18n/request";
+import { getTranslations } from "next-intl/server";
+import { setMockCookies } from "./helpers/next-headers-shim.mjs";
 
 const localesDir = join(dirname(fileURLToPath(import.meta.url)), "../src/locales");
 const EXPECTED_LOCALES = ["en", "es", "ja", "pl", "ru", "zh"];
@@ -90,5 +105,134 @@ describe("multilingual shell entry point", () => {
         assert.equal(typeof getPath(dict, `language.${code}`), "string", `${locale}.language.${code}`);
       }
     }
+  });
+});
+
+describe("i18n-config contract", () => {
+  it("exports supported locales and cookie constants", () => {
+    assert.deepEqual([...SUPPORTED_LOCALES].sort(), [...EXPECTED_LOCALES].sort());
+    assert.equal(DEFAULT_LOCALE, "en");
+    assert.equal(LANG_COOKIE_NAME, "ropoductions_lang");
+    assert.equal(LANG_COOKIE_MAX_AGE, 365 * 24 * 60 * 60);
+
+    for (const loc of EXPECTED_LOCALES) {
+      assert.ok(LOCALES[loc as keyof typeof LOCALES]);
+      assert.ok(LOCALES[loc as keyof typeof LOCALES].name);
+      assert.ok(LOCALES[loc as keyof typeof LOCALES].nativeName);
+    }
+  });
+
+  it("getMessages returns complete message dictionaries with English fallback", () => {
+    for (const loc of EXPECTED_LOCALES) {
+      const msgs = getMessages(loc as "en");
+      assert.ok(msgs.game);
+      assert.ok(msgs.game.title);
+      assert.ok(msgs.game.returnToPortal);
+      assert.ok(msgs.ageGate);
+      assert.ok(msgs.paywall);
+    }
+  });
+  it("memoizes merged dictionaries across calls", () => {
+    assert.equal(getMessages("ja"), getMessages("ja"));
+    assert.equal(getMessages("en"), getMessages("en"));
+  });
+
+  it("guards deepMerge against prototype pollution and prototype traversal", () => {
+    const malicious = JSON.parse(
+      '{"__proto__": {"polluted": true}, "constructor": {"prototype": {"admin": true}}, "title": "safe"}'
+    );
+    const result = deepMerge({ title: "base" }, malicious);
+    assert.equal((result as Record<string, unknown>).polluted, undefined);
+    assert.equal(({} as Record<string, unknown>).polluted, undefined);
+    assert.equal((result as Record<string, unknown>).title, "safe");
+  });
+
+
+  it("handles stored locale cookies with document fallback", () => {
+
+    const origDoc = (globalThis as Record<string, unknown>).document;
+    const origWin = (globalThis as Record<string, unknown>).window;
+    try {
+      delete (globalThis as Record<string, unknown>).document;
+      assert.equal(getStoredLocale(), "en");
+
+      const store: Record<string, string> = {};
+      (globalThis as Record<string, unknown>).document = {
+        get cookie() {
+          return Object.entries(store).map(([k, v]) => `${k}=${v}`).join("; ");
+        },
+        set cookie(val: string) {
+          const [pair] = val.split(";");
+          const [k, v] = pair.split("=");
+          store[k] = v;
+        },
+      };
+      (globalThis as Record<string, unknown>).window = { location: { protocol: "https:" } };
+
+      assert.equal(getStoredLocale(), "en");
+      setStoredLocale("ja");
+      assert.equal(getStoredLocale(), "ja");
+
+      store.ropoductions_lang = "invalid_locale";
+      assert.equal(getStoredLocale(), "en");
+    } finally {
+      (globalThis as Record<string, unknown>).document = origDoc;
+      (globalThis as Record<string, unknown>).window = origWin;
+    }
+  });
+});
+
+describe("next-intl server request configuration contract", () => {
+  it("resolves default locale and messages when cookie is absent", async () => {
+    setMockCookies({});
+    const config = await requestConfig({ requestLocale: Promise.resolve("en") });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "en");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: Chapter 1");
+  });
+
+  it("resolves requested locale from ropoductions_lang cookie", async () => {
+    setMockCookies({ ropoductions_lang: "ja" });
+    const config = await requestConfig({ requestLocale: Promise.resolve("ja") });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "ja");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: 第1章");
+    assert.equal(messages.game.returnToPortal, "スタジオポータルに戻る");
+  });
+
+  it("normalizes RFC 6265 quoted ropoductions_lang cookies", async () => {
+    setMockCookies({ ropoductions_lang: '"ja"' });
+    const config = await requestConfig({ requestLocale: Promise.resolve(undefined) });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "ja");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: 第1章");
+  });
+
+  it("prioritizes explicit requestLocale parameter over cookie", async () => {
+    setMockCookies({ ropoductions_lang: "pl" });
+    const config = await requestConfig({ requestLocale: Promise.resolve("es") });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "es");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: Capítulo 1");
+  });
+
+  it("falls back to default locale on invalid ropoductions_lang cookie", async () => {
+    setMockCookies({ ropoductions_lang: "nonexistent_lang" });
+    const config = await requestConfig({ requestLocale: Promise.resolve("en") });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "en");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: Chapter 1");
+  });
+
+  it("resolves getTranslations(game) in Server Components via request config", async () => {
+    setMockCookies({ ropoductions_lang: "pl" });
+    const t = await getTranslations("game");
+    assert.equal(t("title"), "Final Orginity: Rozdział 1");
+    assert.equal(t("returnToPortal"), "Wróć do portalu studia");
   });
 });
