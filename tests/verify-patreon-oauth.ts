@@ -467,6 +467,20 @@ async function testRouteHandlers(): Promise<void> {
   const signedVerifier = parsedCookie[OAUTH_VERIFIER_COOKIE_NAME];
   assert.ok(signedVerifier);
 
+
+  const mismatchRequest = new Request("http://127.0.0.1:3000/api/auth/patreon", {
+    method: "GET",
+    headers: {
+      Host: "127.0.0.1:3000",
+    },
+  });
+  const mismatchResponse = await initiateAuth(mismatchRequest);
+  assert.equal(mismatchResponse.status, 302);
+  assert.equal(
+    mismatchResponse.headers.get("Location"),
+    "http://localhost:3000/api/auth/patreon"
+  );
+  assert.equal(mismatchResponse.headers.get("Set-Cookie"), null);
   delete process.env.PATREON_CLIENT_ID;
   const missingClientIdResponse = await initiateAuth(initRequest);
   assert.equal(missingClientIdResponse.status, 302);

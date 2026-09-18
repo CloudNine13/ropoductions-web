@@ -155,9 +155,22 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const redirectUri =
-    authEnv.redirectUri || `${requestUrl.origin}/api/auth/callback`;
+  const host =
+    request.headers.get("x-forwarded-host") ||
+    request.headers.get("host") ||
+    requestUrl.host;
+  const proto =
+    request.headers.get("x-forwarded-proto") ||
+    (isSecureCookieScope(requestUrl) ? "https" : requestUrl.protocol.replace(":", ""));
+  const clientOrigin = `${proto}://${host}`;
 
+  const canonicalOrigin =
+    host.startsWith("127.0.0.1") || host.startsWith("localhost")
+      ? `http://localhost:${requestUrl.port || "3000"}`
+      : clientOrigin;
+
+  const redirectUri =
+    authEnv.redirectUri || `${canonicalOrigin}/api/auth/callback`;
   try {
     const tokens = await exchangeAuthorizationCode({
       code,

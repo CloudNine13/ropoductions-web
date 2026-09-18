@@ -33,9 +33,33 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const requestUrl = new URL(request.url);
-  const redirectUri =
-    authEnv.redirectUri || `${requestUrl.origin}/api/auth/callback`;
+  const host =
+    request.headers.get("x-forwarded-host") ||
+    request.headers.get("host") ||
+    requestUrl.host;
+  const proto =
+    request.headers.get("x-forwarded-proto") ||
+    (isSecureCookieScope(requestUrl) ? "https" : requestUrl.protocol.replace(":", ""));
+  const clientOrigin = `${proto}://${host}`;
 
+  const canonicalOrigin =
+    host.startsWith("127.0.0.1") || host.startsWith("localhost")
+      ? `http://localhost:${requestUrl.port || "3000"}`
+      : clientOrigin;
+
+  const redirectUri =
+    authEnv.redirectUri || `${canonicalOrigin}/api/auth/callback`;
+  const redirectOrigin = new URL(redirectUri).origin;
+
+  if (clientOrigin !== redirectOrigin) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `${redirectOrigin}/api/auth/patreon`,
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  }
   const state = generateRandomString(32);
   const pkce = await generatePkcePair(64);
 
