@@ -42,7 +42,10 @@ const rawDictionaries: Record<Locale, Messages> = {
 export function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
   const output: Record<string, unknown> = { ...target };
   for (const key of Object.keys(target)) {
-    if (key in source) {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      continue;
+    }
+    if (Object.hasOwn(source, key)) {
       const targetVal = target[key];
       const sourceVal = source[key];
       if (
@@ -57,7 +60,12 @@ export function deepMerge(target: Record<string, unknown>, source: Record<string
           targetVal as Record<string, unknown>,
           sourceVal as Record<string, unknown>
         );
-      } else if (sourceVal !== undefined && sourceVal !== null && sourceVal !== "") {
+      } else if (
+        sourceVal !== undefined &&
+        sourceVal !== null &&
+        sourceVal !== "" &&
+        typeof sourceVal === typeof targetVal
+      ) {
         output[key] = sourceVal;
       }
     }
@@ -65,11 +73,17 @@ export function deepMerge(target: Record<string, unknown>, source: Record<string
   return output;
 }
 
+const memoizedDictionaries: Record<Locale, Messages> = {
+  en,
+  es: deepMerge(en as unknown as Record<string, unknown>, es as unknown as Record<string, unknown>) as unknown as Messages,
+  ru: deepMerge(en as unknown as Record<string, unknown>, ru as unknown as Record<string, unknown>) as unknown as Messages,
+  pl: deepMerge(en as unknown as Record<string, unknown>, pl as unknown as Record<string, unknown>) as unknown as Messages,
+  ja: deepMerge(en as unknown as Record<string, unknown>, ja as unknown as Record<string, unknown>) as unknown as Messages,
+  zh: deepMerge(en as unknown as Record<string, unknown>, zh as unknown as Record<string, unknown>) as unknown as Messages,
+};
+
 export function getMessages(locale: Locale): Messages {
-  if (locale === "en") return en;
-  const dict = rawDictionaries[locale] as unknown as Record<string, unknown>;
-  if (!dict) return en;
-  return deepMerge(en as unknown as Record<string, unknown>, dict) as unknown as Messages;
+  return memoizedDictionaries[locale] ?? en;
 }
 
 export function getNestedValue(obj: Record<string, unknown>, path: string): string | undefined {
@@ -101,6 +115,7 @@ export function getStoredLocale(): Locale {
 
 export function setStoredLocale(locale: Locale): void {
   if (typeof document === "undefined") return;
+  if (!SUPPORTED_LOCALES.includes(locale)) return;
   const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
   const secureFlag = isSecure ? "; Secure" : "";
   document.cookie = `${LANG_COOKIE_NAME}=${locale}; path=/; max-age=${LANG_COOKIE_MAX_AGE}; SameSite=Lax${secureFlag}`;

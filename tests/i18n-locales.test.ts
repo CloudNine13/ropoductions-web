@@ -12,7 +12,9 @@ import {
   getMessages,
   getStoredLocale,
   setStoredLocale,
+  deepMerge,
 } from "../src/lib/i18n-config";
+import type { Messages } from "../src/lib/i18n-config";
 import requestConfig from "../src/i18n/request";
 import { getTranslations } from "next-intl/server";
 import { setMockCookies } from "./helpers/next-headers-shim.mjs";
@@ -130,6 +132,21 @@ describe("i18n-config contract", () => {
       assert.ok(msgs.paywall);
     }
   });
+  it("memoizes merged dictionaries across calls", () => {
+    assert.equal(getMessages("ja"), getMessages("ja"));
+    assert.equal(getMessages("en"), getMessages("en"));
+  });
+
+  it("guards deepMerge against prototype pollution and prototype traversal", () => {
+    const malicious = JSON.parse(
+      '{"__proto__": {"polluted": true}, "constructor": {"prototype": {"admin": true}}, "title": "safe"}'
+    );
+    const result = deepMerge({ title: "base" }, malicious);
+    assert.equal((result as Record<string, unknown>).polluted, undefined);
+    assert.equal(({} as Record<string, unknown>).polluted, undefined);
+    assert.equal((result as Record<string, unknown>).title, "safe");
+  });
+
 
   it("handles stored locale cookies with document fallback", () => {
 
@@ -169,23 +186,47 @@ describe("next-intl server request configuration contract", () => {
   it("resolves default locale and messages when cookie is absent", async () => {
     setMockCookies({});
     const config = await requestConfig({ requestLocale: Promise.resolve("en") });
+    const messages = config.messages as Messages;
     assert.equal(config.locale, "en");
-    assert.equal(config.messages.game.title, "Final Orginity: Chapter 1");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: Chapter 1");
   });
 
   it("resolves requested locale from ropoductions_lang cookie", async () => {
     setMockCookies({ ropoductions_lang: "ja" });
     const config = await requestConfig({ requestLocale: Promise.resolve("ja") });
+    const messages = config.messages as Messages;
     assert.equal(config.locale, "ja");
-    assert.equal(config.messages.game.title, "Final Orginity: 第1章");
-    assert.equal(config.messages.game.returnToPortal, "スタジオポータルに戻る");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: 第1章");
+    assert.equal(messages.game.returnToPortal, "スタジオポータルに戻る");
+  });
+
+  it("normalizes RFC 6265 quoted ropoductions_lang cookies", async () => {
+    setMockCookies({ ropoductions_lang: '"ja"' });
+    const config = await requestConfig({ requestLocale: Promise.resolve(undefined) });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "ja");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: 第1章");
+  });
+
+  it("prioritizes explicit requestLocale parameter over cookie", async () => {
+    setMockCookies({ ropoductions_lang: "pl" });
+    const config = await requestConfig({ requestLocale: Promise.resolve("es") });
+    const messages = config.messages as Messages;
+    assert.equal(config.locale, "es");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: Capítulo 1");
   });
 
   it("falls back to default locale on invalid ropoductions_lang cookie", async () => {
     setMockCookies({ ropoductions_lang: "nonexistent_lang" });
     const config = await requestConfig({ requestLocale: Promise.resolve("en") });
+    const messages = config.messages as Messages;
     assert.equal(config.locale, "en");
-    assert.equal(config.messages.game.title, "Final Orginity: Chapter 1");
+    assert.ok(messages);
+    assert.equal(messages.game.title, "Final Orginity: Chapter 1");
   });
 
   it("resolves getTranslations(game) in Server Components via request config", async () => {

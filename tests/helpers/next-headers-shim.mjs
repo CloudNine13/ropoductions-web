@@ -32,6 +32,14 @@ export const cookies = async () => {
     getAll: () => [],
   };
 };
-
-export const headers = realHeadersModule?.headers;
+export const headers = async () => {
+  try {
+    if (realHeadersModule?.headers) {
+      return await realHeadersModule.headers();
+    }
+  } catch {
+    // Fall back to empty headers outside active Next.js request scope
+  }
+  return new Headers();
+};
 export const draftMode = realHeadersModule?.draftMode;

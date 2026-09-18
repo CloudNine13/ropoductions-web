@@ -8,12 +8,18 @@ import {
   type Locale,
 } from "@/lib/i18n-config";
 
-export default getRequestConfig(async () => {
+export default getRequestConfig(async ({ requestLocale }) => {
+  const explicit = await requestLocale;
   const cookieStore = await cookies();
-  const rawLocale = cookieStore.get(LANG_COOKIE_NAME)?.value?.toLowerCase();
+  const rawValue = cookieStore.get(LANG_COOKIE_NAME)?.value;
+  const rawLocale = rawValue?.replace(/^"|"$/g, "").trim().toLowerCase();
+  const candidate =
+    explicit && (SUPPORTED_LOCALES as readonly string[]).includes(explicit)
+      ? explicit
+      : rawLocale;
   const locale: Locale =
-    rawLocale && (SUPPORTED_LOCALES as readonly string[]).includes(rawLocale)
-      ? (rawLocale as Locale)
+    candidate && (SUPPORTED_LOCALES as readonly string[]).includes(candidate)
+      ? (candidate as Locale)
       : DEFAULT_LOCALE;
 
   return {
