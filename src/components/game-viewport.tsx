@@ -5,8 +5,9 @@ import Image from "next/image";
 import { ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SaveHudDock } from "./save-hud-dock";
+import { SaveImportDialog } from "./save-import-dialog";
+import { SaveResetDialog } from "./save-reset-dialog";
 import { exportSaves } from "../lib/save-export";
-
 export interface GameViewportProps {
   engineSrc?: string;
   title?: string;
@@ -37,8 +38,9 @@ export function GameViewport({
   const [loadError, setLoadError] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
   const [engineKey, setEngineKey] = useState(0);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isResetOpen, setIsResetOpen] = useState(false);
   const hudId = useId();
-
   const t = useTranslations("game");
   const enterLabel = t("fullscreenEnter");
   const exitLabel = t("fullscreenExit");
@@ -153,6 +155,21 @@ export function GameViewport({
     }
     await exportSaves(targetWindow);
   }, [onExport]);
+  const handleImportClick = useCallback(() => {
+    if (onImport) {
+      onImport();
+    } else {
+      setIsImportOpen(true);
+    }
+  }, [onImport]);
+
+  const handleResetClick = useCallback(() => {
+    if (onReset) {
+      onReset();
+    } else {
+      setIsResetOpen(true);
+    }
+  }, [onReset]);
 
 
   const toggleFullscreen = useCallback(async () => {
@@ -294,8 +311,8 @@ export function GameViewport({
             <SaveHudDock
               id={hudId}
               onExport={handleExport}
-              onImport={onImport}
-              onReset={onReset}
+              onImport={handleImportClick}
+              onReset={handleResetClick}
               onToggleFullscreen={toggleFullscreen}
               isFullscreen={activeFullscreen}
             />
@@ -317,6 +334,18 @@ export function GameViewport({
             <ChevronDown className="h-5 w-5" aria-hidden="true" />
           )}
         </button>
+        <SaveImportDialog
+          open={isImportOpen}
+          onOpenChange={setIsImportOpen}
+          targetWindow={iframeRef.current?.contentWindow}
+          container={containerRef.current}
+        />
+        <SaveResetDialog
+          open={isResetOpen}
+          onOpenChange={setIsResetOpen}
+          targetWindow={iframeRef.current?.contentWindow}
+          container={containerRef.current}
+        />
       </div>
     );
   }
@@ -339,12 +368,24 @@ export function GameViewport({
         <SaveHudDock
           id={hudId}
           onExport={handleExport}
-          onImport={onImport}
-          onReset={onReset}
+          onImport={handleImportClick}
+          onReset={handleResetClick}
           onToggleFullscreen={toggleFullscreen}
           isFullscreen={activeFullscreen}
         />
       </div>
+      <SaveImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        targetWindow={iframeRef.current?.contentWindow}
+        container={containerRef.current}
+      />
+      <SaveResetDialog
+        open={isResetOpen}
+        onOpenChange={setIsResetOpen}
+        targetWindow={iframeRef.current?.contentWindow}
+        container={containerRef.current}
+      />
     </div>
   );
 }
