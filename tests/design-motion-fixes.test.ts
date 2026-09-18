@@ -117,8 +117,7 @@ describe("design-motion contract fixes (story 4-2 review)", () => {
     assert.ok(!social.includes("rounded-full border border-border bg-card"), "Social must NOT keep the kicker pill");
   });
 
-  it("reserves tier-gold for patron signals and the icon map for social channels", () => {
-    const social = readSource("src/components/social-hub.tsx");
+  it("reserves tier-gold for patron signals and the icon map for social channels", () => {    const social = readSource("src/components/social-hub.tsx");
     assert.ok(social.includes("icon: Lock,"), "Patreon channel must use the Lock icon");
     assert.ok(social.includes("icon: MessagesSquare,"), "Discord channel must use MessagesSquare");
     assert.ok(social.includes("icon: AtSign,"), "X channel must use AtSign");
@@ -127,5 +126,31 @@ describe("design-motion contract fixes (story 4-2 review)", () => {
     assert.ok(play.includes("border-tier-gold/40"), "Session tier pill must use tier-gold");
     assert.ok(!play.includes("Sparkles"), "Session tier pill must NOT use Sparkles");
     assert.ok(play.includes("max-w-[38vw]"), "Session tier pill must truncate long tier names");
+  });
+
+  it("kills ambient motion and dead animation classes across portal surfaces", () => {
+    for (const rel of [
+      "src/components/hero-section.tsx",
+      "src/components/project-showcase.tsx",
+      "src/components/social-hub.tsx",
+      "src/components/screenshot-lightbox.tsx",
+      "src/components/language-switcher.tsx",
+      "src/components/studio-header.tsx",
+      "src/components/auth-error-toast.tsx",
+      "src/components/save-hud-dock.tsx",
+      "src/components/game-viewport.tsx",
+    ]) {
+      const src = readSource(rel);
+      assert.ok(!src.includes("animate-in"), `${rel} must NOT ship dead animate-in classes`);
+      assert.ok(!src.includes("transition-all"), `${rel} must NOT ship transition-all`);
+      assert.ok(!src.includes("animate-pulse"), `${rel} must NOT ship ambient pulse`);
+      assert.ok(!src.includes("scale-105"), `${rel} must NOT scale imagery on hover`);
+    }
+    const hero = readSource("src/components/hero-section.tsx");
+    assert.ok(!hero.includes("BACKDROP_SLIDES"), "Hero must NOT loop a backdrop slideshow");
+    assert.ok(!hero.includes("setInterval"), "Hero must NOT run ambient timers");
+    const css = readSource("src/app/globals.css");
+    assert.ok(css.includes("hud-load-pulse"), "Sanctioned loading pulse must define 1600ms keyframes");
+    assert.ok(css.includes("1600ms"), "Sanctioned loading pulse must run at 1600ms");
   });
 });

@@ -67,7 +67,7 @@ export function SocialHub() {
           return (
             <div
               key={ch.handle}
-              className={`flex flex-col justify-between rounded-2xl border border-border bg-card p-6 sm:p-8 transition-all duration-200 shadow-xl ${ch.accentBorder}`}
+              className={`flex flex-col justify-between rounded-2xl border border-border bg-card p-6 sm:p-8 transition-colors duration-150 motion-reduce:transition-none shadow-xl ${ch.accentBorder}`}
             >
               <div className="space-y-5">
                 {/* Header with Icon and Badge */}

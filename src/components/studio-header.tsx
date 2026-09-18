@@ -89,7 +89,7 @@ export function StudioHeader() {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="border-b border-border bg-card px-4 py-4 md:hidden animate-in slide-in-from-top-2 duration-200">
+        <div className="border-b border-border bg-card px-4 py-4 md:hidden">
           <nav className="flex flex-col space-y-2">
             <a
               href="#showcase"

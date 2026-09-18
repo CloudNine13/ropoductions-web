@@ -66,11 +66,11 @@ export function ScreenshotLightbox({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl transition-opacity animate-in fade-in-0 duration-200" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl px-4 sm:px-6 outline-none animate-in fade-in-0 zoom-in-95 duration-200"
+          className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl px-4 sm:px-6 outline-none"
         >
-          <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+          <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)]">
             {/* Header Toolbar */}
             <div className="flex items-center justify-between border-b border-border bg-card/90 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-3">
@@ -119,7 +119,7 @@ export function ScreenshotLightbox({
                   <button
                     type="button"
                     onClick={handlePrev}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full border border-border/80 bg-card/80 p-2.5 text-foreground backdrop-blur-md transition-all hover:bg-card hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer shadow-lg"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full border border-border/80 bg-card/80 p-2.5 text-foreground backdrop-blur-md transition-colors motion-reduce:transition-none hover:bg-card hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer shadow-lg"
                     aria-label={t("previous")}
                   >
                     <ChevronLeft className="h-6 w-6" />
@@ -127,7 +127,7 @@ export function ScreenshotLightbox({
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full border border-border/80 bg-card/80 p-2.5 text-foreground backdrop-blur-md transition-all hover:bg-card hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer shadow-lg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full border border-border/80 bg-card/80 p-2.5 text-foreground backdrop-blur-md transition-colors motion-reduce:transition-none hover:bg-card hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer shadow-lg"
                     aria-label={t("next")}
                   >
                     <ChevronRight className="h-6 w-6" />

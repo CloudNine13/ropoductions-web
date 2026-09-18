@@ -112,7 +112,7 @@ export function LanguageSwitcher({
         ref={triggerRef}
         type="button"
         onClick={handleToggle}
-        className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/80 bg-card/85 px-3 py-2 text-foreground backdrop-blur-md transition-all duration-150 hover:border-primary/50 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer"
+        className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/80 bg-card/85 px-3 py-2 text-foreground backdrop-blur-md transition-colors duration-150 motion-reduce:transition-none hover:border-primary/50 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer"
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-label={`${t("select")}: ${activeLocaleInfo.nativeName}`}
@@ -138,7 +138,7 @@ export function LanguageSwitcher({
           role="menu"
           aria-orientation="vertical"
           aria-label={t("select")}
-          className={`absolute ${menuPlacementClasses} z-50 w-52 rounded-lg border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 space-y-0.5`}
+          className={`absolute ${menuPlacementClasses} z-50 w-52 rounded-lg border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur-md space-y-0.5`}
         >
           <div
             role="presentation"

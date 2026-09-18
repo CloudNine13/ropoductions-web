@@ -156,7 +156,7 @@ export function ProjectShowcase() {
               href="/play"
               scroll={false}
               onClick={saveLandingScrollPosition}
-              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
             >
               <Play className="h-5 w-5 fill-current" />
               {t("playInBrowser")}
@@ -180,7 +180,7 @@ export function ProjectShowcase() {
             {characters.map((char) => (
               <div
                 key={char.id}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/70 p-4 transition-all duration-200 hover:border-primary/50 hover:bg-background-secondary shadow-md"
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/70 p-4 transition-colors duration-150 motion-reduce:transition-none hover:border-primary/50 hover:bg-background-secondary shadow-md"
               >
                 <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-card">
                   <Image
@@ -232,7 +232,7 @@ export function ProjectShowcase() {
             {screenshots.map((shot, idx) => (
               <article
                 key={shot.id}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/60 transition-all duration-200 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/60 transition-colors duration-150 motion-reduce:transition-none hover:border-primary hover:shadow-lg hover:shadow-primary/10"
               >
                 <div className="relative aspect-[16/9] w-full overflow-hidden bg-background">
                   <Image
