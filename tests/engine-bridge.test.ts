@@ -180,9 +180,9 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
 
     await dispatchMessage({ type: "ROPODUCTIONS_SET_SAVES", payload: newSaves });
 
-    assert.equal(storageStore["file1"], newSaves.file1);
-    assert.equal(storageStore["file2"], newSaves.file2);
-    assert.equal(storageStore["global"], newSaves.global);
+    assert.equal(JSON.stringify(storageStore["file1"]), newSaves.file1);
+    assert.equal(JSON.stringify(storageStore["file2"]), newSaves.file2);
+    assert.equal(JSON.stringify(storageStore["global"]), newSaves.global);
     assert.equal(globalInfoLoaded, true);
     assert.equal(postedMessages.length, 1);
     assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_SET_SAVES_SUCCESS");

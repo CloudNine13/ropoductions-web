@@ -2,7 +2,7 @@
 title: 'Story 4.1: In-Game PostMessage Web Bridge (Ropoductions_WebBridge.js) with Origin Locking'
 type: 'feature'
 created: '2026-09-18'
-status: 'review'
+status: 'done'
 baseline_commit: '63ae479...'
 route: 'dispatch'
 review_loop_iteration: 0

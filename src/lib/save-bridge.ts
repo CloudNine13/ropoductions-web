@@ -51,13 +51,16 @@ export function isValidSlotKey(key: string): boolean {
 }
 
 function resolveOrigin(targetOrigin?: string): string {
+  if (targetOrigin === "*") {
+    throw new Error("Wildcard targetOrigin '*' is strictly prohibited");
+  }
   if (targetOrigin) {
     return targetOrigin;
   }
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin;
   }
-  return "*";
+  throw new Error("Unable to resolve origin: window.location.origin is unavailable");
 }
 
 /**
@@ -65,13 +68,22 @@ function resolveOrigin(targetOrigin?: string): string {
  */
 function sendBridgeMessage<T>(
   targetWindow: Window,
-  message: { type: string; payload?: unknown },
+  message: { type: string; payload?: unknown; requestId?: string },
   expectedResponseType: string,
   targetOrigin?: string,
   timeoutMs: number = DEFAULT_BRIDGE_TIMEOUT_MS
 ): Promise<T> {
   const { promise, resolve, reject } = Promise.withResolvers<T>();
   const origin = resolveOrigin(targetOrigin);
+  const requestId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  const outgoingMessage = {
+    ...message,
+    requestId,
+  };
 
   let timer: NodeJS.Timeout | number | null = null;
 
@@ -86,15 +98,19 @@ function sendBridgeMessage<T>(
   };
 
   const handleResponse = (event: MessageEvent) => {
-    if (origin !== "*" && event.origin !== origin) {
+    if (!event.source || event.source !== targetWindow) {
       return;
     }
-    if (event.source && event.source !== targetWindow) {
+    if (event.origin !== origin) {
       return;
     }
 
     const data = event.data as SaveBridgeResponse;
     if (!isPlainObject(data) || typeof data.type !== "string") {
+      return;
+    }
+
+    if (data.requestId && data.requestId !== requestId) {
       return;
     }
 
@@ -124,7 +140,7 @@ function sendBridgeMessage<T>(
   }, timeoutMs);
 
   try {
-    targetWindow.postMessage(message, origin);
+    targetWindow.postMessage(outgoingMessage, origin);
   } catch (err) {
     cleanup();
     reject(err);

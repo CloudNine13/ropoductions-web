@@ -45,7 +45,7 @@
     return key.replace(/\.rpgsave$/, "");
   }
 
-  async function handleGetSaves() {
+  async function handleGetSaves(requestId) {
     const slots = {};
     let globalData = undefined;
     let configData = undefined;
@@ -83,17 +83,32 @@
     };
 
     if (window.parent && typeof window.parent.postMessage === "function") {
-      window.parent.postMessage(
-        { type: "ROPODUCTIONS_SAVES_DATA", payload },
-        window.location.origin
-      );
+      const message = {
+        type: "ROPODUCTIONS_SAVES_DATA",
+        payload,
+        ...(requestId ? { requestId } : {}),
+      };
+      window.parent.postMessage(message, window.location.origin);
     }
   }
 
-  async function handleSetSaves(rawPayload) {
+  async function handleSetSaves(rawPayload, requestId) {
     if (!isPlainObject(rawPayload)) {
+      if (window.parent && typeof window.parent.postMessage === "function") {
+        window.parent.postMessage(
+          {
+            type: "ROPODUCTIONS_SAVE_ERROR",
+            error: "Invalid payload: payload must be a plain object",
+            ...(requestId ? { requestId } : {}),
+          },
+          window.location.origin
+        );
+      }
       return;
     }
+
+    let savedCount = 0;
+    let errorCount = 0;
 
     if (typeof StorageManager !== "undefined") {
       const keys = Object.keys(rawPayload);
@@ -113,9 +128,21 @@
           continue;
         }
 
+        // Parse JSON string into object if possible to avoid double serialization in native RPG Maker MZ
+        let objectToSave = value;
+        if (typeof value === "string") {
+          try {
+            objectToSave = JSON.parse(value);
+          } catch {
+            objectToSave = value;
+          }
+        }
+
         try {
-          await StorageManager.saveObject(normalizedKey, value);
+          await StorageManager.saveObject(normalizedKey, objectToSave);
+          savedCount++;
         } catch (err) {
+          errorCount++;
           console.error(`[Ropoductions_WebBridge] Failed to save slot ${normalizedKey}:`, err);
         }
       }
@@ -130,14 +157,28 @@
     }
 
     if (window.parent && typeof window.parent.postMessage === "function") {
-      window.parent.postMessage(
-        { type: "ROPODUCTIONS_SET_SAVES_SUCCESS" },
-        window.location.origin
-      );
+      if (errorCount > 0 && savedCount === 0) {
+        window.parent.postMessage(
+          {
+            type: "ROPODUCTIONS_SAVE_ERROR",
+            error: "Failed to persist any save slots to storage",
+            ...(requestId ? { requestId } : {}),
+          },
+          window.location.origin
+        );
+      } else {
+        window.parent.postMessage(
+          {
+            type: "ROPODUCTIONS_SET_SAVES_SUCCESS",
+            ...(requestId ? { requestId } : {}),
+          },
+          window.location.origin
+        );
+      }
     }
   }
 
-  async function handleResetSaves() {
+  async function handleResetSaves(requestId) {
     if (typeof StorageManager !== "undefined") {
       for (const slotName of ALL_SLOTS) {
         try {
@@ -160,7 +201,10 @@
 
     if (window.parent && typeof window.parent.postMessage === "function") {
       window.parent.postMessage(
-        { type: "ROPODUCTIONS_RESET_SAVES_SUCCESS" },
+        {
+          type: "ROPODUCTIONS_RESET_SAVES_SUCCESS",
+          ...(requestId ? { requestId } : {}),
+        },
         window.location.origin
       );
     }
@@ -171,7 +215,7 @@
       return;
     }
 
-    if (window.parent && window.parent !== window && event.source && event.source !== window.parent) {
+    if (window.parent && window.parent !== window && event.source !== window.parent) {
       return;
     }
 
@@ -181,15 +225,16 @@
         return;
       }
 
+      const requestId = typeof data.requestId === "string" ? data.requestId : undefined;
       switch (data.type) {
         case "ROPODUCTIONS_GET_SAVES":
-          await handleGetSaves();
+          await handleGetSaves(requestId);
           break;
         case "ROPODUCTIONS_SET_SAVES":
-          await handleSetSaves(data.payload);
+          await handleSetSaves(data.payload, requestId);
           break;
         case "ROPODUCTIONS_RESET_SAVES":
-          await handleResetSaves();
+          await handleResetSaves(requestId);
           break;
         default:
           break;

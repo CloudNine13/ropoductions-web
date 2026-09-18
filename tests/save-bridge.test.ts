@@ -107,10 +107,10 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       const promise = requestSaves(mockIframeWindow, "https://ropoductions.com", 1000);
 
       assert.equal(mockIframeMessages.length, 1);
-      assert.deepEqual(mockIframeMessages[0], {
-        message: { type: SAVE_BRIDGE_MESSAGE_TYPES.GET_SAVES },
-        targetOrigin: "https://ropoductions.com",
-      });
+      const outgoing = mockIframeMessages[0];
+      assert.equal(outgoing.targetOrigin, "https://ropoductions.com");
+      assert.equal((outgoing.message as { type: string }).type, SAVE_BRIDGE_MESSAGE_TYPES.GET_SAVES);
+      assert.ok((outgoing.message as { requestId: string }).requestId);
 
       const expectedPayload: SaveSlotsPayload = {
         slots: { file1: '{"level":5}', file2: '{"level":10}' },
@@ -148,6 +148,28 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       await assert.rejects(() => promise, /timed out/i);
     });
 
+    it("rejects wildcard targetOrigin '*'", async () => {
+      await assert.rejects(
+        () => requestSaves(mockIframeWindow, "*"),
+        /wildcard targetorigin '\*' is strictly prohibited/i
+      );
+    });
+
+    it("ignores messages with null or wrong event.source", async () => {
+      const promise = requestSaves(mockIframeWindow, "https://ropoductions.com", 100);
+
+      dispatchParentMessage(
+        {
+          type: SAVE_BRIDGE_MESSAGE_TYPES.SAVES_DATA,
+          payload: { slots: {}, global: "spoofed" },
+        },
+        "https://ropoductions.com",
+        null
+      );
+
+      await assert.rejects(() => promise, /timed out/i);
+    });
+
     it("restoreSaves sends ROPODUCTIONS_SET_SAVES and resolves on success", async () => {
       const payloadToRestore = {
         file1: '{"level":5}',
@@ -157,13 +179,11 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       const promise = restoreSaves(mockIframeWindow, payloadToRestore, "https://ropoductions.com", 1000);
 
       assert.equal(mockIframeMessages.length, 1);
-      assert.deepEqual(mockIframeMessages[0], {
-        message: {
-          type: SAVE_BRIDGE_MESSAGE_TYPES.SET_SAVES,
-          payload: payloadToRestore,
-        },
-        targetOrigin: "https://ropoductions.com",
-      });
+      const outgoing = mockIframeMessages[0];
+      assert.equal(outgoing.targetOrigin, "https://ropoductions.com");
+      assert.equal((outgoing.message as { type: string }).type, SAVE_BRIDGE_MESSAGE_TYPES.SET_SAVES);
+      assert.deepEqual((outgoing.message as { payload: unknown }).payload, payloadToRestore);
+      assert.ok((outgoing.message as { requestId: string }).requestId);
 
       dispatchParentMessage({
         type: SAVE_BRIDGE_MESSAGE_TYPES.SET_SAVES_SUCCESS,
@@ -183,10 +203,10 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       const promise = resetSaves(mockIframeWindow, "https://ropoductions.com", 1000);
 
       assert.equal(mockIframeMessages.length, 1);
-      assert.deepEqual(mockIframeMessages[0], {
-        message: { type: SAVE_BRIDGE_MESSAGE_TYPES.RESET_SAVES },
-        targetOrigin: "https://ropoductions.com",
-      });
+      const outgoing = mockIframeMessages[0];
+      assert.equal(outgoing.targetOrigin, "https://ropoductions.com");
+      assert.equal((outgoing.message as { type: string }).type, SAVE_BRIDGE_MESSAGE_TYPES.RESET_SAVES);
+      assert.ok((outgoing.message as { requestId: string }).requestId);
 
       dispatchParentMessage({
         type: SAVE_BRIDGE_MESSAGE_TYPES.RESET_SAVES_SUCCESS,
@@ -315,8 +335,8 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       };
       await restoreSaves(iframeWindow, savesToSet, "https://ropoductions.com", 1000);
       assert.equal(globalInfoLoaded, true);
-      assert.equal(storageStore["file1"], savesToSet.file1);
-      assert.equal(storageStore["global"], savesToSet.global);
+      assert.equal(JSON.stringify(storageStore["file1"]), savesToSet.file1);
+      assert.equal(JSON.stringify(storageStore["global"]), savesToSet.global);
 
       // 3. getSaves should now reflect the restored saves
       const retrieved = await requestSaves(iframeWindow, "https://ropoductions.com", 1000);
