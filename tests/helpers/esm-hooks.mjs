@@ -22,6 +22,12 @@ export async function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
     };
   }
+  if (specifier === "next/cache") {
+    return {
+      url: new URL("./next-cache-shim.mjs", import.meta.url).href,
+      shortCircuit: true,
+    };
+  }
   if (specifier === "next-intl/config") {
     const projectRoot = path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),

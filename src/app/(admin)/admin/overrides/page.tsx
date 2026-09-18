@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin";
+import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
+import { listPatronOverrides } from "@/lib/db";
+import { OverrideForm } from "@/components/admin/override-form";
+import { OverridesTable } from "@/components/admin/overrides-table";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverridesPage() {
   await requireAdminSession();
-
+  const db = await getDatabase();
+  const authEnv = await getAuthEnv();
+  const overrides = await listPatronOverrides(db, 100);
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 rounded-xl">
       <div className="flex items-center justify-between border-b border-[#23283E] pb-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -31,17 +37,12 @@ export default async function AdminOverridesPage() {
         </Link>
       </div>
 
-      <div className="bg-[#121522] border border-[#23283E] rounded-xl p-6 flex flex-col items-center justify-center text-center gap-3 py-12">
-        <div className="rounded-full bg-primary/10 border border-primary/30 p-3 text-primary">
-          <Users className="h-6 w-6" aria-hidden="true" />
-        </div>
-        <h2 className="text-base font-semibold text-foreground">
-          Override Directory Interface
-        </h2>
-        <p className="text-xs text-muted-foreground max-w-md">
-          The overrides management table and pass registration interface are provisioned in Story 5.2.
-        </p>
-      </div>
+      <OverrideForm />
+
+      <OverridesTable
+        overrides={overrides}
+        creatorAdminIds={authEnv.creatorAdminPatreonIds || authEnv.initialAdminPatreonIds}
+      />
     </div>
   );
 }
