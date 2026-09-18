@@ -155,6 +155,11 @@
           y: Math.max(0, Math.min(canvas.height, localY * scale))
         };
         render();
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'ROPODUCTIONS_ACTIVITY' }, window.location.origin);
+          }
+        } catch {}
       }
 
       if (window.PointerEvent) {

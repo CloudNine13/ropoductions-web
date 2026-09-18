@@ -176,7 +176,13 @@
     "fullscreenExit": "Wyjdź z pełnego ekranu",
     "returnToPortal": "Wróć do portalu studia",
     "title": "Final Orginity: Rozdział 1",
-    "iframeTitle": "Final Orginity"
+    "iframeTitle": "Final Orginity",
+    "saveHudExport": "Eksportuj (.zip)",
+    "saveHudImport": "Importuj",
+    "saveHudFullscreen": "Pełny ekran",
+    "saveHudExitFullscreen": "Wyjdź z pełnego ekranu",
+    "saveHudReset": "Resetuj",
+    "saveHudDockAria": "Sterowanie zapisem i wyświetlaniem"
   },
   "authError": {
     "dismiss": "Zamknij powiadomienie",

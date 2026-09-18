@@ -176,7 +176,13 @@
     "fullscreenExit": "Salir de pantalla completa",
     "returnToPortal": "Volver al portal del estudio",
     "title": "Final Orginity: Capítulo 1",
-    "iframeTitle": "Final Orginity"
+    "iframeTitle": "Final Orginity",
+    "saveHudExport": "Exportar (.zip)",
+    "saveHudImport": "Importar",
+    "saveHudFullscreen": "Pantalla completa",
+    "saveHudExitFullscreen": "Salir de pantalla completa",
+    "saveHudReset": "Restablecer",
+    "saveHudDockAria": "Controles de guardado y visualización"
   },
   "authError": {
     "dismiss": "Cerrar notificación",

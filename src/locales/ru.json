@@ -176,7 +176,13 @@
     "fullscreenExit": "Выйти из полноэкранного режима",
     "returnToPortal": "Вернуться на портал студии",
     "title": "Final Orginity: Глава 1",
-    "iframeTitle": "Final Orginity"
+    "iframeTitle": "Final Orginity",
+    "saveHudExport": "Экспорт (.zip)",
+    "saveHudImport": "Импорт",
+    "saveHudFullscreen": "Полный экран",
+    "saveHudExitFullscreen": "Выйти из полноэкранного режима",
+    "saveHudReset": "Сброс",
+    "saveHudDockAria": "Управление сохранением и отображением"
   },
   "authError": {
     "dismiss": "Закрыть уведомление",
