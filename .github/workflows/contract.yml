@@ -1,0 +1,72 @@
+name: contract
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: contract-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      should_run: ${{ steps.filter.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v5
+        if: github.event_name != 'pull_request'
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            should_run:
+              - "migrations/**"
+              - "wrangler.toml"
+              - "src/lib/db.ts"
+              - "src/lib/auth.ts"
+              - "src/lib/patreon.ts"
+              - "src/lib/crypto.ts"
+              - "src/lib/cookies.ts"
+              - "src/app/api/auth/**"
+              - "src/types/**"
+              - "tests/verify-*"
+              - "package.json"
+              - "package-lock.json"
+              - "tsconfig*.json"
+              - ".github/workflows/contract.yml"
+
+  contract:
+    name: D1 schema and Patreon OAuth verification
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply D1 migrations to local database
+        run: npx wrangler d1 migrations apply DB --local
+
+      - name: Verify D1 schema and queries
+        run: npm run test:d1
+
+      - name: Verify Patreon OAuth and PKCE
+        run: npm run test:oauth

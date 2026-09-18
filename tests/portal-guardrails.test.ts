@@ -148,13 +148,6 @@ describe("portal base contract", () => {
     assert.ok(!/prepare\([^)]*\+/.test(db));
   });
 
-  it("keeps the language cookie on its 365-day identity", () => {
-    const i18n = readSource("src/lib/i18n.tsx");
-    assert.ok(i18n.includes('LANG_COOKIE_NAME = "ropoductions_lang"'));
-    assert.ok(i18n.includes("LANG_COOKIE_MAX_AGE = 365 * 24 * 60 * 60"));
-    assert.ok(i18n.includes('DEFAULT_LOCALE: Locale = "en"'));
-  });
-
   it("integrates AuthErrorToast into the portal landing page for auth error parameter feedback", () => {
     const portalPage = readSource("src/app/(portal)/page.tsx");
     assert.ok(portalPage.includes("AuthErrorToast"), "Portal page must import and render AuthErrorToast");

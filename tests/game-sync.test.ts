@@ -277,7 +277,7 @@ describe("upstream game release ingestion engine (scripts/sync-game-release.ts)"
       assert.equal(fs.existsSync(path.join(outputDir, "img")), false);
     });
 
-    it("rejects symbolic links to prevent path traversal", () => {
+    it("rejects symbolic links to prevent path traversal", (t) => {
       const externalFile = path.join(tempDir, "external.txt");
       fs.writeFileSync(externalFile, "secret");
 
@@ -285,7 +285,7 @@ describe("upstream game release ingestion engine (scripts/sync-game-release.ts)"
       try {
         fs.symlinkSync(externalFile, symlinkPath);
       } catch {
-        // Skip test if OS / filesystem forbids symlink in unprivileged mode
+        t.skip("OS / filesystem forbids symlinks in unprivileged mode");
         return;
       }
 

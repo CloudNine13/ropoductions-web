@@ -10,6 +10,7 @@ import {
   LANG_COOKIE_MAX_AGE,
   LOCALES,
   getMessages,
+  getNestedValue,
   getStoredLocale,
   setStoredLocale,
   deepMerge,
@@ -113,7 +114,7 @@ describe("i18n-config contract", () => {
     assert.deepEqual([...SUPPORTED_LOCALES].sort(), [...EXPECTED_LOCALES].sort());
     assert.equal(DEFAULT_LOCALE, "en");
     assert.equal(LANG_COOKIE_NAME, "ropoductions_lang");
-    assert.equal(LANG_COOKIE_MAX_AGE, 365 * 24 * 60 * 60);
+    assert.equal(LANG_COOKIE_MAX_AGE, 31536000);
 
     for (const loc of EXPECTED_LOCALES) {
       assert.ok(LOCALES[loc as keyof typeof LOCALES]);
@@ -145,6 +146,23 @@ describe("i18n-config contract", () => {
     assert.equal((result as Record<string, unknown>).polluted, undefined);
     assert.equal(({} as Record<string, unknown>).polluted, undefined);
     assert.equal((result as Record<string, unknown>).title, "safe");
+  });
+
+  it("falls back to English for missing, empty, or mistyped override keys", () => {
+    const merged = deepMerge(
+      { game: { title: "Title", count: 3 }, other: "x" },
+      { game: { title: "", count: "three" } }
+    );
+    const game = merged.game as Record<string, unknown>;
+    assert.equal(game.title, "Title");
+    assert.equal(game.count, 3);
+  });
+
+  it("resolves nested message values by dotted path", () => {
+    const dict = { game: { title: "Title" } };
+    assert.equal(getNestedValue(dict, "game.title"), "Title");
+    assert.equal(getNestedValue(dict, "game.missing"), undefined);
+    assert.equal(getNestedValue({ game: 5 }, "game.title"), undefined);
   });
 
 

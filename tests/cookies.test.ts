@@ -52,7 +52,8 @@ describe("age-gate cookie entry point", () => {
     assert.equal(hasAgeVerifiedCookie(), true);
 
     const attributes = store.__attributes;
-    assert.match(attributes, new RegExp(`max-age=${AGE_VERIFIED_COOKIE_MAX_AGE}`));
+    assert.equal(AGE_VERIFIED_COOKIE_MAX_AGE, 50400);
+    assert.match(attributes, /max-age=50400/);
     assert.match(attributes, /path=\//);
     assert.match(attributes, /SameSite=Lax/);
     assert.match(attributes, /Secure/);
