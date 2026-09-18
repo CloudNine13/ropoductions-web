@@ -108,4 +108,23 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("Maximize2"), "Must render Maximize2 icon when windowed");
     assert.ok(src.includes("Minimize2"), "Must render Minimize2 icon when fullscreen");
   });
+
+  it("integrates the floating Save HUD dock with fullscreen state delegation and safe-area insets", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.ok(src.includes("import { SaveHudDock }"), "GameViewport must import SaveHudDock");
+    assert.ok(src.includes("<SaveHudDock"), "GameViewport must mount SaveHudDock component");
+    assert.ok(
+      src.includes("onToggleFullscreen={toggleFullscreen}"),
+      "GameViewport must delegate toggleFullscreen handler to SaveHudDock"
+    );
+    assert.ok(
+      src.includes("isFullscreen={activeFullscreen}"),
+      "GameViewport must delegate activeFullscreen state to SaveHudDock"
+    );
+    assert.ok(
+      src.includes("env(safe-area-inset-bottom)"),
+      "SaveHudDock wrapper must respect env(safe-area-inset-bottom)"
+    );
+  });
 });

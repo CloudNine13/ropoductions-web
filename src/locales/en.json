@@ -176,7 +176,12 @@
     "fullscreenExit": "Exit Fullscreen",
     "returnToPortal": "Return to Studio Portal",
     "title": "Final Orginity: Chapter 1",
-    "iframeTitle": "Final Orginity"
+    "iframeTitle": "Final Orginity",
+    "saveHudExport": "Export (.zip)",
+    "saveHudImport": "Import",
+    "saveHudFullscreen": "Fullscreen",
+    "saveHudReset": "Reset",
+    "saveHudDockAria": "Save and display controls"
   },
   "authError": {
     "dismiss": "Dismiss notification",

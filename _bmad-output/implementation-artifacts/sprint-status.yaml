@@ -57,7 +57,7 @@ development_status:
 
   epic-4: in-progress
   4-1-in-game-postmessage-web-bridge-ropoductions_webbridge-js-wit: done
-  4-2-floating-frosted-glass-save-hud-dock-with-auto-dimming: ready-for-dev
+  4-2-floating-frosted-glass-save-hud-dock-with-auto-dimming: review
   4-3-client-side-zip-save-export-compression-via-jszip: backlog
   4-4-save-import-validation-dialog-safe-storage-reset-modal: backlog
   epic-4-retrospective: optional

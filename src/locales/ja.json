@@ -176,7 +176,12 @@
     "fullscreenExit": "全画面表示を終了",
     "returnToPortal": "スタジオポータルに戻る",
     "title": "Final Orginity: 第1章",
-    "iframeTitle": "Final Orginity"
+    "iframeTitle": "Final Orginity",
+    "saveHudExport": "エクスポート (.zip)",
+    "saveHudImport": "インポート",
+    "saveHudFullscreen": "全画面表示",
+    "saveHudReset": "リセット",
+    "saveHudDockAria": "セーブと表示のコントロール"
   },
   "authError": {
     "dismiss": "通知を閉じる",

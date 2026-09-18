@@ -3,17 +3,24 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { SaveHudDock } from "./save-hud-dock";
 
 export interface GameViewportProps {
   engineSrc?: string;
   title?: string;
   className?: string;
+  onExport?: () => void;
+  onImport?: () => void;
+  onReset?: () => void;
 }
 
 export function GameViewport({
   engineSrc = "/engine/index.html",
   title = "Final Orginity",
   className = "",
+  onExport,
+  onImport,
+  onReset,
 }: GameViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -175,6 +182,15 @@ export function GameViewport({
           <Maximize2 className="h-5 w-5" aria-hidden="true" />
         )}
       </button>
+      <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <SaveHudDock
+          onExport={onExport}
+          onImport={onImport}
+          onReset={onReset}
+          onToggleFullscreen={toggleFullscreen}
+          isFullscreen={activeFullscreen}
+        />
+      </div>
     </div>
   );
 }
