@@ -82,12 +82,50 @@ describe("design-motion contract fixes (story 4-2 review)", () => {
     assert.ok(src.includes("rounded-lg border border-border bg-card/95"), "Dropdown must use token lg radius");
   });
 
-  it("keeps the auth toast on the destructive token without a conflicting live region", () => {
-    const src = readSource("src/components/auth-error-toast.tsx");
+  it("keeps the auth toast on the destructive token without a conflicting live region", () => {    const src = readSource("src/components/auth-error-toast.tsx");
     assert.ok(src.includes('role="alert"'), "Toast must keep role=alert");
     assert.ok(!src.includes("aria-live"), "Toast must NOT double-announce with aria-live=polite");
     assert.ok(!src.includes("rose-"), "Toast must NOT use the retired rose palette");
     assert.ok(src.includes("border-destructive/50"), "Toast must use the destructive border token");
     assert.ok(src.includes("text-destructive"), "Toast must use the destructive text token");
+  });
+
+  it("renders gallery cards as articles with an inner expand button and vector-safe images", () => {
+    const src = readSource("src/components/project-showcase.tsx");
+    assert.ok(src.includes("<article"), "Gallery cards must use the article root");
+    assert.ok(
+      src.includes('<span className="font-display text-xs sm:text-sm font-bold'),
+      "Gallery card titles must render as styled spans, never headings"
+    );
+    assert.ok(src.includes("Images"), "Gallery header must use the Images icon");
+    assert.ok(src.includes("text-primary"), "Character badges must NOT use tier-gold");
+    assert.ok(!src.includes("group-hover:scale-105"), "Pixel art must NOT scale on hover");
+    assert.ok(!src.includes("pixelated object-cover"), "Vector gallery assets must NOT use pixelated");
+  });
+
+  it("keeps the kicker budget at one eyebrow per section with two showcase badges max", () => {
+    const showcase = readSource("src/components/project-showcase.tsx");
+    assert.ok(showcase.includes("{t(\"badgeRpgMaker\")}"), "Showcase keeps the engine badge");
+    assert.ok(showcase.includes("{t(\"badgePatronAccess\")}"), "Showcase keeps the access badge");
+    assert.ok(!showcase.includes("{t(\"badgeHtml5\")}</span>"), "HTML5 badge must fold into caption prose");
+    assert.ok(!showcase.includes("{t(\"badgeActiveChapter\")}</span>"), "Chapter badge must fold into caption prose");
+    const social = readSource("src/components/social-hub.tsx");
+    assert.ok(
+      social.includes('aria-label={t("officialChannels")}'),
+      "Social kicker must demote to a section label plus caption"
+    );
+    assert.ok(!social.includes("rounded-full border border-border bg-card"), "Social must NOT keep the kicker pill");
+  });
+
+  it("reserves tier-gold for patron signals and the icon map for social channels", () => {
+    const social = readSource("src/components/social-hub.tsx");
+    assert.ok(social.includes("icon: Lock,"), "Patreon channel must use the Lock icon");
+    assert.ok(social.includes("icon: MessagesSquare,"), "Discord channel must use MessagesSquare");
+    assert.ok(social.includes("icon: AtSign,"), "X channel must use AtSign");
+    assert.ok(social.includes("lg:grid-cols-3"), "Social grid must break to three columns at lg");
+    const play = readSource("src/app/(game)/play/page.tsx");
+    assert.ok(play.includes("border-tier-gold/40"), "Session tier pill must use tier-gold");
+    assert.ok(!play.includes("Sparkles"), "Session tier pill must NOT use Sparkles");
+    assert.ok(play.includes("max-w-[38vw]"), "Session tier pill must truncate long tier names");
   });
 });

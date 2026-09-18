@@ -108,7 +108,7 @@ export function ScreenshotLightbox({
                 alt={current.alt}
                 fill
                 unoptimized
-                className="pixelated object-contain"
+                className="object-contain"
                 sizes="(max-width: 1024px) 100vw, 1024px"
                 priority
               />
