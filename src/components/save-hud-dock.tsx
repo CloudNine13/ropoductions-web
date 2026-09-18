@@ -22,6 +22,7 @@ export interface SaveHudDockProps {
   idleTimeoutMs?: number;
   className?: string;
   labels?: SaveHudDockLabels;
+  id?: string;
 }
 
 export const DEFAULT_IDLE_TIMEOUT_MS = 4000;
@@ -36,6 +37,7 @@ export function SaveHudDock({
   idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
   className = "",
   labels,
+  id,
 }: SaveHudDockProps) {
   const [isDimmed, setIsDimmed] = useState(false);
   const timerRef = useRef<number | NodeJS.Timeout | null>(null);
@@ -162,13 +164,14 @@ export function SaveHudDock({
       aria-label={resolvedLabels.dockAria}
       data-testid="save-hud-dock"
       data-dimmed={isDimmed ? "true" : "false"}
+      id={id}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onTouchStart={handleTouchStart}
-      className={`pointer-events-auto flex items-center justify-center gap-1 sm:gap-2 px-3 py-1.5 rounded-full bg-[#090A0F]/75 backdrop-blur-md border border-white/10 shadow-2xl transition-opacity duration-300 ease-out motion-reduce:transition-none select-none ${
-        isDimmed ? "opacity-25" : "opacity-100"
+      className={`pointer-events-auto flex items-center justify-center gap-1 sm:gap-2 px-3 py-1.5 rounded-full border shadow-2xl transition-[background-color,border-color] duration-300 ease-out motion-reduce:transition-none select-none max-w-[calc(100dvw-2rem)] overflow-x-auto ${
+        isDimmed ? "bg-[#090A0F]/40 border-white/5" : "bg-[#090A0F]/75 backdrop-blur-md border-white/10"
       } ${className}`}
     >
       <button
@@ -178,7 +181,7 @@ export function SaveHudDock({
         disabled={isExportDisabled}
         aria-disabled={isExportDisabled}
         aria-label={resolvedLabels.export}
-        title={isExportDisabled ? `${resolvedLabels.export} (Coming soon)` : resolvedLabels.export}
+        title={resolvedLabels.export}
         className={`min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none ${
           isExportDisabled
             ? "text-white/40 cursor-not-allowed opacity-50"
@@ -186,7 +189,7 @@ export function SaveHudDock({
         }`}
       >
         <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="hidden sm:inline">{resolvedLabels.export}</span>
+        <span className="whitespace-nowrap">{resolvedLabels.export}</span>
       </button>
 
       <button
@@ -196,7 +199,7 @@ export function SaveHudDock({
         disabled={isImportDisabled}
         aria-disabled={isImportDisabled}
         aria-label={resolvedLabels.import}
-        title={isImportDisabled ? `${resolvedLabels.import} (Coming soon)` : resolvedLabels.import}
+        title={resolvedLabels.import}
         className={`min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none ${
           isImportDisabled
             ? "text-white/40 cursor-not-allowed opacity-50"
@@ -204,7 +207,7 @@ export function SaveHudDock({
         }`}
       >
         <Upload className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="hidden sm:inline">{resolvedLabels.import}</span>
+        <span className="hidden sm:inline whitespace-nowrap">{resolvedLabels.import}</span>
       </button>
 
       <button
@@ -221,7 +224,7 @@ export function SaveHudDock({
         ) : (
           <Maximize2 className="h-4 w-4 shrink-0" aria-hidden="true" />
         )}
-        <span className="hidden sm:inline">
+        <span className="hidden sm:inline whitespace-nowrap">
           {isFullscreen ? resolvedLabels.exitFullscreen : resolvedLabels.fullscreen}
         </span>
       </button>
@@ -233,7 +236,7 @@ export function SaveHudDock({
         disabled={isResetDisabled}
         aria-disabled={isResetDisabled}
         aria-label={resolvedLabels.reset}
-        title={isResetDisabled ? `${resolvedLabels.reset} (Coming soon)` : resolvedLabels.reset}
+        title={resolvedLabels.reset}
         className={`group min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E11D48] select-none ${
           isResetDisabled
             ? "text-white/40 cursor-not-allowed opacity-50"
@@ -246,7 +249,7 @@ export function SaveHudDock({
           }`}
           aria-hidden="true"
         />
-        <span className={`hidden sm:inline ${!isResetDisabled ? "group-hover:text-[#E11D48]" : ""}`}>
+        <span className={`hidden sm:inline whitespace-nowrap ${!isResetDisabled ? "group-hover:text-[#E11D48]" : ""}`}>
           {resolvedLabels.reset}
         </span>
       </button>

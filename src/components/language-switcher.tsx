@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Globe } from "lucide-react";
 import { useLocaleSwitcher, type Locale, SUPPORTED_LOCALES } from "@/lib/i18n";
 import { useTranslations } from "next-intl";
 
@@ -112,11 +112,12 @@ export function LanguageSwitcher({
         ref={triggerRef}
         type="button"
         onClick={handleToggle}
-        className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/80 bg-card/85 px-3 py-2 text-foreground backdrop-blur-md transition-all duration-150 hover:border-primary/50 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer"
+        className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/80 bg-card/85 px-3 py-2 text-foreground backdrop-blur-md transition-colors duration-150 motion-reduce:transition-none hover:border-primary/50 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] cursor-pointer"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-label={t("select")}
+        aria-label={`${t("select")}: ${activeLocaleInfo.nativeName}`}
       >
+        <Globe className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <span className="text-base leading-none select-none" aria-hidden="true">
           {activeLocaleInfo.flag}
         </span>
@@ -124,6 +125,7 @@ export function LanguageSwitcher({
           {activeLocaleInfo.code}
         </span>
         <ChevronDown
+          aria-hidden="true"
           className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
             isOpen ? "rotate-180 text-primary" : "group-hover:text-foreground"
           }`}
@@ -136,7 +138,7 @@ export function LanguageSwitcher({
           role="menu"
           aria-orientation="vertical"
           aria-label={t("select")}
-          className={`absolute ${menuPlacementClasses} z-50 w-52 rounded-xl border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150`}
+          className={`absolute ${menuPlacementClasses} z-50 w-52 rounded-lg border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur-md space-y-0.5`}
         >
           <div
             role="presentation"
@@ -145,46 +147,44 @@ export function LanguageSwitcher({
             {t("select")}
           </div>
 
-          <div role="group" className="space-y-0.5">
-            {SUPPORTED_LOCALES.map((locKey, idx) => {
-              const loc = locales[locKey];
-              const isSelected = locKey === locale;
+          {SUPPORTED_LOCALES.map((locKey, idx) => {
+            const loc = locales[locKey];
+            const isSelected = locKey === locale;
 
-              return (
-                <button
-                  key={locKey}
-                  ref={(el) => {
-                    menuItemsRef.current[idx] = el;
-                  }}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={isSelected}
-                  onClick={() => handleSelect(locKey)}
-                  className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-xs transition-colors duration-150 min-h-[44px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${
-                    isSelected
-                      ? "bg-primary/15 text-primary font-bold border border-primary/30"
-                      : "text-foreground hover:bg-muted/80 hover:text-foreground border border-transparent"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-lg leading-none select-none shrink-0" aria-hidden="true">
-                      {loc.flag}
+            return (
+              <button
+                key={locKey}
+                ref={(el) => {
+                  menuItemsRef.current[idx] = el;
+                }}
+                type="button"
+                role="menuitemradio"
+                aria-checked={isSelected}
+                onClick={() => handleSelect(locKey)}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-xs transition-colors duration-150 min-h-[44px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${
+                  isSelected
+                    ? "bg-primary/15 text-primary font-bold border border-primary/30"
+                    : "text-foreground hover:bg-muted/80 hover:text-foreground border border-transparent"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-lg leading-none select-none shrink-0" aria-hidden="true">
+                    {loc.flag}
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-medium" lang={locKey}>
+                      {loc.nativeName}
                     </span>
-                    <div className="flex flex-col">
-                      <span className="font-medium" lang={locKey}>
-                        {loc.nativeName}
-                      </span>
-                      <span className="font-mono text-[10px] text-muted-foreground uppercase">
-                        {loc.name} ({loc.code})
-                      </span>
-                    </div>
+                    <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                      {loc.name} ({loc.code})
+                    </span>
                   </div>
+                </div>
 
-                  {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
+                {isSelected && <Check className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

@@ -154,6 +154,6 @@ describe("portal base contract", () => {
     assert.ok(existsSync(join(rootDir, "src/components/auth-error-toast.tsx")), "AuthErrorToast component file must exist");
     const toastSource = readSource("src/components/auth-error-toast.tsx");
     assert.ok(toastSource.includes('role="alert"'), "AuthErrorToast must have role=alert accessibility attribute");
-    assert.ok(toastSource.includes('aria-live="polite"'), "AuthErrorToast must have aria-live=polite attribute");
+    assert.ok(!toastSource.includes("aria-live"), "AuthErrorToast must NOT double-announce with aria-live (role=alert is implicitly assertive)");
   });
 });

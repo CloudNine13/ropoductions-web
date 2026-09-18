@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Heart, MessageSquare, Sparkles } from "lucide-react";
+import { ExternalLink, Lock, MessagesSquare, AtSign } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export function SocialHub() {
@@ -17,7 +17,7 @@ export function SocialHub() {
       accentBorder: "hover:border-[#FF424D]",
       accentText: "text-[#FF424D]",
       iconBg: "bg-[#FF424D]/10 text-[#FF424D] border-[#FF424D]/30",
-      icon: Heart,
+      icon: Lock,
     },
     {
       name: t("discordTitle"),
@@ -29,7 +29,7 @@ export function SocialHub() {
       accentBorder: "hover:border-[#5865F2]",
       accentText: "text-[#5865F2]",
       iconBg: "bg-[#5865F2]/10 text-[#5865F2] border-[#5865F2]/30",
-      icon: MessageSquare,
+      icon: MessagesSquare,
     },
     {
       name: t("twitterTitle"),
@@ -41,17 +41,17 @@ export function SocialHub() {
       accentBorder: "hover:border-primary",
       accentText: "text-primary",
       iconBg: "bg-primary/10 text-primary border-primary/30",
-      icon: Sparkles,
+      icon: AtSign,
     },
   ];
 
   return (
-    <section id="community" className="w-full space-y-12 py-8">
+    <section id="community" aria-label={t("officialChannels")} className="w-full space-y-12 py-8">
       {/* Heading */}
       <div className="space-y-3 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1 text-xs font-semibold uppercase tracking-wider text-foreground/80">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("officialChannels")}
-        </div>
+        </p>
         <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-wide text-foreground">
           {t("sectionTitle")}
         </h2>
@@ -61,13 +61,13 @@ export function SocialHub() {
       </div>
 
       {/* Grid of 3 Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {channels.map((ch) => {
           const IconComponent = ch.icon;
           return (
             <div
               key={ch.handle}
-              className={`flex flex-col justify-between rounded-2xl border border-border bg-card p-6 sm:p-8 transition-all duration-200 shadow-xl ${ch.accentBorder}`}
+              className={`flex flex-col justify-between rounded-2xl border border-border bg-card p-6 sm:p-8 transition-colors duration-150 motion-reduce:transition-none shadow-xl ${ch.accentBorder}`}
             >
               <div className="space-y-5">
                 {/* Header with Icon and Badge */}
@@ -75,7 +75,7 @@ export function SocialHub() {
                   <div className={`inline-flex items-center justify-center rounded-xl border p-3 ${ch.iconBg}`}>
                     <IconComponent className="h-6 w-6" />
                   </div>
-                  <span className="rounded-md bg-background-secondary border border-border px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+                  <span className="rounded-sm bg-background-secondary border border-border px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
                     {ch.badge}
                   </span>
                 </div>
@@ -84,7 +84,7 @@ export function SocialHub() {
                   <h3 className="font-display text-xl sm:text-2xl font-bold text-foreground">
                     {ch.name}
                   </h3>
-                  <p className={`text-xs font-mono font-semibold ${ch.accentText} mt-0.5`}>
+                  <p className={`text-sm font-semibold ${ch.accentText} mt-0.5`}>
                     {ch.handle}
                   </p>
                 </div>
@@ -99,7 +99,7 @@ export function SocialHub() {
                   href={ch.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background-secondary px-5 py-3 text-sm font-bold text-foreground transition-colors hover:bg-muted hover:border-foreground/30 min-h-[44px] cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background-secondary px-5 py-3 text-sm font-bold text-foreground transition-colors hover:bg-muted hover:border-foreground/30 min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                   aria-label={`${ch.ctaText} (opens in new tab)`}
                 >
                   <span>{ch.ctaText}</span>

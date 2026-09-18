@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Play, Sparkles, Maximize2, Shield, Users } from "lucide-react";
+import { Play, Sparkles, Maximize2, Images, Shield, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScreenshotLightbox, type ScreenshotItem } from "@/components/screenshot-lightbox";
 import { saveLandingScrollPosition } from "@/lib/paywall";
@@ -12,6 +12,7 @@ export function ProjectShowcase() {
   const t = useTranslations("showcase");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeScreenshotIndex, setActiveScreenshotIndex] = useState(0);
+  const triggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const screenshots: ScreenshotItem[] = useMemo(
     () => [
@@ -98,11 +99,17 @@ export function ProjectShowcase() {
     setLightboxOpen(true);
   };
 
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    const trigger = triggerRefs.current[activeScreenshotIndex];
+    requestAnimationFrame(() => trigger?.focus());
+  };
+
   return (
     <section id="showcase" className="w-full space-y-16 py-8">
       {/* Section Sub-heading */}
       <div className="space-y-3 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+        <div className="inline-flex items-center gap-2 rounded-sm border border-primary/30 bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
           <Sparkles className="h-3.5 w-3.5" />
           {t("prestigeBadge")}
         </div>
@@ -123,16 +130,13 @@ export function ProjectShowcase() {
               <span className="rounded-md bg-primary/15 border border-primary/40 px-3 py-1 text-xs font-bold text-primary">
                 {t("badgeRpgMaker")}
               </span>
-              <span className="rounded-md bg-card border border-border px-3 py-1 text-xs font-semibold text-card-foreground">
-                {t("badgeHtml5")}
-              </span>
-              <span className="rounded-md bg-accent/15 border border-accent/40 px-3 py-1 text-xs font-semibold text-accent">
-                {t("badgeActiveChapter")}
-              </span>
               <span className="rounded-md bg-tier-gold/15 border border-tier-gold/40 px-3 py-1 text-xs font-semibold text-tier-gold">
                 {t("badgePatronAccess")}
               </span>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {t("badgeHtml5")} · {t("badgeActiveChapter")}
+            </p>
 
             {/* Game Title & Lore Teaser */}
             <h3 className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-wide text-foreground">
@@ -152,7 +156,7 @@ export function ProjectShowcase() {
               href="/play"
               scroll={false}
               onClick={saveLandingScrollPosition}
-              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer"
+              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-display text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary-hover hover:shadow-primary/40 min-h-[48px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
             >
               <Play className="h-5 w-5 fill-current" />
               {t("playInBrowser")}
@@ -176,7 +180,7 @@ export function ProjectShowcase() {
             {characters.map((char) => (
               <div
                 key={char.id}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/70 p-4 transition-all duration-200 hover:border-primary/50 hover:bg-background-secondary shadow-md"
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/70 p-4 transition-colors duration-150 motion-reduce:transition-none hover:border-primary/50 hover:bg-background-secondary shadow-md"
               >
                 <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-card">
                   <Image
@@ -184,10 +188,10 @@ export function ProjectShowcase() {
                     alt={`${char.name} - ${char.role}`}
                     fill
                     unoptimized
-                    className="pixelated object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="object-cover"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
-                  <div className="absolute top-2 left-2 rounded bg-card/90 backdrop-blur-sm border border-border/80 px-2 py-0.5 text-[10px] font-bold text-tier-gold">
+                  <div className="absolute top-2 left-2 rounded bg-card/90 backdrop-blur-sm border border-border/80 px-2 py-0.5 text-[10px] font-bold text-primary">
                     {char.badge}
                   </div>
                 </div>
@@ -214,7 +218,7 @@ export function ProjectShowcase() {
         <div className="space-y-6">
           <div className="flex items-center justify-between border-b border-border/50 pb-3">
             <div className="flex items-center gap-2">
-              <Maximize2 className="h-5 w-5 text-primary" />
+              <Images className="h-5 w-5 text-primary" aria-hidden="true" />
               <h4 className="font-display text-lg sm:text-xl font-bold text-foreground">
                 {t("screenshotsSectionTitle")}
               </h4>
@@ -226,12 +230,9 @@ export function ProjectShowcase() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {screenshots.map((shot, idx) => (
-              <button
+              <article
                 key={shot.id}
-                type="button"
-                onClick={() => openLightbox(idx)}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/60 text-left transition-all duration-200 hover:border-primary hover:shadow-lg hover:shadow-primary/10 min-h-[44px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label={`Open full screenshot preview: ${shot.title}`}
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-background-secondary/60 transition-colors duration-150 motion-reduce:transition-none hover:border-primary hover:shadow-lg hover:shadow-primary/10"
               >
                 <div className="relative aspect-[16/9] w-full overflow-hidden bg-background">
                   <Image
@@ -239,15 +240,23 @@ export function ProjectShowcase() {
                     alt={shot.alt}
                     fill
                     unoptimized
-                    className="pixelated object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="object-cover"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    <div className="flex items-center gap-1.5 rounded-md bg-card/90 px-3 py-1.5 text-xs font-bold text-primary border border-primary/40 shadow">
-                      <Maximize2 className="h-3.5 w-3.5" />
+                  <button
+                    type="button"
+                    ref={(el) => {
+                      triggerRefs.current[idx] = el;
+                    }}
+                    onClick={() => openLightbox(idx)}
+                    aria-label={`${t("expandScreenshot")}: ${shot.title}`}
+                    className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none min-h-[44px] cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5 rounded-md bg-card/90 px-3 py-1.5 text-xs font-bold text-primary border border-primary/40 shadow">
+                      <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
                       {t("expandScreenshot")}
-                    </div>
-                  </div>
+                    </span>
+                  </button>
                   {shot.badge && (
                     <div className="absolute top-2 left-2 rounded bg-card/90 px-2 py-0.5 text-[10px] font-bold text-foreground border border-border">
                       {shot.badge}
@@ -256,14 +265,14 @@ export function ProjectShowcase() {
                 </div>
 
                 <div className="p-3">
-                  <h5 className="font-display text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                  <span className="font-display text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                     {shot.title}
-                  </h5>
+                  </span>
                   <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground leading-snug">
                     {shot.caption}
                   </p>
                 </div>
-              </button>
+              </article>
             ))}
           </div>
         </div>
@@ -278,7 +287,7 @@ export function ProjectShowcase() {
               alt="Project Orginity 2: The Fallen Citadel Teaser"
               fill
               unoptimized
-              className="pixelated object-cover"
+              className="object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
           </div>
@@ -317,7 +326,7 @@ export function ProjectShowcase() {
       {/* Lightbox Modal */}
       <ScreenshotLightbox
         isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
+        onClose={closeLightbox}
         screenshots={screenshots}
         currentIndex={activeScreenshotIndex}
         onNavigate={(idx) => setActiveScreenshotIndex(idx)}

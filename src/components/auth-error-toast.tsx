@@ -10,10 +10,14 @@ interface AuthErrorToastProps {
 
 export function AuthErrorToast({ errorCode }: AuthErrorToastProps) {
   const [open, setOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const t = useTranslations("authError");
 
   useEffect(() => {
     setOpen(true);
+    setMounted(false);
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
   }, [errorCode]);
 
   const handleDismiss = () => {
@@ -48,15 +52,16 @@ export function AuthErrorToast({ errorCode }: AuthErrorToastProps) {
   return (
     <aside
       role="alert"
-      aria-live="polite"
-      className="fixed z-50 transition-all duration-300 ease-out max-sm:inset-x-4 max-sm:top-4 max-sm:w-auto sm:bottom-6 sm:right-6 sm:max-w-md w-full pointer-events-none"
+      className={`fixed z-50 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none max-sm:inset-x-4 max-sm:top-4 max-sm:w-auto sm:bottom-6 sm:right-6 sm:max-w-md w-full pointer-events-none ${
+        mounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+      }`}
     >
-      <div className="pointer-events-auto flex items-start gap-3 rounded-xl border border-rose-500/50 bg-[#121522]/95 p-4 shadow-2xl shadow-black/80 backdrop-blur-md text-foreground">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400">
+      <div className="pointer-events-auto flex items-start gap-3 rounded-xl border border-destructive/50 bg-card/95 p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] text-foreground">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 border border-destructive/30 text-destructive">
           <AlertCircle className="h-5 w-5" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0 pr-1">
-          <h3 className="font-display font-semibold text-sm sm:text-base text-rose-200">
+          <h3 className="font-display font-semibold text-sm sm:text-base text-destructive">
             {title}
           </h3>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">

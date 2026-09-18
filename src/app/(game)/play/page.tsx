@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Shield, Sparkles } from "lucide-react";
+import { ArrowLeft, Shield, Lock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { GameViewport } from "@/components/game-viewport";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
@@ -64,9 +64,9 @@ export default async function PlayPage() {
           <span>{t("returnToPortal")}</span>
         </Link>
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-mono text-accent">
-            <Sparkles className="h-3 w-3" aria-hidden="true" />
-            <span>{session.tier_name}</span>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-tier-gold/40 bg-tier-gold/10 px-3 py-1 text-xs font-mono text-tier-gold max-w-[38vw]" title={session.tier_name}>
+            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span className="truncate">{session.tier_name}</span>
           </div>
           {session.role !== "patron" && (
             <div className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-mono text-primary">

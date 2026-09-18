@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
+import Image from "next/image";
+import { ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SaveHudDock } from "./save-hud-dock";
 
@@ -13,6 +14,10 @@ export interface GameViewportProps {
   onImport?: () => void;
   onReset?: () => void;
 }
+
+const LOAD_TICK_MS = 150;
+const LOAD_TICK_STEP = 7;
+const LOAD_TICK_CAP = 90;
 
 export function GameViewport({
   engineSrc = "/engine/index.html",
@@ -26,6 +31,12 @@ export function GameViewport({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
+  const [isHudCollapsed, setIsHudCollapsed] = useState(false);
+  const [isEngineReady, setIsEngineReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [engineKey, setEngineKey] = useState(0);
+  const hudId = useId();
 
   const t = useTranslations("game");
   const enterLabel = t("fullscreenEnter");
@@ -52,6 +63,7 @@ export function GameViewport({
       setIsFullscreen(isOurFs);
       if (!isOurFs) {
         setIsPseudoFullscreen(false);
+        setIsHudCollapsed(false);
       }
     };
 
@@ -77,8 +89,12 @@ export function GameViewport({
     if (!isPseudoFullscreen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"][data-state="open"]')) {
+        return;
+      }
       if (e.key === "Escape") {
         setIsPseudoFullscreen(false);
+        setIsHudCollapsed(false);
       }
     };
 
@@ -86,7 +102,20 @@ export function GameViewport({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPseudoFullscreen]);
 
+  useEffect(() => {
+    if (isEngineReady || loadError) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      setLoadProgress((current) => Math.min(current + LOAD_TICK_STEP, LOAD_TICK_CAP));
+    }, LOAD_TICK_MS);
+    return () => window.clearInterval(id);
+  }, [isEngineReady, loadError]);
+
   const handleIframeLoad = useCallback(() => {
+    setLoadProgress(100);
+    setIsEngineReady(true);
     try {
       const iframeDoc = iframeRef.current?.contentDocument;
       if (iframeDoc) {
@@ -101,6 +130,18 @@ export function GameViewport({
       // Fallback: engine script forwards activity directly
     }
   }, []);
+
+  const handleIframeError = useCallback(() => {
+    setLoadError(true);
+  }, []);
+
+  const handleRetryLoad = useCallback(() => {
+    setLoadError(false);
+    setIsEngineReady(false);
+    setLoadProgress(0);
+    setEngineKey((current) => current + 1);
+  }, []);
+
   const toggleFullscreen = useCallback(async () => {
     const doc = document as unknown as {
       fullscreenElement?: Element | null;
@@ -122,6 +163,7 @@ export function GameViewport({
 
     if (isPseudoFullscreen) {
       setIsPseudoFullscreen(false);
+      setIsHudCollapsed(false);
       return;
     }
 
@@ -158,36 +200,131 @@ export function GameViewport({
       }
       setIsFullscreen(false);
       setIsPseudoFullscreen(false);
+      setIsHudCollapsed(false);
     }
   }, [isPseudoFullscreen]);
 
   const activeFullscreen = isFullscreen || isPseudoFullscreen;
+
+  const engineFrame = (
+    <iframe
+      key={engineKey}
+      ref={iframeRef}
+      onLoad={handleIframeLoad}
+      onError={handleIframeError}
+      src={engineSrc}
+      title={title}
+      data-testid="game-engine-iframe"
+      className="w-full h-full border-0 touch-manipulation select-none"
+      allow="fullscreen; autoplay; gamepad"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-modals allow-pointer-lock allow-orientation-lock"
+    />
+  );
+
+  const loadingOverlay = !isEngineReady && !loadError && (
+    <div
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-black"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(loadProgress)}
+      aria-label={t("engineLoading")}
+    >
+      <Image
+        src="/branding/studio-logo.webp"
+        alt=""
+        aria-hidden="true"
+        width={64}
+        height={64}
+        unoptimized
+        className="pixelated hud-load-pulse motion-reduce:animate-none"
+      />
+      <div className="h-1 w-48 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full w-full origin-left bg-primary transition-transform duration-150 ease-linear motion-reduce:transition-none"
+          style={{ transform: `scaleX(${loadProgress / 100})` }}
+        />
+      </div>
+      <p className="text-sm text-muted-foreground">{t("engineLoading")}</p>
+    </div>
+  );
+
+  const loadErrorFallback = loadError && (
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black px-6 text-center">
+      <p className="text-sm text-muted-foreground">{t("engineLoadError")}</p>
+      <button
+        type="button"
+        onClick={handleRetryLoad}
+        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+      >
+        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+        {t("engineRetry")}
+      </button>
+    </div>
+  );
+
+  if (activeFullscreen) {
+    return (
+      <div
+        ref={containerRef}
+        data-testid="game-viewport-container"
+        data-fullscreen={activeFullscreen ? "true" : "false"}
+        className="fixed inset-0 z-40 w-screen h-dvh max-w-none max-h-none rounded-none border-0 bg-black flex flex-col items-center justify-center select-none touch-manipulation overflow-hidden"
+      >
+        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-black">
+          {engineFrame}
+          {loadingOverlay}
+          {loadErrorFallback}
+        </div>
+        {!isHudCollapsed && (
+          <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            <SaveHudDock
+              id={hudId}
+              onExport={onExport}
+              onImport={onImport}
+              onReset={onReset}
+              onToggleFullscreen={toggleFullscreen}
+              isFullscreen={activeFullscreen}
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          data-testid="save-hud-collapse-fab"
+          onClick={() => setIsHudCollapsed((current) => !current)}
+          aria-expanded={!isHudCollapsed}
+          aria-controls={hudId}
+          aria-label={t("saveHudToggleControls")}
+          title={t("saveHudToggleControls")}
+          className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#090A0F]/75 text-white/90 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+        >
+          {isHudCollapsed ? (
+            <ChevronUp className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="h-5 w-5" aria-hidden="true" />
+          )}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={containerRef}
       data-testid="game-viewport-container"
       data-fullscreen={activeFullscreen ? "true" : "false"}
-      className={
-        activeFullscreen
-          ? "fixed inset-0 z-50 w-screen h-dvh max-w-none max-h-none rounded-none border-0 bg-black flex items-center justify-center select-none touch-manipulation overflow-hidden"
-          : `relative w-auto h-full max-h-full max-w-full aspect-[16/9] rounded-xl border border-border/80 bg-black shadow-2xl flex items-center justify-center select-none touch-manipulation overflow-hidden ${className}`
-      }
+      className={`relative w-auto h-full max-h-full max-w-full flex flex-col items-center justify-center gap-2 select-none touch-manipulation overflow-hidden ${className}`}
     >
-      <div className="relative w-full max-w-full max-h-full aspect-[16/9] flex items-center justify-center overflow-hidden bg-black">
-        <iframe
-          ref={iframeRef}
-          onLoad={handleIframeLoad}
-          src={engineSrc}
-          title={title}
-          data-testid="game-engine-iframe"
-          className="w-full h-full border-0 touch-manipulation select-none"
-          allow="fullscreen; autoplay; gamepad"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-modals allow-pointer-lock allow-orientation-lock"
-        />
+      <div className="relative w-auto h-full max-h-full max-w-full aspect-[16/9] rounded-xl border border-border/80 bg-black shadow-2xl flex items-center justify-center select-none touch-manipulation overflow-hidden">
+        <div className="relative w-full max-w-full max-h-full aspect-[16/9] flex items-center justify-center overflow-hidden bg-black">
+          {engineFrame}
+          {loadingOverlay}
+          {loadErrorFallback}
+        </div>
       </div>
-      <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+      <div className="flex w-full shrink-0 items-center justify-center">
         <SaveHudDock
+          id={hudId}
           onExport={onExport}
           onImport={onImport}
           onReset={onReset}
