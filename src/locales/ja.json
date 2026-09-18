@@ -180,6 +180,7 @@
     "saveHudExport": "エクスポート (.zip)",
     "saveHudImport": "インポート",
     "saveHudFullscreen": "全画面表示",
+    "saveHudExitFullscreen": "全画面表示を終了",
     "saveHudReset": "リセット",
     "saveHudDockAria": "セーブと表示のコントロール"
   },

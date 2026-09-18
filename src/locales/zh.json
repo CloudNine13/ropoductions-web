@@ -180,6 +180,7 @@
     "saveHudExport": "导出 (.zip)",
     "saveHudImport": "导入",
     "saveHudFullscreen": "全屏",
+    "saveHudExitFullscreen": "退出全屏",
     "saveHudReset": "重置",
     "saveHudDockAria": "存档与显示控制"
   },

@@ -25,6 +25,7 @@ export interface SaveHudDockProps {
 }
 
 export const DEFAULT_IDLE_TIMEOUT_MS = 4000;
+const ACTIVITY_THROTTLE_MS = 250;
 
 export function SaveHudDock({
   onExport,
@@ -37,8 +38,9 @@ export function SaveHudDock({
   labels,
 }: SaveHudDockProps) {
   const [isDimmed, setIsDimmed] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | number | null>(null);
+  const timerRef = useRef<number | NodeJS.Timeout | null>(null);
   const isHoveredOrFocusedRef = useRef(false);
+  const lastActivityTimeRef = useRef(0);
 
   const t = useTranslations("game");
 
@@ -46,7 +48,7 @@ export function SaveHudDock({
     export: labels?.export ?? t("saveHudExport"),
     import: labels?.import ?? t("saveHudImport"),
     fullscreen: labels?.fullscreen ?? t("saveHudFullscreen"),
-    exitFullscreen: labels?.exitFullscreen ?? t("fullscreenExit"),
+    exitFullscreen: labels?.exitFullscreen ?? t("saveHudExitFullscreen"),
     reset: labels?.reset ?? t("saveHudReset"),
     dockAria: labels?.dockAria ?? t("saveHudDockAria"),
   };
@@ -73,42 +75,58 @@ export function SaveHudDock({
     }, idleTimeoutMs);
   }, [clearTimer, idleTimeoutMs]);
 
+  const handleActivity = useCallback(() => {
+    const now = Date.now();
+    if (now - lastActivityTimeRef.current < ACTIVITY_THROTTLE_MS) {
+      return;
+    }
+    lastActivityTimeRef.current = now;
+    resetTimer();
+  }, [resetTimer]);
+
   useEffect(() => {
     resetTimer();
 
-    const handleUserActivity = () => {
-      resetTimer();
+    const onUserActivity = () => {
+      handleActivity();
     };
 
-    const activityEvents: Array<keyof WindowEventMap> = [
-      "mousemove",
-      "mousedown",
-      "keydown",
-      "touchstart",
-      "pointerdown",
-      "wheel",
-      "scroll",
-    ];
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.origin === window.location.origin &&
+        event.data?.type === "ROPODUCTIONS_ACTIVITY"
+      ) {
+        handleActivity();
+      }
+    };
 
-    for (const eventName of activityEvents) {
-      window.addEventListener(eventName, handleUserActivity, { passive: true });
-    }
+    window.addEventListener("pointerdown", onUserActivity, { passive: true });
+    window.addEventListener("keydown", onUserActivity, { passive: true });
+    window.addEventListener("wheel", onUserActivity, { passive: true });
+    window.addEventListener("message", onMessage);
 
     return () => {
       clearTimer();
-      for (const eventName of activityEvents) {
-        window.removeEventListener(eventName, handleUserActivity);
-      }
+      window.removeEventListener("pointerdown", onUserActivity);
+      window.removeEventListener("keydown", onUserActivity);
+      window.removeEventListener("wheel", onUserActivity);
+      window.removeEventListener("message", onMessage);
     };
-  }, [resetTimer, clearTimer]);
+  }, [handleActivity, resetTimer, clearTimer]);
 
-  const handleMouseEnter = useCallback(() => {
+  const handlePointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") {
+      return;
+    }
     isHoveredOrFocusedRef.current = true;
     clearTimer();
     setIsDimmed(false);
   }, [clearTimer]);
 
-  const handleMouseLeave = useCallback(() => {
+  const handlePointerLeave = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") {
+      return;
+    }
     isHoveredOrFocusedRef.current = false;
     resetTimer();
   }, [resetTimer]);
@@ -129,21 +147,27 @@ export function SaveHudDock({
     [resetTimer]
   );
 
+  const handleTouchStart = useCallback(() => {
+    handleActivity();
+  }, [handleActivity]);
+
+  const isExportDisabled = !onExport;
+  const isImportDisabled = !onImport;
+  const isResetDisabled = !onReset;
+
   return (
     <div
       role="toolbar"
+      aria-orientation="horizontal"
       aria-label={resolvedLabels.dockAria}
       data-testid="save-hud-dock"
       data-dimmed={isDimmed ? "true" : "false"}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      onTouchStart={handleMouseEnter}
-      onTouchEnd={handleMouseLeave}
-      onTouchCancel={handleMouseLeave}
-      style={{ opacity: isDimmed ? 0.25 : 1 }}
-      className={`pointer-events-auto flex items-center justify-center gap-1 sm:gap-2 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-2xl transition-opacity duration-300 ease-out select-none ${
+      onTouchStart={handleTouchStart}
+      className={`pointer-events-auto flex items-center justify-center gap-1 sm:gap-2 px-3 py-1.5 rounded-full bg-[#090A0F]/75 backdrop-blur-md border border-white/10 shadow-2xl transition-opacity duration-300 ease-out motion-reduce:transition-none select-none ${
         isDimmed ? "opacity-25" : "opacity-100"
       } ${className}`}
     >
@@ -151,9 +175,15 @@ export function SaveHudDock({
         type="button"
         data-testid="save-hud-export-button"
         onClick={onExport}
+        disabled={isExportDisabled}
+        aria-disabled={isExportDisabled}
         aria-label={resolvedLabels.export}
-        title={resolvedLabels.export}
-        className="min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none"
+        title={isExportDisabled ? `${resolvedLabels.export} (Coming soon)` : resolvedLabels.export}
+        className={`min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none ${
+          isExportDisabled
+            ? "text-white/40 cursor-not-allowed opacity-50"
+            : "text-white/90 hover:text-white hover:bg-white/10 active:bg-white/15 cursor-pointer"
+        }`}
       >
         <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="hidden sm:inline">{resolvedLabels.export}</span>
@@ -163,9 +193,15 @@ export function SaveHudDock({
         type="button"
         data-testid="save-hud-import-button"
         onClick={onImport}
+        disabled={isImportDisabled}
+        aria-disabled={isImportDisabled}
         aria-label={resolvedLabels.import}
-        title={resolvedLabels.import}
-        className="min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none"
+        title={isImportDisabled ? `${resolvedLabels.import} (Coming soon)` : resolvedLabels.import}
+        className={`min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary select-none ${
+          isImportDisabled
+            ? "text-white/40 cursor-not-allowed opacity-50"
+            : "text-white/90 hover:text-white hover:bg-white/10 active:bg-white/15 cursor-pointer"
+        }`}
       >
         <Upload className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="hidden sm:inline">{resolvedLabels.import}</span>
@@ -173,8 +209,9 @@ export function SaveHudDock({
 
       <button
         type="button"
-        data-testid="save-hud-fullscreen-button"
+        data-testid="save-hud-fullscreen-button fullscreen-toggle-button"
         onClick={onToggleFullscreen}
+        aria-pressed={isFullscreen}
         aria-label={isFullscreen ? resolvedLabels.exitFullscreen : resolvedLabels.fullscreen}
         title={isFullscreen ? resolvedLabels.exitFullscreen : resolvedLabels.fullscreen}
         className="min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none"
@@ -193,12 +230,25 @@ export function SaveHudDock({
         type="button"
         data-testid="save-hud-reset-button"
         onClick={onReset}
+        disabled={isResetDisabled}
+        aria-disabled={isResetDisabled}
         aria-label={resolvedLabels.reset}
-        title={resolvedLabels.reset}
-        className="group min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium text-white/80 hover:text-rose-200 hover:bg-rose-500/20 active:bg-rose-500/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer select-none"
+        title={isResetDisabled ? `${resolvedLabels.reset} (Coming soon)` : resolvedLabels.reset}
+        className={`group min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E11D48] select-none ${
+          isResetDisabled
+            ? "text-white/40 cursor-not-allowed opacity-50"
+            : "text-white/80 hover:text-[#E11D48] hover:bg-[#E11D48]/15 active:bg-[#E11D48]/25 cursor-pointer"
+        }`}
       >
-        <RotateCcw className="h-4 w-4 shrink-0 text-rose-400/90 group-hover:text-rose-400" aria-hidden="true" />
-        <span className="hidden sm:inline group-hover:text-rose-200">{resolvedLabels.reset}</span>
+        <RotateCcw
+          className={`h-4 w-4 shrink-0 ${
+            isResetDisabled ? "text-white/30" : "text-[#E11D48]/80 group-hover:text-[#E11D48]"
+          }`}
+          aria-hidden="true"
+        />
+        <span className={`hidden sm:inline ${!isResetDisabled ? "group-hover:text-[#E11D48]" : ""}`}>
+          {resolvedLabels.reset}
+        </span>
       </button>
     </div>
   );

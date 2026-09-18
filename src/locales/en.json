@@ -180,6 +180,7 @@
     "saveHudExport": "Export (.zip)",
     "saveHudImport": "Import",
     "saveHudFullscreen": "Fullscreen",
+    "saveHudExitFullscreen": "Exit Fullscreen",
     "saveHudReset": "Reset",
     "saveHudDockAria": "Save and display controls"
   },

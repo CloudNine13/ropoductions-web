@@ -285,4 +285,25 @@
     }
   }
   window.addEventListener("message", onMessage);
+
+  let lastActivityPostTime = 0;
+  function notifyParentActivity() {
+    const now = Date.now();
+    if (now - lastActivityPostTime < 500) return;
+    lastActivityPostTime = now;
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { type: "ROPODUCTIONS_ACTIVITY" },
+          window.location.origin
+        );
+      }
+    } catch {
+      // Fallback if window.parent access is restricted
+    }
+  }
+
+  window.addEventListener("pointerdown", notifyParentActivity, { passive: true, capture: true });
+  window.addEventListener("keydown", notifyParentActivity, { passive: true, capture: true });
+  window.addEventListener("wheel", notifyParentActivity, { passive: true, capture: true });
 })();

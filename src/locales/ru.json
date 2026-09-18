@@ -180,6 +180,7 @@
     "saveHudExport": "Экспорт (.zip)",
     "saveHudImport": "Импорт",
     "saveHudFullscreen": "Полный экран",
+    "saveHudExitFullscreen": "Выйти из полноэкранного режима",
     "saveHudReset": "Сброс",
     "saveHudDockAria": "Управление сохранением и отображением"
   },

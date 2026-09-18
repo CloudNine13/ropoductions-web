@@ -23,6 +23,7 @@ export function GameViewport({
   onReset,
 }: GameViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
 
@@ -85,6 +86,21 @@ export function GameViewport({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPseudoFullscreen]);
 
+  const handleIframeLoad = useCallback(() => {
+    try {
+      const iframeDoc = iframeRef.current?.contentDocument;
+      if (iframeDoc) {
+        const forwardActivity = () => {
+          window.postMessage({ type: "ROPODUCTIONS_ACTIVITY" }, window.location.origin);
+        };
+        iframeDoc.addEventListener("pointerdown", forwardActivity, { passive: true });
+        iframeDoc.addEventListener("keydown", forwardActivity, { passive: true });
+        iframeDoc.addEventListener("wheel", forwardActivity, { passive: true });
+      }
+    } catch {
+      // Fallback: engine script forwards activity directly
+    }
+  }, []);
   const toggleFullscreen = useCallback(async () => {
     const doc = document as unknown as {
       fullscreenElement?: Element | null;
@@ -160,6 +176,8 @@ export function GameViewport({
     >
       <div className="relative w-full max-w-full max-h-full aspect-[16/9] flex items-center justify-center overflow-hidden bg-black">
         <iframe
+          ref={iframeRef}
+          onLoad={handleIframeLoad}
           src={engineSrc}
           title={title}
           data-testid="game-engine-iframe"
@@ -168,20 +186,6 @@ export function GameViewport({
           sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-modals allow-pointer-lock allow-orientation-lock"
         />
       </div>
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        data-testid="fullscreen-toggle-button"
-        className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] z-10 flex items-center justify-center h-11 w-11 rounded-lg bg-black/60 backdrop-blur-md border border-white/20 text-white hover:bg-black/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] min-w-[44px] shadow-lg cursor-pointer"
-        aria-label={activeFullscreen ? exitLabel : enterLabel}
-        title={activeFullscreen ? exitLabel : enterLabel}
-      >
-        {activeFullscreen ? (
-          <Minimize2 className="h-5 w-5" aria-hidden="true" />
-        ) : (
-          <Maximize2 className="h-5 w-5" aria-hidden="true" />
-        )}
-      </button>
       <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
         <SaveHudDock
           onExport={onExport}

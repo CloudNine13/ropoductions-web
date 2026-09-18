@@ -72,17 +72,14 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("touch-manipulation"), "Container must declare touch-manipulation");
   });
 
-  it("mounts the Fullscreen toggle inside the container with WebKit prefix fallbacks and safe-area insets", () => {
+  it("manages fullscreen state with WebKit prefix fallbacks and delegates toggle to SaveHudDock", () => {
     const src = readSource(gameViewportPath);
 
-    // In-container mounting: toggle button is a child inside containerRef
+    // In-container mounting: SaveHudDock is a child inside containerRef
     assert.ok(src.includes("ref={containerRef}"), "Container must attach containerRef");
-    assert.ok(src.includes('data-testid="fullscreen-toggle-button"'), "Fullscreen toggle button must be present");
-    assert.ok(src.includes("min-h-[44px] min-w-[44px]"), "Fullscreen toggle must maintain minimum 44x44px touch target");
-
-    // Safe area insets for mobile notches / dynamic islands
-    assert.ok(src.includes("env(safe-area-inset-top)"), "Toggle button must respect safe-area-inset-top");
-    assert.ok(src.includes("env(safe-area-inset-right)"), "Toggle button must respect safe-area-inset-right");
+    assert.ok(src.includes("<SaveHudDock"), "SaveHudDock must be mounted inside container");
+    assert.ok(src.includes("onToggleFullscreen={toggleFullscreen}"), "Must delegate toggleFullscreen to SaveHudDock");
+    assert.ok(src.includes("isFullscreen={activeFullscreen}"), "Must delegate activeFullscreen to SaveHudDock");
 
     // Cross-browser WebKit prefixes and rejection handling
     assert.ok(src.includes("webkitFullscreenElement"), "Must check webkitFullscreenElement for Safari");
@@ -103,10 +100,6 @@ describe("game viewport and engine container contract", () => {
 
     // Prevent external element false positives
     assert.ok(src.includes("currentFsElem === containerRef.current"), "Must verify fullscreen element belongs to containerRef");
-
-    // Icons: Maximize2 and Minimize2 toggles
-    assert.ok(src.includes("Maximize2"), "Must render Maximize2 icon when windowed");
-    assert.ok(src.includes("Minimize2"), "Must render Minimize2 icon when fullscreen");
   });
 
   it("integrates the floating Save HUD dock with fullscreen state delegation and safe-area insets", () => {
