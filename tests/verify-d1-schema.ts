@@ -454,10 +454,12 @@ async function runVerification() {
     // 7.11 countAdminOverrides & deletePatronOverrideGuarded (Story 5.3 sole-admin invariant)
     const soleAdminId = `sole-admin-${Date.now()}`;
     const coAdminId = `co-admin-${Date.now()}`;
+    const compId = `comp-${Date.now()}`;
+    const grantingAdminId = "11111111";
     await upsertPatronOverride(db, {
       patron_id: soleAdminId,
       role: "admin",
-      granted_by: "panel_admin",
+      granted_by: grantingAdminId,
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
     });
@@ -471,11 +473,23 @@ async function runVerification() {
       "Sole admin override must remain after blocked deletion"
     );
 
+    // A comp override is always deletable, even when no other admin exists.
+    await upsertPatronOverride(db, {
+      patron_id: compId,
+      role: "comp",
+      granted_by: grantingAdminId,
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+    const compChanges = await deletePatronOverrideGuarded(db, compId);
+    assert(compChanges === 1, "deletePatronOverrideGuarded must always delete a comp override");
+    assert((await getPatronOverride(db, compId)) === null, "Deleted comp override must be absent");
+
     // With a second admin present, the guarded delete must succeed.
     await upsertPatronOverride(db, {
       patron_id: coAdminId,
       role: "admin",
-      granted_by: "panel_admin",
+      granted_by: grantingAdminId,
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
     });

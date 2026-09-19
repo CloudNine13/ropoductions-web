@@ -3,12 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isSealedCreatorAdmin, requireAdminSession, validatePatreonId } from "@/lib/admin";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
-import {
-  deletePatronOverrideGuarded,
-  getPatronOverride,
-  revokeSessionsByPatronId,
-  upsertPatronOverride,
-} from "@/lib/db";
+import { deletePatronOverrideGuarded, getPatronOverride, upsertPatronOverride } from "@/lib/db";
 import { isCreatorAdmin } from "@/lib/patreon";
 import type { SessionRecord } from "@/types/database";
 
@@ -268,14 +263,8 @@ export async function handleRevokeOverrideCore(
     };
   }
 
-  // Eagerly invalidate the revoked user's sessions; Story 2.4's lazy revocation
-  // on next navigation remains the fallback if this best-effort call fails.
-  try {
-    await revokeSessionsByPatronId(db, normalizedPatronId);
-  } catch (err) {
-    console.error("[handleRevokeOverrideCore] Failed to revoke sessions for patron:", err);
-  }
-
+  // Deleting the override is sufficient: Story 2.4's validateSessionAccess revokes
+  // the revoked user's session lazily on their next navigation (override_deleted).
   return {
     success: true,
     message: `Revoked ${existing.role} pass for Patreon ID ${normalizedPatronId}.`,

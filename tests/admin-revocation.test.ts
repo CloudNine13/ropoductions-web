@@ -46,11 +46,9 @@ function overrideFixture(
 
 function createMockD1() {
   const overrides = new Map<string, PatronOverrideRecord>();
-  const sessions = new Map<string, SessionRecord>();
 
   const db = {
     _overrides: overrides,
-    _sessions: sessions,
     prepare(sql: string) {
       const stmt = {
         params: [] as unknown[],
@@ -74,17 +72,6 @@ function createMockD1() {
           throw new Error(`Unhandled query in mock all(): ${sql}`);
         },
         async run(): Promise<{ success: boolean; meta: Record<string, unknown> }> {
-          if (sql.includes("UPDATE sessions SET revoked = 1 WHERE patron_id = ?")) {
-            const patronId = stmt.params[0] as string;
-            let changes = 0;
-            for (const s of sessions.values()) {
-              if (s.patron_id === patronId && s.revoked !== 1) {
-                s.revoked = 1;
-                changes += 1;
-              }
-            }
-            return { success: true, meta: { changes } };
-          }
           if (sql.includes("DELETE FROM patron_overrides")) {
             const patronId = stmt.params[0] as string;
             const target = overrides.get(patronId);
@@ -111,10 +98,9 @@ function createMockD1() {
     },
   } as unknown as D1Database & {
     _overrides: Map<string, PatronOverrideRecord>;
-    _sessions: Map<string, SessionRecord>;
   };
 
-  return { db, overrides, sessions };
+  return { db, overrides };
 }
 
 describe("countAdminOverrides", () => {
@@ -255,14 +241,10 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
     assert.equal(overrides.has("12345678"), true);
   });
 
-  it("revokes a panel admin when another admin remains and invalidates their sessions", async () => {
-    const { db, overrides, sessions } = createMockD1();
+  it("revokes a panel admin when another admin remains", async () => {
+    const { db, overrides } = createMockD1();
     overrides.set("12345678", overrideFixture("12345678", "admin"));
     overrides.set("55555555", overrideFixture("55555555", "admin"));
-    sessions.set("sess-target", {
-      ...adminSessionFixture("55555555"),
-      id: "sess-target",
-    });
 
     const result = await handleRevokeOverrideCore({
       db,
@@ -274,7 +256,6 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
     assert.match(result.message ?? "", /revoked admin pass/i);
     assert.equal(overrides.has("55555555"), false);
     assert.equal(overrides.has("12345678"), true);
-    assert.equal(sessions.get("sess-target")?.revoked, 1);
   });
 
   it("revokes a comp override", async () => {
@@ -348,7 +329,6 @@ describe("revocation UI wiring and design tokens", () => {
     assert.match(src, /revokeOverrideAction/);
     assert.match(src, /handleRevokeOverrideCore/);
     assert.match(src, /deletePatronOverrideGuarded/);
-    assert.match(src, /revokeSessionsByPatronId/);
     assert.match(src, /revalidatePath/);
     assert.match(src, /sole_admin/);
     assert.match(src, /sealed_creator_admin/);

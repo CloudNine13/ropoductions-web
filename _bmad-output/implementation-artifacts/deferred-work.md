@@ -1,5 +1,8 @@
 # Deferred Work
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-2-patron-override-directory-creation-interface.md`
+  summary: Normalize the sealed-admin `granted_by` sentinel: Story 2.2 promises the OAuth callback writes `creator_bootstrap`, but `src/lib/patreon.ts` bootstrap/sync paths write `system_bootstrap`; `isSealedCreatorAdmin` checks both so behavior is correct, but the `creator_bootstrap` literal is dead code (spec drift).
+  evidence: Security review of Story 5.3 (RPD-5.3-03); belongs to Story 2.2/5.2, not 5.3.
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-paywall-interstitial-graceful-navigation.md`
   summary: Enforce revoked/lapsed sessions on `/api/game/[...asset]` streaming requests, not only on `/play` navigation.
   evidence: Story 2-4 covers `/play` and portal interstitials; asset-route session enforcement is already scoped to Epic 3 story 3-2.
