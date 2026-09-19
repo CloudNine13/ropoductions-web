@@ -82,7 +82,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET_NAME: GAME_ASSETS
+          R2_BUCKET_NAME: ropoductions-game-assets
         run: |
           # Locate game root relative to cloned repository
           GAME_ROOT=$(npx tsx -e "
