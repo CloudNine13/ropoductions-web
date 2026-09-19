@@ -25,9 +25,9 @@ export function serializeCookie(
   options: CookieOptions = {}
 ): string {
   const parts = [`${name}=${encodeURIComponent(value)}`];
-  parts.push(`path=${options.path ?? "/"}`);
+  parts.push(`Path=${options.path ?? "/"}`);
   if (options.maxAge !== undefined) {
-    parts.push(`max-age=${options.maxAge}`);
+    parts.push(`Max-Age=${options.maxAge}`);
   }
   if (options.httpOnly !== false) {
     parts.push("HttpOnly");

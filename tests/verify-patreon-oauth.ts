@@ -571,7 +571,7 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(
     errorCallbackResponse.headers
       .get("Set-Cookie")
-      ?.includes("max-age=0")
+      ?.includes("Max-Age=0")
   );
 
   const missingStateRequest = new Request(
@@ -735,7 +735,7 @@ async function testRouteHandlers(): Promise<void> {
     const callbackCookies = parseResponseCookies(validCallbackResponse.headers);
     const signedSessionId1 = callbackCookies[SESSION_COOKIE_NAME];
     assert.ok(signedSessionId1, "Session cookie must be issued for admin override");
-    assert.ok(validCallbackResponse.headers.get("Set-Cookie")?.includes("max-age=0"));
+    assert.ok(validCallbackResponse.headers.get("Set-Cookie")?.includes("Max-Age=0"));
 
     assert.equal(
       (capturedTokenRequestBody as URLSearchParams | null)?.get("redirect_uri"),

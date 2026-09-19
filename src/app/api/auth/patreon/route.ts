@@ -33,7 +33,18 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const requestUrl = new URL(request.url);
-  const originCtx = resolveOAuthOriginContext(request, authEnv.redirectUri);
+  let originCtx;
+  try {
+    originCtx = resolveOAuthOriginContext(request, authEnv.redirectUri);
+  } catch {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/?auth_error=server_configuration_error",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  }
 
   if (originCtx.isOriginMismatch) {
     const bounceUrl = new URL(`${originCtx.redirectOrigin}/api/auth/patreon`);

@@ -50,8 +50,8 @@ describe("portal base contract", () => {
     assert.ok(serialized.includes("HttpOnly"));
     assert.ok(serialized.includes("Secure"));
     assert.ok(serialized.includes("SameSite=Lax"));
-    assert.ok(serialized.includes("path=/"));
-    assert.ok(serialized.includes(`max-age=${SESSION_COOKIE_MAX_AGE}`));
+    assert.ok(serialized.includes("Path=/"));
+    assert.ok(serialized.includes(`Max-Age=${SESSION_COOKIE_MAX_AGE}`));
   });
 
   it("keeps the OAuth verifier cookie short-lived at ten minutes", () => {
@@ -86,8 +86,8 @@ describe("portal base contract", () => {
     assert.equal(location.searchParams.get("auth_required"), "true");
   });
 
-  it("keeps the edge matcher pinned to play and game asset routes", () => {
-    assert.deepEqual(edgeConfig.matcher, ["/play/:path*", "/api/game/:path*"]);
+  it("keeps the edge matcher pinned to play, game asset, and admin routes", () => {
+    assert.deepEqual(edgeConfig.matcher, ["/play/:path*", "/api/game/:path*", "/admin/:path*"]);
   });
 
   it("keeps the Patreon authorize URL on PKCE S256 with the identity scopes", () => {

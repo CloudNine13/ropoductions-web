@@ -99,8 +99,8 @@ describe("session clearing route GET /api/auth/session", () => {
     assert.equal(res.headers.get("Location"), "/?paywall=revoked");
     const setCookie = res.headers.get("Set-Cookie") ?? "";
     assert.ok(setCookie.startsWith(`${SESSION_COOKIE_NAME}=`));
-    assert.ok(setCookie.includes("max-age=0"));
-    assert.ok(setCookie.includes("path=/"));
+    assert.ok(setCookie.includes("Max-Age=0"));
+    assert.ok(setCookie.includes("Path=/"));
     assert.ok(setCookie.includes("HttpOnly"));
     assert.ok(setCookie.includes("SameSite=Lax"));
     assert.equal(res.headers.get("Cache-Control"), "no-store, max-age=0");
