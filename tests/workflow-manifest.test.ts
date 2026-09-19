@@ -42,12 +42,32 @@ describe("workflow and upstream integration manifest verification", () => {
     assert.match(concurrencyBlock, /cancel-in-progress:\s*false/);
   });
 
-  it("verifies least-privilege permissions: contents: write", () => {
+  it("verifies least-privilege permissions: contents: read (no git writes)", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");
     const permissionsBlock = content.match(/^permissions:\n((?:\s+.+\n?)+)/m)?.[1] ?? "";
 
-    assert.match(permissionsBlock, /contents:\s*write/);
+    assert.match(permissionsBlock, /contents:\s*read/);
+    // The ingestion runner must never write to any branch: no git add/commit/push,
+    // and no higher-privilege scope.
+    assert.equal(content.includes("git push"), false, "Workflow must never push to a branch");
+    assert.equal(content.includes("git commit"), false, "Workflow must never commit to a branch");
+    assert.equal(content.includes("contents: write"), false, "Workflow must not request contents write scope");
+  });
+
+  it("verifies engine shell is delivered to R2, not committed to git", () => {
+    assert.ok(fs.existsSync(workflowPath));
+    const content = fs.readFileSync(workflowPath, "utf-8");
+
+    // Shell is synced to the private bucket under the engine/ prefix...
+    assert.match(content, /Synchronize Engine Shell to Private R2/);
+    assert.match(content, /s3:\/\/\$\{R2_BUCKET_NAME\}\/engine/);
+    // ...and never checked out of the repo's public/ engine directory.
+    assert.equal(
+      content.includes("public/engine"),
+      false,
+      "Workflow must not reference public/engine (shell is delivered via R2)"
+    );
   });
 
   it("strictly enforces absence of --delete flag in aws s3 sync commands", () => {

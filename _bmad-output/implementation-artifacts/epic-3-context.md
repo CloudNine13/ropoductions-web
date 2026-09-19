@@ -20,7 +20,7 @@ Authorized patrons can launch and play the embedded RPG Maker MZ game in an aspe
 - **Fullscreen Mode Toggle (FR-12):** Provide an accessible Fullscreen toggle button that invokes the HTML5 Fullscreen API (`requestFullscreen()` / `exitFullscreen()`) on the outer viewport container, expanding the game to the physical display boundary and toggling icons between expand and compress states.
 - **Authenticated R2 Asset Streaming (AD-5, FR-17, FR-18):** Static media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) are stored in the pre-created private Cloudflare R2 bucket (`GAME_ASSETS`) with zero public URLs. `/api/game/[...asset]` verifies the `ropoductions_session` cookie against D1 and streams bytes with `Cache-Control: private, max-age=86400`. Requests without a valid session return HTTP 403 Forbidden with zero asset payload.
 - **Encrypted Asset Runtime Support (FR-17):** RPG Maker MZ native asset encryption / obfuscation decrypts static assets in-memory during execution; edge routes stream encrypted files directly.
-- **Upstream Release Ingestion Workflow (AD-9, Story 3.3):** Manual `workflow_dispatch` GitHub Action pulls release snapshots from `salamin888/Final_Orginity`, validates JSON integrity, injects `Ropoductions_WebBridge.js` into `public/engine/js/plugins/`, syncs media to R2 via AWS CLI/S3 API, and commits the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) into `public/engine/`. Edge Workers never perform Git operations or asset ingestion.
+- **Upstream Release Ingestion Workflow (AD-9, Story 3.3):** Manual `workflow_dispatch` GitHub Action pulls release snapshots from `salamin888/Final_Orginity`, validates JSON integrity, injects `Ropoductions_WebBridge.js` into `js/plugins/`, syncs media to R2 via AWS CLI/S3 API, and additively syncs the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) to R2 under the `engine/` prefix (streamed same-origin at `/engine/*`). Edge Workers never perform Git operations or asset ingestion, and the runner (`permissions: contents: read`) never commits to any branch.
 - **Performance & Cold-Start Budgets:** Asset authorization must add no more than 300ms overhead to initial bundle load; title interactive within 5 seconds on a 25Mbps connection.
 
 ## Technical Decisions
@@ -32,7 +32,7 @@ Authorized patrons can launch and play the embedded RPG Maker MZ game in an aspe
   - Aspect ratio container: `aspect-[16/9] w-full max-w-full max-h-[100dvh] mx-auto relative flex items-center justify-center` or responsive fit calculation so the 16:9 canvas maximizes available space within `100dvw` and `100dvh`.
   - `touch-action: manipulation` to prevent 300ms double-tap delay and unwanted gesture zooming.
 - **Fullscreen API Handling:** Cross-browser support (`requestFullscreen`, `webkitRequestFullscreen`, `exitFullscreen`, `webkitExitFullscreen`) targeting the game container element, listening to `fullscreenchange` / `webkitfullscreenchange` to synchronize toggle state.
-- **Engine Shell Scaffold:** Minimal placeholder `/engine/index.html` and lightweight engine assets in `public/engine/` to verify iframe loading, canvas mounting, and coordinate mapping before upstream sync in Story 3.3.
+- **Engine Shell Scaffold:** Minimal placeholder `/engine/index.html` mock harness in `src/engine-plugins/mock-shell.html` (embedded into the worker via codegen and served by the `/engine/[...path]` route) to verify iframe loading, canvas mounting, and coordinate mapping before upstream sync in Story 3.3.
 
 ## UX & Interaction Patterns
 

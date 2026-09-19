@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import {
+  MOCK_ENGINE_HTML,
+  WEB_BRIDGE_SOURCE,
+} from "@/lib/engine-mock.generated";
 
 interface BridgeResponsePayload {
   slots: Record<string, string>;
@@ -298,16 +302,25 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_RESET_SAVES_SUCCESS");
   });
 
-  it("single-source verification: src and public copies of Ropoductions_WebBridge.js are byte-for-byte identical", () => {
-    const srcFile = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
-    const publicFile = path.resolve(process.cwd(), "public/engine/js/plugins/Ropoductions_WebBridge.js");
+  it("single-source verification: generated engine mock stays byte-for-byte identical to its committed sources", () => {
+    const bridgeSource = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
+    const mockHtmlSource = path.resolve(process.cwd(), "src/engine-plugins/mock-shell.html");
 
-    assert.ok(fs.existsSync(srcFile), "src/engine-plugins/Ropoductions_WebBridge.js must exist");
-    assert.ok(fs.existsSync(publicFile), "public/engine/js/plugins/Ropoductions_WebBridge.js must exist");
+    assert.ok(fs.existsSync(bridgeSource), "src/engine-plugins/Ropoductions_WebBridge.js must exist");
+    assert.ok(fs.existsSync(mockHtmlSource), "src/engine-plugins/mock-shell.html must exist");
 
-    const srcContent = fs.readFileSync(srcFile);
-    const publicContent = fs.readFileSync(publicFile);
+    const bridgeBytes = fs.readFileSync(bridgeSource);
+    const mockHtmlBytes = fs.readFileSync(mockHtmlSource);
 
-    assert.deepEqual(srcContent, publicContent, "Engine plugin copies must be byte-for-byte identical");
+    assert.equal(
+      Buffer.from(WEB_BRIDGE_SOURCE).equals(bridgeBytes),
+      true,
+      "Generated WEB_BRIDGE_SOURCE must be byte-for-byte identical to the committed plugin source"
+    );
+    assert.equal(
+      Buffer.from(MOCK_ENGINE_HTML).equals(mockHtmlBytes),
+      true,
+      "Generated MOCK_ENGINE_HTML must be byte-for-byte identical to the committed mock shell"
+    );
   });
 });

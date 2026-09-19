@@ -118,8 +118,8 @@ graph TD
     1. **Portal Maintainer Manual Trigger:** `workflow_dispatch` within `CloudNine13/ropoductions-web` with input `branch` (defaulting to `auto`).
     2. **Upstream Remote Trigger:** `repository_dispatch` with event type `game_release_published`, enabling upstream game maintainers (`salamin888`) to trigger web publication directly from their repository upon publishing a release.
   - **Security Boundary & Secret Isolation:** Upstream maintainers are NEVER given Cloudflare API tokens, R2 S3 access keys, or repository write access to `ropoductions-web`. Upstream triggers the pipeline using a fine-grained GitHub Personal Access Token (PAT) with `Actions: Read and write` scoped exclusively to dispatching workflows on `CloudNine13/ropoductions-web`. All Cloudflare R2 secrets (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) and upstream clone credentials (`UPSTREAM_READ_TOKEN`) reside strictly within `ropoductions-web` GitHub Secrets.
-  - **Execution Protocol:** The runner resolves target branch (`client_payload.branch` if present, else manual input, falling back to `tools/release.json` `base` version if `auto`), shallow-clones the release branch using `UPSTREAM_READ_TOKEN`, validates the file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`), injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers it in `js/plugins.js`, synchronizes media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 (`GAME_ASSETS`) via AWS CLI S3 sync (`--endpoint-url`), and commits the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`) to `public/engine/`.
-  - **Decoupled Runtime Testing Invariant:** Development and testing of the web client iframe container (Story 3.1) and Save HUD postMessage bridge (Epic 4) are completely decoupled from upstream release availability. The web player container can be verified locally and in CI using a lightweight mock canvas harness in `public/engine/index.html` adhering to the identical origin and postMessage protocol.
+  - **Execution Protocol:** The runner resolves target branch (`client_payload.branch` if present, else manual input, falling back to `tools/release.json` `base` version if `auto`), shallow-clones the release branch using `UPSTREAM_READ_TOKEN`, validates the file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`), injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers it in `js/plugins.js`, then performs purely additive AWS CLI S3 syncs (`--endpoint-url`, never `--delete`) to private R2 (`GAME_ASSETS`): media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) to their top-level keys, and the lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`, `icon/`, `build-metadata.json`) to the `engine/` prefix. The runner runs with `permissions: contents: read` and NEVER writes to any branch — the shell is served to patrons at runtime by the `/engine/[...path]` route (AD-1/AD-5), which streams the `engine/` prefix from R2, gated like `/api/game`, and falls back to the website-owned mock harness while no shell is published.
+  - **Decoupled Runtime Testing Invariant:** Development and testing of the web client iframe container (Story 3.1) and Save HUD postMessage bridge (Epic 4) are completely decoupled from upstream release availability. The web player container can be verified locally and in CI using a lightweight mock canvas harness (`src/engine-plugins/mock-shell.html`, embedded into the worker bundle via `scripts/generate-engine-mock.ts` → `src/lib/engine-mock.generated.ts`) served by the `/engine/[...path]` route at `/engine/index.html` while R2 holds no published shell, adhering to the identical origin and postMessage protocol. Anonymous requests receive only this harmless placeholder (no R2 or D1 access), so release state is never disclosed before authorization.
 
 
 ```mermaid
@@ -130,7 +130,6 @@ sequenceDiagram
     participant UpstreamRepo as salamin888/Final_Orginity (.github)
     participant WebRepo as CloudNine13/ropoductions-web (.github)
     participant R2 as Private Cloudflare R2 (GAME_ASSETS)
-    participant EngineShell as public/engine/ (Git)
 
     alt Upstream Self-Trigger
         GameDev->>UpstreamRepo: Trigger "Publish to Web" (workflow_dispatch)
@@ -143,7 +142,7 @@ sequenceDiagram
     WebRepo->>WebRepo: Clone upstream using UPSTREAM_READ_TOKEN & validate System.json
     WebRepo->>WebRepo: Inject Ropoductions_WebBridge.js into plugins.js
     WebRepo->>R2: Sync media assets (audio, img, data) via AWS S3 CLI
-    WebRepo->>EngineShell: Commit lightweight HTML5 shell (index.html, js, css)
+    WebRepo->>R2: Sync engine shell to engine/ prefix (additive, no git writes)
 ```
 ### AD-10 — Two-Tier Admin Architecture: Immutable Creator Admins & Panel-Assigned Overrides [ADOPTED]
 
@@ -308,8 +307,8 @@ CREATE INDEX IF NOT EXISTS idx_patron_overrides_role ON patron_overrides(role);
 | CAP-2 (Studio Showcase Landing) | `src/app/(portal)/page.tsx` | AD-1, UX EXPERIENCE.md |
 | CAP-3 (Patreon OAuth & Tier Check) | `src/app/api/auth/*`, `src/lib/patreon.ts` | AD-1, AD-3, AD-8 |
 | CAP-4 (Graceful Session Re-check) | `src/middleware.ts`, `src/app/api/auth/callback` | AD-3, AD-7 |
-| CAP-5 (In-Browser Game Runtime) | `public/engine/index.html`, `src/app/(game)/play/page.tsx` | AD-1, AD-2 |
-| CAP-6 (Origin-Stable Save Persistence) | `public/engine/`, `rmmz_save` IndexedDB | AD-2, AD-6 |
+| CAP-5 (In-Browser Game Runtime) | `src/app/engine/[...path]/route.ts`, `src/engine-plugins/`, `src/app/(game)/play/page.tsx` | AD-1, AD-2 |
+| CAP-6 (Origin-Stable Save Persistence) | `src/app/engine/[...path]/route.ts`, `src/engine-plugins/`, `rmmz_save` IndexedDB | AD-2, AD-6 |
 | CAP-7 (Save HUD .zip Export/Import) | `src/components/save-hud-dock.tsx`, `Ropoductions_WebBridge.js` | AD-4, AD-6 |
 | CAP-8 (Encrypted R2 Asset Protection) | `src/app/api/game/[...asset]/route.ts` | AD-1, AD-3, AD-5 |
 | CAP-9 (Multilanguage Web Shell) | `src/components/language-switcher.tsx`, `src/lib/i18n.ts` | AD-1 |

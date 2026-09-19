@@ -101,7 +101,6 @@ cypress/videos/
 .vitest-cache/
 
 # --- Game runtime local artifacts (RPG Maker MZ) ---
-# Compiled engine in public/engine IS committed; player exports are not.
 *.rpgsave
 *.rmmzsave
 *.zip.save

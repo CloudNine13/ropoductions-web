@@ -8,11 +8,11 @@ const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readSource = (rel: string): string => readFileSync(join(rootDir, rel), "utf8");
 
 describe("game viewport and engine container contract", () => {
-  const engineHtmlPath = "public/engine/index.html";
+  const engineHtmlPath = "src/engine-plugins/mock-shell.html";
   const gameViewportPath = "src/components/game-viewport.tsx";
 
-  it("provisions the same-origin lightweight engine shell at public/engine/index.html", () => {
-    assert.ok(existsSync(join(rootDir, engineHtmlPath)), "public/engine/index.html must exist");
+  it("provisions the same-origin lightweight engine shell harness at src/engine-plugins/mock-shell.html", () => {
+    assert.ok(existsSync(join(rootDir, engineHtmlPath)), "src/engine-plugins/mock-shell.html must exist");
     const html = readSource(engineHtmlPath);
 
     assert.ok(html.includes("<!DOCTYPE html>"), "Must be a valid HTML5 document");

@@ -1,0 +1,341 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  AGE_VERIFIED_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+  unquoteCookieValue,
+} from "@/lib/cookies";
+import { validateSessionAccess } from "@/lib/auth";
+import { getAuthEnv, getDatabase, getGameAssetsBucket } from "@/lib/cloudflare";
+import {
+  resolveContentType,
+  parseByteRange,
+  sanitizeAssetPath,
+} from "@/lib/r2-http";
+import {
+  MOCK_ENGINE_HTML,
+  WEB_BRIDGE_SOURCE,
+  MOCK_ENGINE_PATHS,
+} from "@/lib/engine-mock.generated";
+
+export const dynamic = "force-dynamic";
+
+// Top-level segments the engine shell may expose. Media directories
+// (data/img/audio/effects/movies) never reach this route: the `rewrites()`
+// block in next.config.ts forwards them to the authenticated /api/game route.
+const SHELL_TOP_LEVEL: Record<string, true> = {
+  "index.html": true,
+  js: true,
+  css: true,
+  fonts: true,
+  icon: true,
+  "package.json": true,
+  "build-metadata.json": true,
+};
+
+// Website-owned decoupled test harness served only while R2 holds no
+// published shell yet (local dev, CI, pre-release prod). It contains no game
+// content, so it stays reachable without a patron session — matching the
+// pre-R2 public-static behavior of the mock at /engine/index.html.
+const MOCK_BY_PATH: Record<string, string> = {
+  "index.html": MOCK_ENGINE_HTML,
+  "js/plugins/Ropoductions_WebBridge.js": WEB_BRIDGE_SOURCE,
+};
+const MOCK_PATH_SET: Record<string, true> = Object.fromEntries(
+  MOCK_ENGINE_PATHS.map((p) => [p, true])
+);
+
+function isMockPath(key: string): boolean {
+  return key in MOCK_BY_PATH && MOCK_PATH_SET[key] === true;
+}
+
+const SHELL_CACHE = "private, max-age=86400";
+const NO_STORE = "no-store";
+const CORP = "same-origin";
+
+function serveMock(key: string, isHead: boolean): Response {
+  const body = MOCK_BY_PATH[key];
+  return new Response(isHead ? null : body, {
+    status: 200,
+    headers: {
+      "Cache-Control": NO_STORE,
+      "Content-Type": resolveContentType(key),
+      "Cross-Origin-Resource-Policy": CORP,
+    },
+  });
+}
+
+function notFound(): Response {
+  return NextResponse.json(
+    {
+      error: {
+        code: "NOT_FOUND",
+        message: "Shell not found.",
+      },
+    },
+    {
+      status: 404,
+      headers: {
+        "Cache-Control": NO_STORE,
+        "Cross-Origin-Resource-Policy": CORP,
+      },
+    }
+  );
+}
+
+// Serves the open mock for the two website-owned harness paths and 404 for
+// everything else — identical regardless of whether an R2 shell exists, so
+// this response never acts as an existence oracle.
+function mockOrNotFound(key: string, isHead: boolean): Response {
+  return isMockPath(key) ? serveMock(key, isHead) : notFound();
+}
+
+// Mirrors the fail-closed contract of /api/game: infra errors surface as 500
+// in production, but fall back to the placeholder in local dev/CI so the
+// iframe and bridge stay testable without a running bucket or database.
+function infraFailure(key: string, isHead: boolean): Response {
+  if (process.env.NODE_ENV !== "production") {
+    return mockOrNotFound(key, isHead);
+  }
+  return internalError();
+}
+
+function unauthorized(): Response {
+  return NextResponse.json(
+    {
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Active patron session and 21+ age verification required.",
+      },
+    },
+    {
+      status: 403,
+      headers: {
+        "Cache-Control": NO_STORE,
+        "Cross-Origin-Resource-Policy": CORP,
+      },
+    }
+  );
+}
+
+function internalError(): Response {
+  return NextResponse.json(
+    {
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "An unexpected error occurred.",
+      },
+    },
+    {
+      status: 500,
+      headers: {
+        "Cache-Control": NO_STORE,
+        "Cross-Origin-Resource-Policy": CORP,
+      },
+    }
+  );
+}
+
+async function handleEngineRequest(
+  request: NextRequest,
+  paramsPromise: Promise<{ path?: string[] }>,
+  isHead: boolean
+): Promise<Response> {
+  const { path } = await paramsPromise;
+  const pathResult = sanitizeAssetPath(path, SHELL_TOP_LEVEL);
+  if (pathResult.error || !pathResult.key) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "BAD_REQUEST",
+          message: pathResult.error || "Invalid shell path.",
+        },
+      },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": NO_STORE,
+          "Cross-Origin-Resource-Policy": CORP,
+        },
+      }
+    );
+  }
+  const key = pathResult.key;
+
+  const ageVerified =
+    unquoteCookieValue(request.cookies.get(AGE_VERIFIED_COOKIE_NAME)?.value) === "true";
+  const sessionCookie = unquoteCookieValue(
+    request.cookies.get(SESSION_COOKIE_NAME)?.value
+  );
+
+  // Anonymous (no patron cookies): serve only the open mock harness / 404,
+  // independently of whether an R2 shell exists. No R2 read and no D1 read,
+  // so this path discloses nothing about release state and costs nothing.
+  if (!ageVerified || !sessionCookie) {
+    return mockOrNotFound(key, isHead);
+  }
+
+  // Cookies present: establish a valid patron session, fail-closed on errors.
+  let db;
+  let authEnv;
+  try {
+    db = await getDatabase();
+    authEnv = await getAuthEnv();
+  } catch {
+    return infraFailure(key, isHead);
+  }
+
+  let validation;
+  try {
+    validation = await validateSessionAccess({
+      db,
+      sessionCookie,
+      sessionSecret: authEnv.sessionSecret,
+      initialAdminIds: authEnv.initialAdminPatreonIds,
+    });
+  } catch {
+    return infraFailure(key, isHead);
+  }
+  if (validation.status !== "authorized") {
+    return unauthorized();
+  }
+
+  // Authorized: resolve the shell bucket. It is patron content and streams
+  // with the same private cache semantics as /api/game assets.
+  let bucket;
+  try {
+    bucket = await getGameAssetsBucket();
+  } catch {
+    return infraFailure(key, isHead);
+  }
+
+  const objectKey = `engine/${key}`;
+  const head = await bucket.head(objectKey);
+
+  // No published shell yet: authorized patrons see the placeholder harness.
+  if (!head) {
+    return mockOrNotFound(key, isHead);
+  }
+
+  const headers = new Headers();
+  headers.set("Cache-Control", SHELL_CACHE);
+  headers.set("Vary", "Cookie");
+  headers.set("Cross-Origin-Resource-Policy", CORP);
+  headers.set("Accept-Ranges", "bytes");
+  if (head.httpEtag) {
+    headers.set("ETag", head.httpEtag);
+  }
+  headers.set(
+    "Content-Type",
+    resolveContentType(objectKey, head.httpMetadata?.contentType)
+  );
+
+  const ifNoneMatch = request.headers.get("if-none-match");
+  if (ifNoneMatch) {
+    const normalizedHeadEtag = head.httpEtag
+      ? head.httpEtag.replace(/^W\//i, "").replace(/^"|"$/g, "")
+      : undefined;
+    const isMatch =
+      ifNoneMatch.trim() === "*" ||
+      ifNoneMatch.split(",").some((tag) => {
+        const normalized = tag.trim().replace(/^W\//i, "").replace(/^"|"$/g, "");
+        return normalized === normalizedHeadEtag;
+      });
+    if (isMatch) {
+      return new Response(null, { status: 304, headers });
+    }
+  }
+
+  const rangeHeader = request.headers.get("range");
+  if (rangeHeader && !isHead) {
+    const parsedRange = parseByteRange(rangeHeader, head.size);
+    if (parsedRange === "unsatisfiable") {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          "Content-Range": `bytes */${head.size}`,
+          "Cache-Control": SHELL_CACHE,
+          "Vary": "Cookie",
+          "Cross-Origin-Resource-Policy": CORP,
+        },
+      });
+    }
+    if (parsedRange !== "invalid") {
+      headers.set(
+        "Content-Range",
+        `bytes ${parsedRange.start}-${parsedRange.end}/${head.size}`
+      );
+      headers.set("Content-Length", parsedRange.length.toString());
+      let rangeObject;
+      try {
+        rangeObject = await bucket.get(objectKey, { range: parsedRange.r2Range });
+      } catch {
+        return internalError();
+      }
+      if (!rangeObject || !rangeObject.body) {
+        return NextResponse.json(
+          {
+            error: { code: "NOT_FOUND", message: "Shell not found." },
+          },
+          {
+            status: 404,
+            headers: {
+              "Cache-Control": NO_STORE,
+              "Cross-Origin-Resource-Policy": CORP,
+            },
+          }
+        );
+      }
+      return new Response(rangeObject.body, { status: 206, headers });
+    }
+  }
+
+  if (isHead) {
+    headers.set("Content-Length", head.size.toString());
+    return new Response(null, { status: 200, headers });
+  }
+
+  let object;
+  try {
+    object = await bucket.get(objectKey);
+  } catch {
+    return internalError();
+  }
+  if (!object || !object.body) {
+    return NextResponse.json(
+      {
+        error: { code: "NOT_FOUND", message: "Shell not found." },
+      },
+      {
+        status: 404,
+        headers: {
+          "Cache-Control": NO_STORE,
+          "Cross-Origin-Resource-Policy": CORP,
+        },
+      }
+    );
+  }
+  headers.set("Content-Length", head.size.toString());
+  return new Response(object.body as ReadableStream, { status: 200, headers });
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ path?: string[] }> }
+) {
+  try {
+    return await handleEngineRequest(request, params, false);
+  } catch {
+    return internalError();
+  }
+}
+
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: Promise<{ path?: string[] }> }
+) {
+  try {
+    return await handleEngineRequest(request, params, true);
+  } catch {
+    return internalError();
+  }
+}

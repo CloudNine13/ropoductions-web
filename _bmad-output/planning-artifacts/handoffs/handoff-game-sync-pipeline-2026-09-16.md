@@ -22,7 +22,7 @@
 ## 2. Core Architecture Consensus (Inviolable Rules)
 
 1. **Same-Origin Sandboxed Iframe (AD-2):**
-   - The game runtime shell (`index.html`, `js/`, `css/`, `fonts/`, ~10MB) must be hosted directly on the main origin at `/engine/index.html` (inside `public/engine/`).
+   - The game runtime shell (`index.html`, `js/`, `css/`, `fonts/icon/`, ~10MB) must be served on the main origin at `/engine/index.html` from the private R2 `engine/` prefix (streamed by `/engine/[...path]`), never committed to the web repository.
    - *Why:* Hosting the game on a separate domain or Pages subdomain causes modern browsers (Safari ITP, Chrome Storage Partitioning) to isolate IndexedDB, wiping or partitioning patron save data (`rmmz_save`).
 2. **Private R2 Asset Bucket (AD-5):**
    - Heavy static assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) must live in the private Cloudflare R2 bucket (`GAME_ASSETS`).
@@ -58,7 +58,7 @@ graph TD
     E --> F[Validation Step: Verify index.html, package.json, and data/*.json]
     F --> G[Injection Step: Inject Ropoductions_WebBridge.js into plugins.js]
     G --> H[Upload Media to Private R2 Bucket: GAME_ASSETS via S3/Wrangler]
-    G --> I[Commit Lightweight Shell to ropoductions-web: public/engine/]
+    G --> I[Additive sync of shell to private R2: engine/ prefix]
     H & I --> J[Deploy to Staging / Production Edge]
 ```
 
@@ -84,9 +84,9 @@ graph TD
    - **Decision:** Use the **AWS S3-compatible CLI** (`aws s3 sync --endpoint-url https://<account_id>.r2.cloudflarestorage.com`) with Cloudflare R2 credentials. S3 sync calculates checksum deltas and only transfers modified audio/images, reducing ingestion run times from 15+ minutes down to under 60 seconds.
 4. **Engine Shell vs. Static Asset Separation:**
    - **Static Media to Private R2 (`GAME_ASSETS`):** `audio/`, `img/`, `effects/`, `movies/`, `data/`.
-   - **Lightweight Shell to Git (`public/engine/`):** `index.html`, `js/`, `css/`, `fonts/`, `icon/` (~8–10MB).
+   - **Lightweight Shell to Private R2 (`engine/` prefix):** `index.html`, `js/`, `css/`, `fonts/`, `icon/` (~8–10MB).
 5. **In-Game Web Bridge (`Ropoductions_WebBridge.js`) Injection:**
-   - **Decision:** Ingestion workflow automatically copies `Ropoductions_WebBridge.js` into `public/engine/js/plugins/` and registers `{ "name": "Ropoductions_WebBridge", "status": true, "description": "Web Shell PostMessage Save Bridge", "parameters": {} }` in `public/engine/js/plugins.js`.
+   - **Decision:** Ingestion workflow automatically injects `Ropoductions_WebBridge.js` into `js/plugins/` of the staged shell and registers `{ "name": "Ropoductions_WebBridge", "status": true, "description": "Web Shell PostMessage Save Bridge", "parameters": {} }` in `js/plugins.js`.
    - **Protocol:** Enforces `event.origin === window.location.origin`. Handles `ROPODUCTIONS_GET_SAVES` and `ROPODUCTIONS_SET_SAVES` via RPG Maker MZ's `StorageManager`.
    - **Instant Index Refresh:** Upon importing saves, the bridge invokes `DataManager.loadGlobalInfo()` so the in-game "Continue" / load screen updates immediately without requiring an iframe or page reload.
 6. **Video Cutscene Handling:**
@@ -102,7 +102,7 @@ graph TD
 - [ ] Provide upstream maintainers (`salamin888`) with the lightweight `.github/workflows/publish-to-web.yml` dispatch workflow.
 - [ ] Implement `Ropoductions_WebBridge.js` plugin under `src/engine-plugins/Ropoductions_WebBridge.js` with postMessage listener, origin checking, and `StorageManager` / `DataManager` hooks.
 - [ ] Implement Save HUD import modal with JSZip client-side unzipping, header validation, and error handling.
-- [ ] Scaffold lightweight mock canvas harness in `public/engine/index.html` to enable decoupled local and E2E testing of Story 3.1 and Epic 4 before live asset ingestion.
+- [ ] Scaffold lightweight mock canvas harness at `src/engine-plugins/mock-shell.html` (served by `/engine/[...path]` at `/engine/index.html`) to enable decoupled local and E2E testing of Story 3.1 and Epic 4 before live asset ingestion.
 
 ---
 
@@ -151,8 +151,8 @@ jobs:
 Developing and testing Story 3.1 (16:9 responsive iframe, mobile touch parity, fullscreen) and Epic 4 (Save HUD dock, postMessage bridge, JSZip backup) cannot block on upstream release ingestion or private R2 asset population.
 
 ### 8.2 Solution: Local Mock Canvas Harness
-1. `public/engine/index.html` hosts a 16:9 mock canvas (1280x720) with touch/pointer coordinate display and origin-verified postMessage handling.
+1. `src/engine-plugins/mock-shell.html` hosts a 16:9 mock canvas (1280x720) with touch/pointer coordinate display and origin-verified postMessage handling, served by `/engine/[...path]` at `/engine/index.html`.
 2. Story 3.1 verifies viewport locking (`100dvh`/`100dvw`), touch handling (`touch-action: manipulation`), and Fullscreen API against the mock.
 3. Story 3.2 verifies authenticated R2 streaming via Vitest unit tests mocking `R2Bucket` and Miniflare local emulation in `wrangler dev`.
 4. Epic 4 verifies `ROPODUCTIONS_GET_SAVES`, `ROPODUCTIONS_SET_SAVES`, and `ROPODUCTIONS_RESET_SAVES` against the mock bridge.
-5. When Story 3.3 sync runs, it replaces `public/engine/` with the real RPG Maker MZ shell, requiring zero code changes in the Next.js web application.
+5. When Story 3.3 sync runs, the `/engine/[...path]` route begins streaming the real RPG Maker MZ shell from the R2 `engine/` prefix once published, requiring zero code changes in the Next.js web application.

@@ -27,9 +27,8 @@ export default defineConfig([
     "cloudflare-env.d.ts",
     // OpenNext Cloudflare build output
     ".open-next/**",
-    // Third-party RPG Maker MZ engine and the in-engine bridge plugin run in a
-    // foreign runtime (MZ globals), not the Next.js app
-    "public/engine/**",
+    // The in-engine bridge plugin and mock harness run in a foreign RPG Maker
+    // MZ runtime (MZ globals), not the Next.js app
     "src/engine-plugins/**",
   ]),
 ]);

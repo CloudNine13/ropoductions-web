@@ -301,7 +301,7 @@ So that verified game assets are automatically validated, injected with our web 
 **And** validates file structure (`Final Orginity/data/System.json`, `package.json`, `index.html`)
 **And** injects `Ropoductions_WebBridge.js` into `js/plugins/` and registers the plugin in `js/plugins.js`
 **And** transfers static media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 (`GAME_ASSETS`) using AWS CLI S3 sync (`--endpoint-url`)
-**And** commits the lightweight HTML5 engine shell (`index.html`, `js/`, `css/`, `fonts/`) into `public/engine/` of `ropoductions-web`
+**And** syncs the lightweight HTML5 engine shell (`index.html`, `js/`, `css/`, `fonts/`) additively to private R2 (`GAME_ASSETS`) under the `engine/` prefix, streamed same-origin at `/engine/*`; the runner never commits to `ropoductions-web`
 **And** Cloudflare R2 credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) reside strictly within `ropoductions-web`, with zero secrets exposed to the upstream repository.
 ---
 

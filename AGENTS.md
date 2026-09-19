@@ -26,7 +26,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - Design tokens and components: `_bmad-output/planning-artifacts/ux-designs/ux-ropoductions-web-2026-09-15/DESIGN.md`
 - Routes, states, microcopy, flows: `_bmad-output/planning-artifacts/ux-designs/ux-ropoductions-web-2026-09-15/EXPERIENCE.md`
 - Epics and stories: `_bmad-output/planning-artifacts/epics.md`; execution state: `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- Future code entry points (post Story 1.1): `src/app/(portal)/page.tsx`, `src/app/(game)/play/page.tsx`, `src/components/age-gate-dialog.tsx`, `src/components/save-hud-dock.tsx`, `src/app/api/auth/*`, `src/app/api/game/[...asset]/route.ts`, `public/engine/index.html`, `migrations/0001_initial_sessions.sql`, `wrangler.toml`
+- Future code entry points (post Story 1.1): `src/app/(portal)/page.tsx`, `src/app/(game)/play/page.tsx`, `src/components/age-gate-dialog.tsx`, `src/components/save-hud-dock.tsx`, `src/app/api/auth/*`, `src/app/api/game/[...asset]/route.ts`, `src/app/engine/[...path]/route.ts`, `src/engine-plugins/` (mock-shell.html + Ropoductions_WebBridge.js), `migrations/0001_initial_sessions.sql`, `wrangler.toml`
 
 ## Running and verifying
 
@@ -41,6 +41,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - Sessions: client gets only opaque UUIDv4 cookie `ropoductions_session` with HTTP-only, SameSite=Lax, Secure; validate it against D1 on `/play` and `/api/game/*`.
 - postMessage actions MUST use `ROPODUCTIONS_` prefix and check `event.origin === window.location.origin`; validate save payloads before calling `StorageManager`.
 - Serve game assets ONLY through `/api/game/[...asset]` from private R2 bucket `GAME_ASSETS` (zero public access) with `Cache-Control: private, max-age=86400`; return 403 JSON envelope `{ error: { code, message } }` without a session.
+- Media (`/engine/{data,img,audio,effects,movies}/*`) rewrites to `/api/game/*`; the MZ shell is uploaded to R2 `engine/` prefix by the sync action and streamed same-origin via `/engine/[...path]` (gated like `/api/game`; anonymous requests get the open mock harness from `src/engine-plugins/`). The sync action NEVER writes to any branch (`permissions: contents: read`).
 - D1 access MUST use `db.prepare().bind()`; string-concatenated SQL is forbidden; schema changes go as versioned files in `migrations/`.
 - Files are `kebab-case` (`age-gate-dialog.tsx`); API routes are lowercase plural (`/api/auth/patreon`, `/api/auth/callback`, `/api/game/[...asset]`); D1 tables and columns are `snake_case` with unit suffixes (`pledge_cents`, `created_at`, `expires_at_sec`); env vars are `UPPER_SNAKE_CASE`.
 - Locales live in `src/locales/[locale].json` with fallback to `en`; supported codes are EN, JA, ES, RU, ZH, PL; persist in `ropoductions_lang` cookie for 365 days.
