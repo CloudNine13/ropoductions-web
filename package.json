@@ -11,7 +11,7 @@
     "test": "npx tsx tests/verify-d1-schema.ts && npx tsx tests/verify-patreon-oauth.ts",
     "test:d1": "npx tsx tests/verify-d1-schema.ts",
     "test:oauth": "npx tsx tests/verify-patreon-oauth.ts",
-    "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/proxy.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/auth.test.ts tests/paywall.test.ts tests/portal-guardrails.test.ts tests/suite-manifest.test.ts tests/game-viewport.test.ts tests/game-assets.test.ts tests/engine-bridge.test.ts tests/game-sync.test.ts tests/workflow-manifest.test.ts tests/admin-bootstrap.test.ts tests/save-bridge.test.ts tests/save-hud-dock.test.ts tests/design-motion-fixes.test.ts tests/save-export.test.ts tests/save-import.test.ts tests/save-dialogs.test.ts tests/admin-layout.test.ts tests/admin-overrides.test.ts",
+    "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/proxy.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/auth.test.ts tests/paywall.test.ts tests/portal-guardrails.test.ts tests/suite-manifest.test.ts tests/game-viewport.test.ts tests/game-assets.test.ts tests/engine-bridge.test.ts tests/game-sync.test.ts tests/workflow-manifest.test.ts tests/admin-bootstrap.test.ts tests/save-bridge.test.ts tests/save-hud-dock.test.ts tests/design-motion-fixes.test.ts tests/save-export.test.ts tests/save-import.test.ts tests/save-dialogs.test.ts tests/admin-layout.test.ts tests/admin-overrides.test.ts tests/admin-revocation.test.ts",
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

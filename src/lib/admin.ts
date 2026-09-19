@@ -39,6 +39,20 @@ export function isSealedCreatorAdmin(
   return false;
 }
 
+export function isSoleAdminSelf(
+  override: PatronOverrideRecord,
+  currentAdminPatronId: string,
+  adminOverrideCount: number,
+  creatorAdminIds?: string | null
+): boolean {
+  return (
+    !isSealedCreatorAdmin(override, creatorAdminIds) &&
+    override.role === "admin" &&
+    override.patron_id === currentAdminPatronId &&
+    adminOverrideCount <= 1
+  );
+}
+
 export interface ValidateAdminSessionOptions {
   db: D1Database;
   sessionCookie?: string | null;

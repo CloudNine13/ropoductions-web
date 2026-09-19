@@ -250,3 +250,49 @@ export async function listPatronOverrides(
 
   return results ?? [];
 }
+
+/**
+ * Counts patron overrides holding the `admin` role.
+ * Includes both sealed Creator Admins and panel-assigned admins.
+ *
+ * @param db Cloudflare D1 Database binding
+ * @returns Number of admin overrides
+ */
+export async function countAdminOverrides(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare("SELECT COUNT(*) AS count FROM patron_overrides WHERE role = ?")
+    .bind("admin")
+    .first<{ count: number | string }>();
+
+  return Number(row?.count ?? 0);
+}
+
+/**
+ * Atomically deletes a patron override while enforcing the sole-admin invariant.
+ * A `comp` override is always deletable; an `admin` override is deleted only when
+ * at least one other admin override remains. The count subquery and DELETE execute
+ * as a single statement, so concurrent revocations cannot drop the system to zero
+ * administrators.
+ *
+ * @param db Cloudflare D1 Database binding
+ * @param patronId Numeric string Patreon user ID
+ * @returns Number of rows deleted (0 = blocked by the guard or target absent)
+ */
+export async function deletePatronOverrideGuarded(
+  db: D1Database,
+  patronId: string
+): Promise<number> {
+  const result = await db
+    .prepare(
+      `DELETE FROM patron_overrides
+       WHERE patron_id = ?
+         AND (
+           role = 'comp'
+           OR (SELECT COUNT(*) FROM patron_overrides WHERE role = 'admin' AND patron_id != ?) >= 1
+         )`
+    )
+    .bind(patronId, patronId)
+    .run();
+
+  return result.meta?.changes ?? 0;
+}

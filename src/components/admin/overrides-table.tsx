@@ -4,14 +4,23 @@ import {
   ADMIN_CREATOR_TIER_LABEL,
   ADMIN_PANEL_TIER_LABEL,
   isSealedCreatorAdmin,
+  isSoleAdminSelf,
 } from "@/lib/admin";
+import { RevokeOverrideButton } from "@/components/admin/revoke-override-button";
 
 export interface OverridesTableProps {
   overrides: PatronOverrideRecord[];
   creatorAdminIds?: string | null;
+  currentAdminPatronId: string;
+  adminOverrideCount: number;
 }
 
-export function OverridesTable({ overrides, creatorAdminIds }: OverridesTableProps) {
+export function OverridesTable({
+  overrides,
+  creatorAdminIds,
+  currentAdminPatronId,
+  adminOverrideCount,
+}: OverridesTableProps) {
   if (overrides.length === 0) {
     return (
       <div className="bg-[#121522] border border-[#23283E] rounded-xl p-8 flex flex-col items-center justify-center text-center gap-3">
@@ -54,6 +63,12 @@ export function OverridesTable({ overrides, creatorAdminIds }: OverridesTablePro
           <tbody className="divide-y divide-[#23283E]/60 text-foreground">
             {overrides.map((override) => {
               const sealed = isSealedCreatorAdmin(override, creatorAdminIds);
+              const soleAdminSelf = isSoleAdminSelf(
+                override,
+                currentAdminPatronId,
+                adminOverrideCount,
+                creatorAdminIds
+              );
               const formattedDate = new Date(override.created_at_sec * 1000).toISOString().split("T")[0];
 
               return (
@@ -130,9 +145,16 @@ export function OverridesTable({ overrides, creatorAdminIds }: OverridesTablePro
                         <span>Sealed</span>
                       </span>
                     ) : (
-                      <span className="text-xs text-primary font-medium">
-                        Active Pass
-                      </span>
+                      <RevokeOverrideButton
+                        patronId={override.patron_id}
+                        role={override.role}
+                        disabled={soleAdminSelf}
+                        disabledReason={
+                          soleAdminSelf
+                            ? "Cannot revoke the sole remaining administrator"
+                            : undefined
+                        }
+                      />
                     )}
                   </td>
                 </tr>
