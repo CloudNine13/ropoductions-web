@@ -389,4 +389,48 @@ describe("validateSessionAccess with initialAdminIds and elevation", () => {
 
     assert.equal(result.status, "unauthorized");
   });
+
+  it("refreshes session expiry when elevating via existing override", async () => {
+    const { db, sessions, overrides } = createMockD1();
+    const sessionId = "session-test-override-expiry";
+    sessions.set(sessionId, {
+      id: sessionId,
+      patron_id: "comp-patron-43",
+      email: "tester@example.com",
+      role: "patron",
+      tier_id: "tier_0",
+      tier_name: "No Pledge",
+      pledge_cents: 0,
+      encrypted_access_token: "enc_access",
+      encrypted_refresh_token: "enc_refresh",
+      token_expires_at_sec: NOW + 3600,
+      expires_at_sec: NOW + 3600,
+      revoked: 0,
+      created_at_sec: NOW - 100,
+      last_verified_at_sec: NOW - 100,
+    });
+
+    overrides.set("comp-patron-43", {
+      patron_id: "comp-patron-43",
+      role: "comp",
+      notes: "VIP Playtester",
+      granted_by: "studio_lead",
+      created_at_sec: NOW - 200,
+      updated_at_sec: NOW - 200,
+    });
+
+    const cookie = await signValue(sessionId, SECRET);
+    const result = await validateSessionAccess({
+      db,
+      sessionCookie: cookie,
+      sessionSecret: SECRET,
+      nowSec: NOW,
+    });
+
+    assert.equal(result.status, "authorized");
+    if (result.status === "authorized") {
+      assert.ok(result.session.expires_at_sec > NOW + 3600);
+    }
+    assert.ok((sessions.get(sessionId)?.expires_at_sec ?? 0) > NOW + 3600);
+  });
 });

@@ -79,6 +79,12 @@ describe("approved campaign tiers and threshold", () => {
     assert.ok(findApprovedTier("Ork Patron"));
   });
 
+  it("falls back to amount-based match when a renamed tier reports sufficient pledge", () => {
+    const tier = findApprovedTier("Mind Fucker Avatar", 500);
+    assert.ok(tier);
+    assert.equal(tier?.name, "Ork Patron");
+  });
+
   it("resolves approved tiers by amount in cents", () => {
     const tier500 = findApprovedTier(null, 500);
     assert.ok(tier500);
