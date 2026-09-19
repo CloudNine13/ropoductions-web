@@ -72,7 +72,7 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
     assert.ok(src.includes('"keydown"'), "Must listen for keydown user activity");
     assert.ok(src.includes('"wheel"'), "Must listen for wheel user activity");
     assert.ok(src.includes('"message"'), "Must listen for postMessage activity from engine iframe");
-    assert.ok(src.includes("ROPODUCTIONS_ACTIVITY"), "Must handle ROPODUCTIONS_ACTIVITY message type");
+    assert.ok(src.includes("ROPODUCTIONS_ACTIVITY") || src.includes("HUD_ACTIVITY_MESSAGE_TYPE"), "Must handle ROPODUCTIONS_ACTIVITY message type");
     assert.ok(src.includes("ACTIVITY_THROTTLE_MS"), "Must throttle activity wakes to avoid timer churn");
 
     // Cleanup on unmount

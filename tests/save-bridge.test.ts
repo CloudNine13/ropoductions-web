@@ -29,6 +29,12 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
       assert.equal(normalizeSlotKey("config.rpgsave"), "config");
     });
 
+    it("normalizes uppercase slot names case-insensitively", () => {
+      assert.equal(normalizeSlotKey("FILE1"), "file1");
+      assert.equal(normalizeSlotKey("FILE1.RPGSAVE"), "file1");
+      assert.equal(normalizeSlotKey("Global.rpgsave"), "global");
+    });
+
     it("rejects slot numbers exceeding 20", () => {
       assert.equal(normalizeSlotKey("file0"), null);
       assert.equal(normalizeSlotKey("file21"), null);

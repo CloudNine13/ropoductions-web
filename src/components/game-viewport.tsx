@@ -8,6 +8,7 @@ import { SaveHudDock } from "./save-hud-dock";
 import { SaveImportDialog } from "./save-import-dialog";
 import { SaveResetDialog } from "./save-reset-dialog";
 import { exportSaves } from "../lib/save-export";
+import { HUD_ACTIVITY_MESSAGE_TYPE } from "../types/save";
 export interface GameViewportProps {
   engineSrc?: string;
   title?: string;
@@ -122,7 +123,7 @@ export function GameViewport({
       const iframeDoc = iframeRef.current?.contentDocument;
       if (iframeDoc) {
         const forwardActivity = () => {
-          window.postMessage({ type: "ROPODUCTIONS_ACTIVITY" }, window.location.origin);
+          window.postMessage({ type: HUD_ACTIVITY_MESSAGE_TYPE }, window.location.origin);
         };
         iframeDoc.addEventListener("pointerdown", forwardActivity, { passive: true });
         iframeDoc.addEventListener("keydown", forwardActivity, { passive: true });
