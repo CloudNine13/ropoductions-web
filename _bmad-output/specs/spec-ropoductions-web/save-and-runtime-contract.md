@@ -35,7 +35,7 @@ The web game wrapper must provide an accessible, responsive HUD outside or overl
   * Clear/Reset storage option with a destructive confirmation modal (for troubleshooting or starting fresh).
 
 ## 4. In-Game Bridge Plugin (`Ropoductions_WebBridge.js`) Contract
-* **Plugin Location:** `public/engine/js/plugins/Ropoductions_WebBridge.js` (registered in `plugins.js`).
+* **Plugin Location:** Sourced from `src/engine-plugins/Ropoductions_WebBridge.js` (registered in `plugins.js`); the ingestion runner injects it into the shell before the shell is synced to R2.
 * **Origin Verification:** Every incoming message MUST strictly verify `event.origin === window.location.origin` to block cross-origin script injection and save data theft.
 * **Message Protocol:**
   * **Outbound Save Request:**
@@ -61,12 +61,12 @@ The web game wrapper must provide an accessible, responsive HUD outside or overl
 * **Validation & Shell Ingestion:**
   - Pipeline verifies file structure (`data/System.json`, `index.html`) and injects `Ropoductions_WebBridge.js` before copying assets.
   - Media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) sync to private Cloudflare R2 (`GAME_ASSETS`).
-  - Lightweight engine shell (`index.html`, `js/`, `css/`, `fonts/`) commits directly to `public/engine/`.
+  - Lightweight engine shell (`index.html`, `js/`, `css/`, `fonts/`, `icon/`) syncs additively to private R2 (`GAME_ASSETS`) under the `engine/` prefix and streams same-origin at `/engine/*`; the ingestion runner never commits to Git.
 
 ## 6. Decoupled Mock Harness Testing Invariant
 * **Independent Container Verification:** The web game iframe container (`src/app/(game)/play/page.tsx`, Story 3.1) and Save HUD dock (`src/components/save-hud-dock.tsx`, Epic 4) are architecturally decoupled from upstream game download infrastructure.
 * **Local Canvas Test Harness:**
   - The web client iframe targets same-origin `/engine/index.html`.
-  - For local development, integration, and E2E verification prior to upstream asset availability, `public/engine/index.html` can serve a lightweight HTML5 `<canvas>` mock harness.
+  - For local development, integration, and E2E verification prior to upstream asset availability, the `/engine/[...path]` route serves a lightweight HTML5 `<canvas>` mock harness (`src/engine-plugins/mock-shell.html`) at `/engine/index.html` while R2 holds no published shell.
   - The harness renders a 16:9 canvas (1280x720) with active input visualization and implements the `postMessage` protocol defined in Section 4 (`ROPODUCTIONS_GET_SAVES`, `ROPODUCTIONS_SET_SAVES`, `ROPODUCTIONS_RESET_SAVES`).
   - Replacing the mock canvas harness with the production engine shell requires zero modifications to the web wrapper container, layout, or postMessage handlers.

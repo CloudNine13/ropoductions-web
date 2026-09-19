@@ -29,14 +29,14 @@ context:
 5. **Automated Structural & Comprehensive JSON Validation:** Shallow-clones the release snapshot using authenticated headers (never embedding tokens in git clone URLs). Verifies existence of `data/System.json`, `package.json`, and `index.html`. Iterates and parses all `data/*.json` files to ensure zero truncated, empty, or corrupted database files before any mutations occur.
 6. **Syntax-Safe Idempotent Web Bridge Injection:** Automatically copies the origin-locked postMessage bridge (`src/engine-plugins/Ropoductions_WebBridge.js`) into `js/plugins/` and safely registers it in `js/plugins.js`. Handles empty arrays, comments, and trailing commas, validating modified file syntax with `new Function()` before persisting.
 7. **Additive R2 Media Sync (Zero Deletion Hazard):** Synchronizes static media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private Cloudflare R2 bucket (`GAME_ASSETS`) using AWS CLI S3 sync (`--endpoint-url`) strictly without `--delete`, preserving backward compatibility for historic patron save files.
-8. **Symlink-Safe Shell Ingestion & Audit Metadata:** Ingests lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`, `icon/`) to `public/engine/` after rejecting symbolic links and verifying path containment. Writes `public/engine/build-metadata.json` (recording upstream branch, commit SHA, and timestamp) and commits to Git using `github-actions[bot]`.
+8. **Symlink-Safe Shell Ingestion & Audit Metadata:** Ingests lightweight HTML5 shell (`index.html`, `js/`, `css/`, `fonts/`, `icon/`) to a staging directory after rejecting symbolic links and verifying path containment. Stages `build-metadata.json` (recording upstream branch, commit SHA, and timestamp) alongside it and syncs the whole shell additively to R2 under the `engine/` prefix — never committing to Git.
 9. **Origin-Locked & Prototype-Pollution-Hardened WebBridge:** In-game bridge strictly enforces `event.origin === window.location.origin`, checks that inbound payloads are plain non-null objects, validates slot keys against strict regex `/^(file([1-9]|1[0-9]|20)|global|config)(\.rpgsave)?$/`, rejects `__proto__` / `constructor` pollution attempts, and invokes `DataManager.loadGlobalInfo()` for instant UI refresh.
 10. **Absolute Secret Isolation:** Cloudflare R2 secrets (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) and clone credentials reside strictly within `ropoductions-web`. Upstream maintainers receive zero Cloudflare credentials and zero repository write permissions.
 
 ## Boundaries & Constraints
 
 **Always:**
-- Declare least-privilege workflow permissions in `.github/workflows/sync-game-release.yml`: `permissions: contents: write` (for engine shell commit).
+- Declare least-privilege workflow permissions in `.github/workflows/sync-game-release.yml`: `permissions: contents: read` (the runner never writes to any branch).
 - Add workflow concurrency control: `concurrency: { group: "sync-game-release", cancel-in-progress: false }`.
 - Keep Cloudflare R2 credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`) and upstream clone token (`UPSTREAM_READ_TOKEN`) strictly inside `ropoductions-web` repository secrets. Pass them exclusively via step-level `env:` blocks, never via command line arguments.
 - Upstream developers (`salamin888`) must NEVER receive Cloudflare tokens, R2 access keys, or repository write access.
@@ -51,9 +51,9 @@ context:
 - Support message protocols: `ROPODUCTIONS_GET_SAVES` (reads slots via `StorageManager`, returns `ROPODUCTIONS_SAVES_DATA`), `ROPODUCTIONS_SET_SAVES` (persists slots, calls `DataManager.loadGlobalInfo()`, returns `ROPODUCTIONS_SET_SAVES_SUCCESS`), `ROPODUCTIONS_RESET_SAVES` (clears storage, calls `DataManager.loadGlobalInfo()`, returns `ROPODUCTIONS_RESET_SAVES_SUCCESS`).
 - Inject `Ropoductions_WebBridge.js` into `js/plugins/` and register in `js/plugins.js` idempotently. Validate modified `plugins.js` syntax via `new Function(code)` before writing.
 - Upload static media directories (`audio/`, `img/`, `effects/`, `movies/`, `data/`) directly to private R2 bucket `GAME_ASSETS` via AWS CLI S3 sync (`--endpoint-url https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`).
-- During shell copy to `public/engine/`, check `fs.lstatSync().isSymbolicLink()` and reject/skip symlinks. Canonicalize all target paths and verify containment within `public/engine/`.
-- Write `public/engine/build-metadata.json` containing `{ upstreamRepo, branch, commitSha, syncedAt }`.
-- Commit changes using `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>` with a deterministic message: `chore(engine): sync game release ${SAFE_BRANCH} [upstream:${SHORT_SHA}]`.
+- During shell staging, check `fs.lstatSync().isSymbolicLink()` and reject/skip symlinks. Canonicalize all target paths and verify containment within the staging directory.
+- Stage `build-metadata.json` containing `{ upstreamRepo, branch, commitSha, syncedAt }` inside the staged shell, then additively sync the shell directory to private R2 under the `engine/` prefix (`--endpoint-url https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`).
+- Never commit or push shell changes to any branch (`permissions: contents: read`; no `github-actions[bot]` commit step).
 - Provide upstream workflow reference file (`docs/upstream/publish-to-web.yml`).
 - Register all new test files in `package.json` under `test:unit` to satisfy `tests/suite-manifest.test.ts`.
 
@@ -81,7 +81,7 @@ context:
 | Subdirectory Upstream Structure | Upstream repo organizes game files inside `Final Orginity/` folder | `locateGameRoot` detects `Final Orginity/` and rebases all R2 and shell paths relative to it | Fails with clear path error if neither root nor `Final Orginity/` contains game files |
 | Idempotent Bridge Plugin Registration | `js/plugins.js` already has `Ropoductions_WebBridge` registered from prior sync | Script detects existing entry, leaves intact; validates syntax with `new Function()` | Safely continues pipeline; zero duplicate plugin entries |
 | Plugin Injection on Empty Plugins Array | Upstream `js/plugins.js` contains `var $plugins = [];` | Script injects bridge as first element without leading comma syntax errors; passes syntax check | Valid JavaScript written |
-| No Engine Shell Changes Detected | Upstream HTML/JS/CSS shell matches current `public/engine/` exactly | R2 sync updates media; Git diff detects 0 changes in `public/engine/`; skips commit cleanly | Exits step with `0` exit code and log "No changes in public/engine, skipping commit" |
+| No Engine Shell Changes Detected | Upstream shell matches the previously synced R2 `engine/` prefix | Media and shell R2 syncs run; additive `aws s3 sync` uploads nothing new | Exits step with `0` (additive sync of unchanged files is a no-op); no Git operations occur |
 | Concurrent Workflow Triggers | Two dispatches received 5 seconds apart | Concurrency group `sync-game-release` queues the second run until the first finishes | Eliminates R2 sync races and Git commit push rejections |
 | Cross-Origin Message to WebBridge | `postMessage` received from `https://malicious-site.com` | Bridge checks `event.origin !== window.location.origin`; discards message immediately | Silently ignores untrusted origin; does not touch `StorageManager` |
 | Prototype Pollution Attempt via WebBridge | `ROPODUCTIONS_SET_SAVES` with payload `{"__proto__": {"polluted": true}}` | Key regex validation rejects `__proto__`; aborts save operation | Discards invalid key; does not modify `Object.prototype` |
@@ -92,7 +92,7 @@ context:
 
 ## Code Map
 
-- `.github/workflows/sync-game-release.yml` -- Hardened GitHub Actions workflow definition with dual triggers (`workflow_dispatch`, `repository_dispatch`), concurrency group, secret injection via `env:`, safe git clone, script invocation, AWS S3 sync (without `--delete`), and shell commit with `build-metadata.json`.
+- `.github/workflows/sync-game-release.yml` -- Hardened GitHub Actions workflow definition with dual triggers (`workflow_dispatch`, `repository_dispatch`), concurrency group, secret injection via `env:`, safe git clone, script invocation, AWS S3 sync (without `--delete`) of media and the additive shell sync to the R2 `engine/` prefix with `build-metadata.json`, and `permissions: contents: read` (no Git writes).
 - `src/engine-plugins/Ropoductions_WebBridge.js` -- In-game RPG Maker MZ plugin implementing origin-verified postMessage communication, prototype-pollution-resistant save slot export (`ROPODUCTIONS_GET_SAVES`), import (`ROPODUCTIONS_SET_SAVES`), reset (`ROPODUCTIONS_RESET_SAVES`), and `DataManager.loadGlobalInfo()` live screen refresh.
 - `scripts/sync-game-release.ts` -- Core ingestion engine and CLI tool providing:
   - `validateBranchName(branch: string): string`: Enforces allowlist regex `/^[a-zA-Z0-9][a-zA-Z0-9._\/-]{0,100}$/` and rejects leading hyphens.
@@ -113,7 +113,7 @@ context:
 **Execution:**
 - [ ] `src/engine-plugins/Ropoductions_WebBridge.js` -- Implement RPG Maker MZ plugin with origin-locking (`window.location.origin`), prototype pollution guards, `ROPODUCTIONS_GET_SAVES`, `ROPODUCTIONS_SET_SAVES`, `ROPODUCTIONS_RESET_SAVES`, and `DataManager.loadGlobalInfo()` integration.
 - [ ] `scripts/sync-game-release.ts` -- Implement modular release ingestion engine and CLI (`validateBranchName`, `resolveTargetBranch`, `locateGameRoot`, `validateGameStructure`, `injectWebBridge`, `segregateAssets`, `generateBuildMetadata`).
-- [ ] `.github/workflows/sync-game-release.yml` -- Author GitHub Actions workflow with concurrency group, dual triggers (`workflow_dispatch`, `repository_dispatch`), runner clone with extra headers, script invocation, AWS CLI S3 sync (without `--delete`) to `GAME_ASSETS`, and git commit for `public/engine/`.
+- [ ] `.github/workflows/sync-game-release.yml` -- Author GitHub Actions workflow with concurrency group, dual triggers (`workflow_dispatch`, `repository_dispatch`), runner clone with extra headers, script invocation, AWS CLI S3 sync (without `--delete`) of media to `GAME_ASSETS`, additive shell sync to the R2 `engine/` prefix, and `permissions: contents: read` (never writes to any branch).
 - [ ] `docs/upstream/publish-to-web.yml` -- Document upstream trigger workflow specification for `salamin888/Final_Orginity`.
 - [ ] `tests/game-sync.test.ts` -- Unit tests covering branch sanitization, branch resolution, structural validation, corrupted JSON handling, plugin registration idempotency, and file segregation.
 - [ ] `tests/engine-bridge.test.ts` -- Unit tests covering `Ropoductions_WebBridge.js` origin rejection, prototype pollution rejection, save queries, save injection, and storage reset.
@@ -127,7 +127,7 @@ context:
 - Given an upstream release snapshot, the ingestion engine detects `locateGameRoot()`, verifies `data/System.json`, `package.json`, and `index.html` exist, and validates that all `.json` files in `data/` parse without error.
 - Given verified game files, `Ropoductions_WebBridge.js` is injected into `js/plugins/` and registered in `js/plugins.js` with syntax validation via `new Function()`.
 - Given media directories `audio/`, `img/`, `effects/`, `movies/`, and `data/`, the pipeline synchronizes them relative to the game root to private Cloudflare R2 bucket `GAME_ASSETS` without `--delete`.
-- Given lightweight shell files `index.html`, `js/`, `css/`, `fonts/`, and `icon/`, the pipeline copies them to `public/engine/`, generates `build-metadata.json`, and commits them to Git.
+- Given lightweight shell files `index.html`, `js/`, `css/`, `fonts/`, and `icon/`, the pipeline stages them, generates `build-metadata.json`, and additively syncs them to private R2 under the `engine/` prefix (never committing to Git).
 - Given `Ropoductions_WebBridge.js` receiving messages inside the iframe, any message whose `event.origin !== window.location.origin` or payload containing prototype pollution keys (`__proto__`, `constructor`) is rejected with zero storage access.
 - Given Cloudflare R2 secrets (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`), they reside strictly in `ropoductions-web` with zero exposure to `salamin888`.
 
@@ -154,14 +154,14 @@ context:
 - [SEC-004] Repository dispatch permission boundary: Validated. Added least-privilege workflow permissions and documented both dispatch endpoints.
 - [SEC-005] Credential masking and git clone URL security: Validated. Mandated `http.extraheader` authentication and step-level env bindings.
 - [SEC-006] Symlink traversal during extraction: Validated. Added `lstat` symlink checks and destination canonicalization.
-- [SEC-007] Supply chain auditability: Validated. Added `public/engine/build-metadata.json` generation.
+- [SEC-007] Supply chain auditability: Validated. Added `build-metadata.json` generation (staged and synced to the R2 `engine/` prefix).
 - [SEC-008] Incomplete JSON database validation: Validated. Expanded check to all `data/*.json` files.
-- [SPEC-1] Branch protection & write permissions: Validated. Configured `permissions: contents: write` and `github-actions[bot]` author identity.
+- [SPEC-1] Branch protection & write permissions: Validated. Configured `permissions: contents: read`; the runner never writes to any branch.
 - [SPEC-2] Subdirectory R2 key prefix contamination: Validated. Mandated rebasing R2 media and engine shell relative to `locateGameRoot()`.
 - [SPEC-3] Idempotent plugin injection syntax safety: Validated. Added handling for empty arrays, comments, and `new Function()` validation.
 - [SPEC-4] API transport & ref sanitization: Validated. Specified `Accept: application/vnd.github.raw+json` and HTTP status error handling.
 - [SPEC-5] Workflow concurrency race conditions: Validated. Added `concurrency: group: sync-game-release, cancel-in-progress: false`.
-- [SPEC-6] Unexpected directory policy: Validated. Explicitly partitioned media to R2 and shell to `public/engine/`, excluding dev files.
+- [SPEC-6] Unexpected directory policy: Validated. Explicitly partitioned media to R2 and shell to the R2 `engine/` prefix (staging dir), excluding dev files.
 
 ## Design Notes
 

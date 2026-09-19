@@ -23,7 +23,7 @@ context:
 1. Maintain and harden the in-game plugin `src/engine-plugins/Ropoductions_WebBridge.js` with strict origin equality checking (`event.origin === window.location.origin`), source verification (`event.source === window.parent` when nested in an iframe), slot key validation (`ALLOWED_SLOT_REGEX`), prototype pollution prevention (`__proto__`, `constructor`, `prototype`), payload size limits (10MB per slot), and clean calls to `StorageManager` and `DataManager.loadGlobalInfo()`.
 2. Define canonical TypeScript interfaces for save messages and payloads in `src/types/save.ts`.
 3. Provide robust client-side communication utilities in `src/lib/save-bridge.ts` (`requestSaves`, `restoreSaves`, `resetSaves`) featuring origin matching, request-response correlation, timeout boundaries, and input validation.
-4. Implement Section 6 of the Save and Runtime Contract in `public/engine/index.html` by equipping the local canvas mock harness with mock `StorageManager` and `DataManager` runtimes and loading `Ropoductions_WebBridge.js` so decoupled local development and E2E verification function identically to the upstream production engine.
+4. Implement Section 6 of the Save and Runtime Contract by equipping the local canvas mock harness at `src/engine-plugins/mock-shell.html` (served at `/engine/index.html` by the `/engine/[...path]` route) with mock `StorageManager` and `DataManager` runtimes and loading `Ropoductions_WebBridge.js` so decoupled local development and E2E verification function identically to the upstream production engine.
 
 ## Boundaries & Constraints
 

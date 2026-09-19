@@ -215,7 +215,9 @@ export function injectWebBridge(gameDir: string, bridgeSourcePath: string): WebB
 }
 
 /**
- * Segregates assets into media files (for R2) and shell files (for public/engine/), rejecting symlinks.
+ * Segregates assets into media files (for R2) and shell files (for the engine
+ * shell staging directory, uploaded to the R2 `engine/` prefix by the
+ * workflow), rejecting symlinks.
  */
 export function segregateAssets(gameDir: string, publicEngineDir: string): AssetSegregationResult {
   const mediaRootDirs = new Set(["audio", "img", "effects", "movies", "data"]);
@@ -296,18 +298,18 @@ export function generateBuildMetadata(options: BuildMetadataOptions): BuildMetad
 // CLI Execution Entry Point
 async function runCli() {
   const upstreamBaseDir = process.env.UPSTREAM_DIR || process.argv[2];
-  const publicEngineDir = process.env.PUBLIC_ENGINE_DIR || process.argv[3] || "public/engine";
+  const shellOutputDir = process.env.SHELL_OUTPUT_DIR || process.argv[3] || "tmp_engine_shell";
   const bridgePluginPath = process.env.BRIDGE_PLUGIN_PATH || "src/engine-plugins/Ropoductions_WebBridge.js";
   const branchInput = process.env.BRANCH_INPUT || process.argv[4] || "main";
 
   if (!upstreamBaseDir) {
-    console.error("Usage: tsx scripts/sync-game-release.ts <upstream-dir> [public-engine-dir] [branch]");
+    console.error("Usage: tsx scripts/sync-game-release.ts <upstream-dir> [shell-output-dir] [branch]");
     process.exit(1);
   }
 
   console.log("=== Ropoductions Game Release Ingestion ===");
   console.log(`Upstream Directory: ${upstreamBaseDir}`);
-  console.log(`Target Engine Directory: ${publicEngineDir}`);
+  console.log(`Target Shell Staging Directory: ${shellOutputDir}`);
 
   const resolvedBranch = await resolveTargetBranch(branchInput);
   console.log(`Resolved Target Branch: ${resolvedBranch}`);
@@ -321,15 +323,15 @@ async function runCli() {
   const injection = injectWebBridge(gameRoot, bridgePluginPath);
   console.log(`WebBridge Injection: injected=${injection.injected}, alreadyPresent=${injection.alreadyPresent}`);
 
-  const segregation = segregateAssets(gameRoot, publicEngineDir);
-  console.log(`Segregated: ${segregation.mediaFiles.length} media files, ${segregation.shellFiles.length} shell files copied.`);
+  const segregation = segregateAssets(gameRoot, shellOutputDir);
+  console.log(`Segregated: ${segregation.mediaFiles.length} media files, ${segregation.shellFiles.length} shell files staged.`);
 
   generateBuildMetadata({
     upstreamRepo: "salamin888/Final_Orginity",
     branch: resolvedBranch,
     commitSha: process.env.UPSTREAM_COMMIT_SHA || "unknown",
     syncedAt: new Date().toISOString(),
-    outputDir: publicEngineDir,
+    outputDir: shellOutputDir,
   });
 
   console.log("Ingestion engine execution completed successfully.");
