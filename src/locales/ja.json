@@ -221,5 +221,84 @@
     "accessDeniedDesc": "Patreonの認証がキャンセルまたは拒否されました。",
     "genericTitle": "認証エラー",
     "genericDesc": "Patreon認証中にエラーが発生しました。もう一度お試しください。"
+  },
+  "admin": {
+    "layout": {
+      "brand": "ROPO",
+      "brandAdmin": "ADMIN",
+      "navDashboard": "ダッシュボード",
+      "navOverrides": "オーバーライド",
+      "statusBadge": "スタジオ管理者",
+      "statusTitle": "認証済みスタジオ管理者 ({patronId})",
+      "returnToGame": "ゲームに戻る"
+    },
+    "dashboard": {
+      "title": "スタジオ管理ダッシュボード",
+      "subtitle": "Ropoductions の内部アクセス制御とスタジオ管理。",
+      "credentialsTitle": "管理者資格情報",
+      "patronId": "パトロン ID:",
+      "role": "ロール:",
+      "entitlement": "権限:",
+      "overridesTitle": "パトロンオーバーライド",
+      "overridesDesc": "D1 で実行時に管理用および無料プレイテストパスを管理します。",
+      "overridesOpen": "オーバーライドディレクトリを開く →",
+      "launchPlayerTitle": "Web プレイヤーを起動",
+      "launchPlayerDesc": "サンドボックス化された RPG Maker MZ ウェブクライアントへの直接アクセス。",
+      "launchGame": "ゲームを起動 →"
+    },
+    "overrides": {
+      "title": "パトロンオーバーライドディレクトリ",
+      "subtitle": "管理用および無料のバイパスアクセス記録を設定します。",
+      "backToDashboard": "ダッシュボードに戻る"
+    },
+    "form": {
+      "title": "アクセスパスを付与または更新",
+      "subtitle": "数値の Patreon ID で上位の管理用または無料プレイテスターオーバーライドを割り当てます。",
+      "patronIdLabel": "Patreon ID",
+      "patronIdRequired": "*",
+      "patronIdPlaceholder": "例: 12345678",
+      "roleLabel": "割り当てロール",
+      "roleRequired": "*",
+      "compOption": "無料パス（無料プレイテスト）",
+      "adminOption": "管理者パス（スタジオスタッフ）",
+      "notesLabel": "監査メモ",
+      "notesOptional": "（任意）",
+      "notesPlaceholder": "例: チーフQAテスターのパス",
+      "sealedNotice": "シールされたクリエイター管理者は、このインターフェースでは再割り当てや変更ができません。",
+      "processing": "処理中...",
+      "savePass": "アクセスパスを保存"
+    },
+    "table": {
+      "emptyTitle": "アクセスオーバーライドなし",
+      "emptyDesc": "管理用または無料パスはまだ付与されていません。上の登録フォームを使用してアクセスを付与してください。",
+      "title": "アクティブディレクトリ ({count})",
+      "enforcement": "2段階管理者施行",
+      "patronId": "Patreon ID",
+      "role": "ロール",
+      "adminTier": "管理者階層",
+      "notes": "監査メモ",
+      "grantedBy": "付与者",
+      "dateAdded": "追加日",
+      "status": "ステータス",
+      "roleAdmin": "Admin",
+      "roleComp": "Comp",
+      "sealed": "シール済み",
+      "sealedTitle": "永久的にシールされた創設クリエイターアカウント",
+      "tierCreatorSealed": "クリエイター管理者（シール済み）",
+      "tierPanelAdmin": "パネル管理者"
+    },
+    "revoke": {
+      "trigger": "失効",
+      "ariaLabel": "Patreon ID {patronId} の {role} オーバーライドを失効させる",
+      "dialogTitle": "アクセスパスの失効",
+      "closeLabel": "失効確認を閉じる",
+      "cannotUndo": "この操作は取り消せません。",
+      "description": "Patreon ID {patronId} の {role} アクセスパスを失効させようとしています。このアクセスパスは直ちに失効します。このパトロンのアクティブなセッションは、次回のナビゲーション時に無効になります。",
+      "cancel": "キャンセル",
+      "revoking": "失効処理中...",
+      "confirm": "アクセスを失効",
+      "error": "アクセスパスの失効に失敗しました。",
+      "errorRetry": "アクセスパスの失効に失敗しました。もう一度お試しください。"
+    }
   }
 }

@@ -108,6 +108,7 @@ graph TD
 - **Binds:** CAP-3, FR-7, Architecture Evolution (v2)
 - **Prevents:** SQL injection vulnerabilities and uncoordinated database schema drift.
 - **Rule:** All database interactions with Cloudflare D1 must execute parameterized prepared statements (`db.prepare().bind()`). Direct string concatenation into SQL statements is prohibited. Database schema changes must be versioned as sequential SQL files under `migrations/` and deployed via Wrangler.
+- **Addendum (2026-09-19, epic-5 retrospective):** Privilege-invariant integrity convention — every write that can change an actor's effective role (`patron_overrides` upsert, update, delete) must (1) re-verify the calling actor's authority at mutation time against freshly-read state, not a request-cached session alone; (2) carry its own atomic guard in the statement at the row-write boundary when an invariant must hold (the `deletePatronOverrideGuarded` single-statement pattern is the reference shape), never in a separate read-then-write step; and (3) leave attribution intact (mutation fields like `granted_by` are set on INSERT, never rewritten on UPDATE). Admin-role determination has exactly one source of truth: the stored sealed/override state materialized at bootstrap time — environment configuration seeds and seals rows at write time; it must not participate in read-time authorization branching. Evidence: findings F3/F4/F6/F7, Amendment A-2026-09-19-01 in `epics.md`.
 ### AD-9 — Upstream Game Ingestion & R2 Asset Synchronization Pipeline [ADOPTED]
 
 - **Binds:** CAP-5, CAP-8, CAP-11, FR-17, FR-18

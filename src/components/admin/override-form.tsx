@@ -2,7 +2,9 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { UserPlus, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { upsertOverrideAction, type OverrideActionState } from "@/app/(admin)/admin/overrides/actions";
+import { PATREON_ID_PATTERN } from "@/lib/patreon-id";
 
 const initialState: OverrideActionState = {
   success: false,
@@ -11,6 +13,7 @@ const initialState: OverrideActionState = {
 export function OverrideForm() {
   const [state, formAction, pending] = useActionState(upsertOverrideAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const t = useTranslations("admin.form");
 
   useEffect(() => {
     if (state.success && formRef.current) {
@@ -26,10 +29,10 @@ export function OverrideForm() {
         </div>
         <div>
           <h2 className="font-display text-lg font-bold text-foreground">
-            Grant or Update Access Pass
+            {t("title")}
           </h2>
           <p className="text-xs text-muted-foreground">
-            Assign elevated administrative or complimentary playtester overrides by numeric Patreon ID.
+            {t("subtitle")}
           </p>
         </div>
       </div>
@@ -47,16 +50,16 @@ export function OverrideForm() {
               htmlFor="override-patron-id"
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Patreon ID <span className="text-rose-500">*</span>
+              {t("patronIdLabel")} <span className="text-rose-500">{t("patronIdRequired")}</span>
             </label>
             <input
               id="override-patron-id"
               name="patron_id"
               type="text"
               inputMode="numeric"
-              pattern="^\d{1,20}$"
+              pattern={PATREON_ID_PATTERN}
               required
-              placeholder="e.g. 12345678"
+              placeholder={t("patronIdPlaceholder")}
               disabled={pending}
               data-testid="override-input-patron-id"
               aria-describedby={state.fieldErrors?.patronId ? "patron-id-error" : undefined}
@@ -74,7 +77,7 @@ export function OverrideForm() {
               htmlFor="override-role"
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Assigned Role <span className="text-rose-500">*</span>
+              {t("roleLabel")} <span className="text-rose-500">{t("roleRequired")}</span>
             </label>
             <select
               id="override-role"
@@ -86,8 +89,8 @@ export function OverrideForm() {
               aria-describedby={state.fieldErrors?.role ? "role-error" : undefined}
               className="bg-[#090A0F] border border-[#23283E] focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3.5 py-2.5 text-sm text-foreground transition-colors min-h-[44px] focus:outline-none cursor-pointer"
             >
-              <option value="comp">Comp Pass (Complimentary Playtest)</option>
-              <option value="admin">Admin Pass (Studio Staff)</option>
+              <option value="comp">{t("compOption")}</option>
+              <option value="admin">{t("adminOption")}</option>
             </select>
             {state.fieldErrors?.role && (
               <p id="role-error" className="text-xs text-rose-400">
@@ -101,14 +104,14 @@ export function OverrideForm() {
               htmlFor="override-notes"
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Audit Notes <span className="text-muted-foreground/60">(Optional)</span>
+              {t("notesLabel")} <span className="text-muted-foreground/60">{t("notesOptional")}</span>
             </label>
             <input
               id="override-notes"
               name="notes"
               type="text"
               maxLength={500}
-              placeholder="e.g. Lead QA tester pass"
+              placeholder={t("notesPlaceholder")}
               disabled={pending}
               data-testid="override-input-notes"
               className="bg-[#090A0F] border border-[#23283E] focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-colors min-h-[44px] focus:outline-none"
@@ -118,7 +121,7 @@ export function OverrideForm() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
           <p className="text-xs text-muted-foreground">
-            Sealed Creator Admins cannot be reassigned or modified through this interface.
+            {t("sealedNotice")}
           </p>
 
           <button
@@ -130,12 +133,12 @@ export function OverrideForm() {
             {pending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                <span>Processing...</span>
+                <span>{t("processing")}</span>
               </>
             ) : (
               <>
                 <UserPlus className="h-4 w-4" aria-hidden="true" />
-                <span>Save Access Pass</span>
+                <span>{t("savePass")}</span>
               </>
             )}
           </button>

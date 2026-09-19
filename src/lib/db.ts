@@ -200,7 +200,8 @@ export async function upsertPatronOverride(
        ON CONFLICT(patron_id) DO UPDATE SET
          role = excluded.role,
          notes = CASE WHEN ? IS NOT NULL THEN excluded.notes ELSE patron_overrides.notes END,
-         granted_by = excluded.granted_by,
+         -- granted_by is an immutable audit attribution set on INSERT only;
+         -- pre-5.4 updates clobbered it, leaving no recoverable trail.
          updated_at_sec = excluded.updated_at_sec`
     )
     .bind(
@@ -212,22 +213,6 @@ export async function upsertPatronOverride(
       updatedAt,
       override.notes !== undefined ? 1 : null
     )
-    .run();
-}
-
-/**
- * Removes an access override for a given patron ID.
- *
- * @param db Cloudflare D1 Database binding
- * @param patronId Numeric string Patreon user ID
- */
-export async function deletePatronOverride(
-  db: D1Database,
-  patronId: string
-): Promise<void> {
-  await db
-    .prepare("DELETE FROM patron_overrides WHERE patron_id = ?")
-    .bind(patronId)
     .run();
 }
 
@@ -268,30 +253,25 @@ export async function countAdminOverrides(db: D1Database): Promise<number> {
 }
 
 /**
- * Atomically deletes a patron override while enforcing the sole-admin invariant.
- * A `comp` override is always deletable; an `admin` override is deleted only when
- * at least one other admin override remains. The count subquery and DELETE execute
- * as a single statement, so concurrent revocations cannot drop the system to zero
- * administrators.
+ * Deletes a patron override row.
+ * Sealing of founder rows is enforced at the action layer (isSealedCreatorAdmin /
+ * isCreatorAdmin) before this is reached; the sole-admin *row-count* guard is
+ * deliberately absent because the protected invariant is founder access via env
+ * bootstrap (Amendment A-2026-09-19-01), not preserving a mutable-admin pool.
+ * A `comp` override is always deleted; an `admin` override is deleted too (even
+ * the caller's own last one) — founder access does not depend on this row.
  *
  * @param db Cloudflare D1 Database binding
  * @param patronId Numeric string Patreon user ID
- * @returns Number of rows deleted (0 = blocked by the guard or target absent)
+ * @returns Number of rows deleted (0 = target absent)
  */
 export async function deletePatronOverrideGuarded(
   db: D1Database,
   patronId: string
 ): Promise<number> {
   const result = await db
-    .prepare(
-      `DELETE FROM patron_overrides
-       WHERE patron_id = ?
-         AND (
-           role = 'comp'
-           OR (SELECT COUNT(*) FROM patron_overrides WHERE role = 'admin' AND patron_id != ?) >= 1
-         )`
-    )
-    .bind(patronId, patronId)
+    .prepare("DELETE FROM patron_overrides WHERE patron_id = ?")
+    .bind(patronId)
     .run();
 
   return result.meta?.changes ?? 0;

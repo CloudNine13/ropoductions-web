@@ -221,5 +221,84 @@
     "accessDeniedDesc": "Autoryzacja Patreon została anulowana lub odrzucona.",
     "genericTitle": "Błąd uwierzytelniania",
     "genericDesc": "Wystąpił błąd podczas autoryzacji Patreon. Spróbuj ponownie później."
+  },
+  "admin": {
+    "layout": {
+      "brand": "ROPO",
+      "brandAdmin": "ADMIN",
+      "navDashboard": "Panel",
+      "navOverrides": "Obejścia",
+      "statusBadge": "Administrator studia",
+      "statusTitle": "Zalogowany administrator studia ({patronId})",
+      "returnToGame": "Wróć do gry"
+    },
+    "dashboard": {
+      "title": "Panel administracyjny studia",
+      "subtitle": "Wewnętrzna kontrola dostępu i zarządzanie studiem Ropoductions.",
+      "credentialsTitle": "Dane administratora",
+      "patronId": "ID patrona:",
+      "role": "Rola:",
+      "entitlement": "Uprawnienia:",
+      "overridesTitle": "Obejścia patronów",
+      "overridesDesc": "Zarządzaj administracyjnymi i dodatkowymi przepustkami playtestowymi w czasie działania w D1.",
+      "overridesOpen": "Otwórz katalog obejść →",
+      "launchPlayerTitle": "Uruchom odtwarzacz webowy",
+      "launchPlayerDesc": "Bezpośredni dostęp do izolowanego klienta webowego RPG Maker MZ.",
+      "launchGame": "Uruchom grę →"
+    },
+    "overrides": {
+      "title": "Katalog obejść patronów",
+      "subtitle": "Skonfiguruj administracyjne i dodatkowe rekordy dostępu z pominięciem.",
+      "backToDashboard": "Wróć do panelu"
+    },
+    "form": {
+      "title": "Przyznaj lub zaktualizuj przepustkę dostępu",
+      "subtitle": "Przypisz podwyższone administracyjne lub dodatkowe obejścia dla testerów na podstawie numerycznego ID Patreon.",
+      "patronIdLabel": "ID Patreon",
+      "patronIdRequired": "*",
+      "patronIdPlaceholder": "np. 12345678",
+      "roleLabel": "Przypisana rola",
+      "roleRequired": "*",
+      "compOption": "Przepustka komplementarna (darmowy playtest)",
+      "adminOption": "Przepustka administracyjna (personel studia)",
+      "notesLabel": "Notatki audytowe",
+      "notesOptional": "(opcjonalnie)",
+      "notesPlaceholder": "np. przepustka głównego testera QA",
+      "sealedNotice": "Zapieczętowani administratorzy-twórcy nie mogą być ponownie przypisani ani zmodyfikowani przez ten interfejs.",
+      "processing": "Przetwarzanie...",
+      "savePass": "Zapisz przepustkę dostępu"
+    },
+    "table": {
+      "emptyTitle": "Brak obejść dostępu",
+      "emptyDesc": "Nie przyznano jeszcze żadnych przepustek administracyjnych ani komplementarnych. Użyj formularza rejestracji powyżej, aby przyznać dostęp.",
+      "title": "Aktywny katalog ({count})",
+      "enforcement": "Dwupoziomowa egzekucja administracyjna",
+      "patronId": "ID Patreon",
+      "role": "Rola",
+      "adminTier": "Poziom administracyjny",
+      "notes": "Notatki audytowe",
+      "grantedBy": "Przyznane przez",
+      "dateAdded": "Data dodania",
+      "status": "Status",
+      "roleAdmin": "Admin",
+      "roleComp": "Comp",
+      "sealed": "Zapieczętowane",
+      "sealedTitle": "Stale zapieczętowane konto twórcy-założyciela",
+      "tierCreatorSealed": "Administrator-twórca (zapieczętowany)",
+      "tierPanelAdmin": "Administrator panelu"
+    },
+    "revoke": {
+      "trigger": "Cofnij",
+      "ariaLabel": "Cofnij obejście {role} dla ID Patreon {patronId}",
+      "dialogTitle": "Cofnij przepustkę dostępu",
+      "closeLabel": "Zamknij potwierdzenie cofnięcia",
+      "cannotUndo": "Tej operacji nie można cofnąć.",
+      "description": "Zamierzasz cofnąć przepustkę dostępu {role} dla ID Patreon {patronId}. Przepustka zostanie cofnięta natychmiast. Każda aktywna sesja tego patrona zostanie unieważniona przy kolejnej nawigacji.",
+      "cancel": "Anuluj",
+      "revoking": "Cofanie...",
+      "confirm": "Cofnij dostęp",
+      "error": "Nie udało się cofnąć przepustki dostępu.",
+      "errorRetry": "Nie udało się cofnąć przepustki dostępu. Spróbuj ponownie."
+    }
   }
 }
