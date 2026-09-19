@@ -133,4 +133,14 @@ describe("workflow and upstream integration manifest verification", () => {
     assert.match(wf, /R2_BUCKET_NAME:\s*ropoductions-game-assets/);
     assert.equal(wf.includes("s3://GAME_ASSETS/"), false);
   });
+
+  it("forbids inline tsx -e evals: eval compiles as CJS, so top-level await is a hard error", () => {
+    assert.ok(fs.existsSync(workflowPath));
+    const content = fs.readFileSync(workflowPath, "utf-8");
+    assert.equal(
+      content.includes("tsx -e"),
+      false,
+      "Run steps must invoke file-based scripts (tsx scripts/...) — tsx -e evaluates as CJS and cannot await top-level"
+    );
+  });
 });
