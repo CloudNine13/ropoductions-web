@@ -65,7 +65,7 @@ development_status:
   epic-5: in-progress
   5-1-restricted-admin-layout-authentication-guard: done
   5-2-patron-override-directory-creation-interface: review
-  5-3-override-revocation-self-lockout-prevention: backlog
+  5-3-override-revocation-self-lockout-prevention: review
   epic-5-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
