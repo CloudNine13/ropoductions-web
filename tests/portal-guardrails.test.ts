@@ -86,8 +86,8 @@ describe("portal base contract", () => {
     assert.equal(location.searchParams.get("auth_required"), "true");
   });
 
-  it("keeps the edge matcher pinned to play, game asset, and admin routes", () => {
-    assert.deepEqual(edgeConfig.matcher, ["/play/:path*", "/api/game/:path*", "/admin/:path*"]);
+  it("keeps the edge matcher pinned to play and game asset routes", () => {
+    assert.deepEqual(edgeConfig.matcher, ["/play/:path*", "/api/game/:path*"]);
   });
 
   it("keeps the Patreon authorize URL on PKCE S256 with the identity scopes", () => {

@@ -45,5 +45,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/play/:path*", "/api/game/:path*", "/admin/:path*"],
+  matcher: ["/play/:path*", "/api/game/:path*"],
 };

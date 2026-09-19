@@ -87,23 +87,6 @@ export async function handleUpsertOverrideCore(
     };
   }
 
-  let callerOverride = null;
-  try {
-    callerOverride = await getPatronOverride(db, callingSession.patron_id);
-  } catch (err) {
-    console.error("[handleUpsertOverrideCore] Failed to re-verify caller override:", err);
-    return {
-      success: false,
-      error: "Database operation failed while verifying administrator status.",
-    };
-  }
-  if (!callerOverride || callerOverride.role !== "admin") {
-    return {
-      success: false,
-      error: "Unauthorized. Administrator session required.",
-    };
-  }
-
   let existing = null;
   try {
     existing = await getPatronOverride(db, patronId);
