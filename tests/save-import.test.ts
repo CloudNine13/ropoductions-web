@@ -269,7 +269,6 @@ describe("save-import client utilities (Story 4.4)", () => {
       const listeners: Array<(event: MessageEvent) => void> = [];
 
       const prevWindow = (globalThis as unknown as { window?: unknown }).window;
-      let mockIframeWindow: Window;
 
       (globalThis as unknown as { window: unknown }).window = {
         location: { origin },
@@ -284,7 +283,7 @@ describe("save-import client utilities (Story 4.4)", () => {
 
       const messageLog: Array<{ type: string; payload?: unknown; requestId?: string }> = [];
 
-      mockIframeWindow = {
+      const mockIframeWindow = {
         postMessage: (msg: { type: string; payload?: unknown; requestId?: string }, targetOrigin: string) => {
           assert.equal(targetOrigin, origin);
           messageLog.push(msg);

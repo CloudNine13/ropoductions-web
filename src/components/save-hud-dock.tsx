@@ -137,9 +137,8 @@ export function SaveHudDock({
     }
   }, []);
 
-  const resetTimer = useCallback(() => {
+  const startTimer = useCallback(() => {
     clearTimer();
-    setIsDimmed(false);
 
     if (isHoveredOrFocusedRef.current) {
       return;
@@ -152,6 +151,11 @@ export function SaveHudDock({
     }, idleTimeoutMs);
   }, [clearTimer, idleTimeoutMs]);
 
+  const resetTimer = useCallback(() => {
+    setIsDimmed(false);
+    startTimer();
+  }, [startTimer]);
+
   const handleActivity = useCallback(() => {
     const now = Date.now();
     if (now - lastActivityTimeRef.current < ACTIVITY_THROTTLE_MS) {
@@ -162,7 +166,7 @@ export function SaveHudDock({
   }, [resetTimer]);
 
   useEffect(() => {
-    resetTimer();
+    startTimer();
 
     const onUserActivity = () => {
       handleActivity();
@@ -189,7 +193,7 @@ export function SaveHudDock({
       window.removeEventListener("wheel", onUserActivity);
       window.removeEventListener("message", onMessage);
     };
-  }, [handleActivity, resetTimer, clearTimer]);
+  }, [handleActivity, startTimer, clearTimer]);
 
   const handlePointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "touch") {

@@ -50,11 +50,14 @@ export function I18nProvider({
 
   useEffect(() => {
     const stored = getStoredLocale();
-    if (stored !== locale) {
+    if (stored !== initialLocale) {
+      // Hydrating the persisted locale after mount; a lazy initializer would
+      // read `document` during SSR and mismatch server-rendered markup.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocaleState(stored);
       document.documentElement.lang = stored;
     }
-  }, []);
+  }, [initialLocale]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
     if (!SUPPORTED_LOCALES.includes(nextLocale)) return;

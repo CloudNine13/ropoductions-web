@@ -43,8 +43,6 @@ export function GameViewport({
   const [portalElement, setPortalElement] = useState<HTMLDivElement | null>(null);
   const hudId = useId();
   const t = useTranslations("game");
-  const enterLabel = t("fullscreenEnter");
-  const exitLabel = t("fullscreenExit");
 
   useEffect(() => {
     const handleFullscreenChange = () => {

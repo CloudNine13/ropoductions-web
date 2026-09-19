@@ -10,7 +10,6 @@ import {
   restoreSaves,
   resetSaves,
   SAVE_BRIDGE_MESSAGE_TYPES,
-  DEFAULT_BRIDGE_TIMEOUT_MS,
 } from "../src/lib/save-bridge";
 import type { SaveSlotsPayload } from "../src/types/save";
 
@@ -344,7 +343,7 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
 
     function setupEngineSandbox() {
       const mockParent = {
-        postMessage: (message: unknown, targetOrigin: string) => {
+        postMessage: (message: unknown, _targetOrigin: string) => {
           for (const listener of [...parentEventListeners]) {
             listener({
               data: message,
@@ -362,7 +361,7 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
           if (!iframeEventListeners[type]) iframeEventListeners[type] = [];
           iframeEventListeners[type].push(listener);
         },
-        postMessage: (message: unknown, origin: string) => {
+        postMessage: (message: unknown, _origin: string) => {
           const listeners = iframeEventListeners["message"] || [];
           for (const listener of listeners) {
             listener({

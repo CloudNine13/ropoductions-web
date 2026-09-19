@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  OAUTH_VERIFIER_COOKIE_MAX_AGE,
   OAUTH_VERIFIER_COOKIE_NAME,
-  SESSION_COOKIE_MAX_AGE,
   SESSION_COOKIE_NAME,
   parseCookies,
   serializeCookie,
@@ -28,18 +26,12 @@ import {
   PATREON_TOKEN_URL,
 } from "../src/lib/patreon";
 import {
-  APPROVED_TIERS,
-  findApprovedTier,
   isAccessAuthorized,
-  MINIMUM_PLEDGE_CENTS,
 } from "../src/lib/auth";
 import {
-  deletePatronOverride,
   getSessionById,
-  getPatronOverride,
   upsertPatronOverride,
 } from "../src/lib/db";
-import type { SessionRecord } from "../src/types/database";
 import { PATREON_CAMPAIGNS_URL } from "../src/lib/patreon";
 import { GET as initiateAuth } from "../src/app/api/auth/patreon/route";
 import { GET as callbackAuth } from "../src/app/api/auth/callback/route";
@@ -252,7 +244,7 @@ async function testInitialAdminBootstrap(): Promise<void> {
 
   const upsertCalls: unknown[][] = [];
   const mockDb = {
-    prepare(sql: string) {
+    prepare(_sql: string) {
       return {
         bind(...args: unknown[]) {
           return {

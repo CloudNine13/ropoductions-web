@@ -456,7 +456,7 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
   it("burst session cache absorbs repeated calls within TTL", async () => {
     let d1Queries = 0;
     const trackingDb = {
-      prepare(sql: string) {
+      prepare(_sql: string) {
         return {
           bind() {
             return {
