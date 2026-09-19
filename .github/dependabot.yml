@@ -8,3 +8,7 @@ updates:
       actions-node-runtime:
         patterns:
           - actions/*
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
