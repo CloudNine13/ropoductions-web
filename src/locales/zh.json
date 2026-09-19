@@ -221,5 +221,84 @@
     "accessDeniedDesc": "Patreon 授权已被取消或拒绝。",
     "genericTitle": "认证错误",
     "genericDesc": "Patreon 授权过程中发生错误，请稍后重试。"
+  },
+  "admin": {
+    "layout": {
+      "brand": "ROPO",
+      "brandAdmin": "ADMIN",
+      "navDashboard": "仪表盘",
+      "navOverrides": "覆盖设置",
+      "statusBadge": "工作室管理员",
+      "statusTitle": "已认证的工作室管理员（{patronId}）",
+      "returnToGame": "返回游戏"
+    },
+    "dashboard": {
+      "title": "工作室管理仪表盘",
+      "subtitle": "Ropoductions 的内部访问控制与工作室管理。",
+      "credentialsTitle": "管理员凭证",
+      "patronId": "赞助人 ID：",
+      "role": "角色：",
+      "entitlement": "权限：",
+      "overridesTitle": "赞助人覆盖设置",
+      "overridesDesc": "在 D1 中管理运行时管理权限与免费试玩资格。",
+      "overridesOpen": "打开覆盖设置目录 →",
+      "launchPlayerTitle": "启动网页播放器",
+      "launchPlayerDesc": "直接访问沙盒化 RPG Maker MZ 网页客户端。",
+      "launchGame": "启动游戏 →"
+    },
+    "overrides": {
+      "title": "赞助人覆盖设置目录",
+      "subtitle": "配置管理权限与免费试用访问记录。",
+      "backToDashboard": "返回仪表盘"
+    },
+    "form": {
+      "title": "授予或更新访问权限",
+      "subtitle": "通过数字 Patreon ID 分配高级管理或免费试玩覆盖权限。",
+      "patronIdLabel": "Patreon ID",
+      "patronIdRequired": "*",
+      "patronIdPlaceholder": "例如 12345678",
+      "roleLabel": "分配的角色",
+      "roleRequired": "*",
+      "compOption": "免费通行证（免费试玩）",
+      "adminOption": "管理员通行证（工作室成员）",
+      "notesLabel": "审计备注",
+      "notesOptional": "（可选）",
+      "notesPlaceholder": "例如 首席 QA 测试员通行证",
+      "sealedNotice": "已封存的创作者管理员无法通过此界面重新分配或修改。",
+      "processing": "处理中...",
+      "savePass": "保存访问权限"
+    },
+    "table": {
+      "emptyTitle": "无访问覆盖设置",
+      "emptyDesc": "尚未授予任何管理或免费通行证。请使用上方注册表单授予访问权限。",
+      "title": "有效目录（{count}）",
+      "enforcement": "双层管理执行机制",
+      "patronId": "Patreon ID",
+      "role": "角色",
+      "adminTier": "管理级别",
+      "notes": "审计备注",
+      "grantedBy": "授予人",
+      "dateAdded": "添加日期",
+      "status": "状态",
+      "roleAdmin": "管理员",
+      "roleComp": "免费",
+      "sealed": "已封存",
+      "sealedTitle": "永久封存的创始创作者账户",
+      "tierCreatorSealed": "创作者管理员（已封存）",
+      "tierPanelAdmin": "面板管理员"
+    },
+    "revoke": {
+      "trigger": "撤销",
+      "ariaLabel": "撤销 Patreon ID {patronId} 的 {role} 覆盖权限",
+      "dialogTitle": "撤销访问权限",
+      "closeLabel": "关闭撤销确认",
+      "cannotUndo": "此操作无法撤销。",
+      "description": "您即将撤销 Patreon ID {patronId} 的 {role} 访问权限。该权限将立即失效。此赞助人的任何活动会话将在下次导航时失效。",
+      "cancel": "取消",
+      "revoking": "撤销中...",
+      "confirm": "确认撤销",
+      "error": "撤销访问权限失败。",
+      "errorRetry": "撤销访问权限失败，请重试。"
+    }
   }
 }

@@ -221,5 +221,84 @@
     "accessDeniedDesc": "Patreon authorization was cancelled or denied.",
     "genericTitle": "Authentication Error",
     "genericDesc": "An error occurred during Patreon authorization. Please try again."
+  },
+  "admin": {
+    "layout": {
+      "brand": "ROPO",
+      "brandAdmin": "ADMIN",
+      "navDashboard": "Dashboard",
+      "navOverrides": "Overrides",
+      "statusBadge": "Studio Admin",
+      "statusTitle": "Authenticated Studio Admin ({patronId})",
+      "returnToGame": "Return to Game"
+    },
+    "dashboard": {
+      "title": "Studio Administration Dashboard",
+      "subtitle": "Internal access controls and studio management for Ropoductions.",
+      "credentialsTitle": "Admin Credentials",
+      "patronId": "Patron ID:",
+      "role": "Role:",
+      "entitlement": "Entitlement:",
+      "overridesTitle": "Patron Overrides",
+      "overridesDesc": "Manage runtime administrative and complimentary playtest passes in D1.",
+      "overridesOpen": "Open Overrides Directory →",
+      "launchPlayerTitle": "Launch Web Player",
+      "launchPlayerDesc": "Direct access to the sandboxed RPG Maker MZ web client.",
+      "launchGame": "Launch Game →"
+    },
+    "overrides": {
+      "title": "Patron Overrides Directory",
+      "subtitle": "Configure administrative and complimentary bypass access records.",
+      "backToDashboard": "Back to Dashboard"
+    },
+    "form": {
+      "title": "Grant or Update Access Pass",
+      "subtitle": "Assign elevated administrative or complimentary playtester overrides by numeric Patreon ID.",
+      "patronIdLabel": "Patreon ID",
+      "patronIdRequired": "*",
+      "patronIdPlaceholder": "e.g. 12345678",
+      "roleLabel": "Assigned Role",
+      "roleRequired": "*",
+      "compOption": "Comp Pass (Complimentary Playtest)",
+      "adminOption": "Admin Pass (Studio Staff)",
+      "notesLabel": "Audit Notes",
+      "notesOptional": "(Optional)",
+      "notesPlaceholder": "e.g. Lead QA tester pass",
+      "sealedNotice": "Sealed Creator Admins cannot be reassigned or modified through this interface.",
+      "processing": "Processing...",
+      "savePass": "Save Access Pass"
+    },
+    "table": {
+      "emptyTitle": "No Access Overrides",
+      "emptyDesc": "No administrative or complimentary passes have been granted yet. Use the registration form above to grant access.",
+      "title": "Active Directory ({count})",
+      "enforcement": "Two-Tier Admin Enforcement",
+      "patronId": "Patreon ID",
+      "role": "Role",
+      "adminTier": "Admin Tier",
+      "notes": "Audit Notes",
+      "grantedBy": "Granted By",
+      "dateAdded": "Date Added",
+      "status": "Status",
+      "roleAdmin": "Admin",
+      "roleComp": "Comp",
+      "sealed": "Sealed",
+      "sealedTitle": "Permanently sealed founding creator account",
+      "tierCreatorSealed": "Creator Admin (Sealed)",
+      "tierPanelAdmin": "Panel Admin"
+    },
+    "revoke": {
+      "trigger": "Revoke",
+      "ariaLabel": "Revoke {role} override for Patreon ID {patronId}",
+      "dialogTitle": "Revoke Access Pass",
+      "closeLabel": "Close revoke confirmation",
+      "cannotUndo": "This action cannot be undone.",
+      "description": "You are about to revoke the {role} access pass for Patreon ID {patronId}. This access pass is revoked immediately. Any active session for this patron is invalidated on their next navigation.",
+      "cancel": "Cancel",
+      "revoking": "Revoking...",
+      "confirm": "Revoke Access",
+      "error": "Failed to revoke the access pass.",
+      "errorRetry": "Failed to revoke the access pass. Please try again."
+    }
   }
 }

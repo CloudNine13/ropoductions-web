@@ -421,3 +421,46 @@ So that I can easily manage access while preventing accidental removal of all ad
 **And** for panel-assigned admins: if the target entry is the administrator's own ID and `COUNT(*) FROM patron_overrides WHERE role = 'admin'` is 1, the Revoke action is disabled with the warning "Cannot revoke the sole remaining administrator"
 **And** upon confirming a valid revocation of a panel-assigned pass, a Server Action deletes the row from `patron_overrides` and revalidates the path
 **And** any active session belonging to the revoked user is invalidated on their next navigation per Story 2.4.
+
+### Story 5.4: Override Integrity Hardening
+
+As a studio owner and as added admins,
+I want privilege changes to be attributable, caller-fresh, and founder-proof,
+So that the admin panel's integrity survives honest mistakes and session compromise alike.
+
+**Acceptance Criteria:**
+
+**Given** the epic 5 retrospective findings F2 (owner-corrected), F3, F6, F12, F13, F15 and the owner decisions of 2026-09-19
+**When** this story completes
+**Then** a regression test proves a founder session reaches `/admin` with zero override rows and zero other admins (env bootstrap path)
+**And** `deletePatronOverrideGuarded` no longer blocks the last added admin from self-revoking (founder-preservation, not mutable-pool preservation, is the invariant — see Amendment A-2026-09-19-01), and no sole-admin guard is added to `upsertPatronOverride`
+**And** updating an existing override preserves the original `granted_by` (set on INSERT only), with `tests/admin-overrides.test.ts:379` flipped to a preserved-grantor assertion written red first
+**And** the upsert path re-verifies the caller's admin override at mutation time, symmetric with the revoke path
+**And** patron IDs match `/^[1-9]\d{0,19}$/` from one shared constant (server + client), notes truncate code-point-safely
+**And** the dead `/admin` proxy branch is removed (or matcher-extended and documented), `config.matcher` is pinned by test, and spec-5-1's "middleware AND layout" wording is reconciled to the layout-authority reality
+**And** dead code is gone: zero-caller `deletePatronOverride`, dead `admin.ts` token exports (verify = caller grep), duplicated `createMockD1` shared into `tests/helpers/`, `play/page.tsx` inline quote-strip replaced by `unquoteCookieValue`
+**And** the full admin panel UI is localized across all six locales (owner decision 2026-09-19: full localization, superseding the retro room's safety-copy-only line)
+**And** `/admin` has e2e coverage (unauthorized 404 without redirect leak; seeded-admin render) and the exported server-action wrappers are executed by at least one test each
+
+### Story 5.5: Grant/Revoke Audit Trail
+
+As a studio owner,
+I want an append-only trail of who granted, changed, or revoked which pass and when,
+So that founder promises are kept, admin-tier self-amplification is observable, and any future second-person approval has a substrate.
+
+**Acceptance Criteria:**
+
+**Given** the epic title's promised "audit logs" dropped without record (retro finding F9)
+**When** this story completes
+**Then** an append-only `override_audit` table exists (migration `0003`) with actor, target, action, before/after role, and timestamp
+**And** every upsert, update, and revoke (including sealed-bootstrap events) writes exactly one trail row within the same D1 interaction (AD-8 parameterized)
+**And** `/admin/overrides` renders the trail (newest first, bounded pagination)
+**And** 4-eyes (second-person approval of admin grants) is recorded as a formal v1 non-goal in deferred-work.md with the reopen trigger "more than a handful of operators hold keys"
+
+---
+
+## Amendments
+
+### A-2026-09-19-01 — Story 5.3 sole-admin clause reinterpreted (owner decision)
+
+`epics.md` Story 5.3 ("Cannot revoke the sole remaining administrator", line 421) protected the wrong invariant for this studio. Owner decision 2026-09-19, evidence `_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md` (findings F2/F5, Team Discussion sign-off + owner correction): the protected invariant is **founder access**, which is guaranteed by `CREATOR_ADMIN_PATREON_IDS` env bootstrap independent of `patron_overrides` row state. Consequences: (a) sealed founder rows counting toward "admin exists" is no longer a live question; (b) the last added admin MAY revoke or self-demote — added-admin stranding is an accepted outcome; (c) Story 5.4 relaxes the shipped DELETE-path guard and adds founder-preservation regression coverage instead of guarding the upsert path. The 2026-09-15 text stands above as originally approved; this note is the dated amendment of record.

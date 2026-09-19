@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { proxy } from "../src/proxy";
+import { proxy, config } from "../src/proxy";
 
 function mockRequest(pathname: string, cookies: Record<string, string> = {}) {
   const nextUrl = new URL(pathname, "https://portal.test") as URL & { clone: () => URL };
@@ -104,5 +104,9 @@ describe("edge gate entry points", () => {
     const unauthSubroute = proxy(mockRequest("/admin/overrides") as never);
     assert.equal(unauthSubroute.status, 200);
     assert.equal(unauthSubroute.headers.get("location"), null);
+  });
+
+  it("pins config.matcher to /play and /api/game only (layout owns /admin enforcement)", () => {
+    assert.deepEqual(config.matcher, ["/play/:path*", "/api/game/:path*"]);
   });
 });

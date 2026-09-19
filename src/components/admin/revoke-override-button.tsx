@@ -4,26 +4,24 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, Ban, Loader2, ShieldOff, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { revokeOverrideAction } from "@/app/(admin)/admin/overrides/actions";
 import type { OverrideRole } from "@/types/database";
 
 export interface RevokeOverrideButtonProps {
   patronId: string;
   role: OverrideRole;
-  disabled?: boolean;
-  disabledReason?: string;
 }
 
 export function RevokeOverrideButton({
   patronId,
   role,
-  disabled = false,
-  disabledReason,
 }: RevokeOverrideButtonProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("admin.revoke");
 
   const handleConfirm = () => {
     setError(null);
@@ -36,10 +34,10 @@ export function RevokeOverrideButton({
           setOpen(false);
           router.refresh();
         } else {
-          setError(result.error ?? "Failed to revoke the access pass.");
+          setError(result.error ?? t("error"));
         }
       } catch {
-        setError("Failed to revoke the access pass. Please try again.");
+        setError(t("errorRetry"));
       }
     });
   };
@@ -56,27 +54,16 @@ export function RevokeOverrideButton({
 
   return (
     <div className="flex items-center justify-end gap-2">
-      {disabled && disabledReason && (
-        <span
-          data-testid="override-revoke-lockout-warning"
-          className="max-w-[140px] text-right text-[11px] font-medium leading-tight text-[#E11D48]"
-        >
-          {disabledReason}
-        </span>
-      )}
-
       <Dialog.Root open={open} onOpenChange={handleOpenChange}>
         <Dialog.Trigger asChild>
           <button
             type="button"
-            disabled={disabled}
             data-testid="override-revoke-trigger"
-            aria-label={`Revoke ${role} override for Patreon ID ${patronId}`}
-            title={disabled ? disabledReason : undefined}
-            className="inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 px-3 text-xs font-semibold text-[#E11D48] transition-colors hover:bg-[#E11D48]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E11D48] disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={t("ariaLabel", { role, patronId })}
+            className="inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 px-3 text-xs font-semibold text-[#E11D48] transition-colors hover:bg-[#E11D48]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E11D48]"
           >
             <ShieldOff className="h-4 w-4" aria-hidden="true" />
-            <span>Revoke</span>
+            <span>{t("trigger")}</span>
           </button>
         </Dialog.Trigger>
 
@@ -92,13 +79,13 @@ export function RevokeOverrideButton({
                   <AlertTriangle className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <Dialog.Title className="font-display text-lg font-bold tracking-wide text-foreground sm:text-xl">
-                  Revoke Access Pass
+                  {t("dialogTitle")}
                 </Dialog.Title>
               </div>
               <Dialog.Close
                 disabled={pending}
                 data-testid="override-revoke-close-button"
-                aria-label="Close revoke confirmation"
+                aria-label={t("closeLabel")}
                 className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-background/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -110,15 +97,10 @@ export function RevokeOverrideButton({
                 <div className="space-y-2.5 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                   <p className="flex items-center gap-2 font-semibold text-[#E11D48]">
                     <AlertTriangle className="h-4 w-4 shrink-0 text-[#E11D48]" aria-hidden="true" />
-                    <span>This action cannot be undone.</span>
+                    <span>{t("cannotUndo")}</span>
                   </p>
                   <p>
-                    You are about to revoke the{" "}
-                    <span className="font-semibold text-foreground">{role}</span> access pass for
-                    Patreon ID{" "}
-                    <span className="font-mono font-semibold text-foreground">{patronId}</span>.
-                    This access pass is revoked immediately. Any active session for this patron is
-                    invalidated on their next navigation.
+                    {t("description", { role, patronId })}
                   </p>
                 </div>
               </Dialog.Description>
@@ -142,7 +124,7 @@ export function RevokeOverrideButton({
                   disabled={pending}
                   className="inline-flex min-h-[44px] min-w-[44px] w-full cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-background/80 px-4 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
                 <button
                   type="button"
@@ -154,12 +136,12 @@ export function RevokeOverrideButton({
                   {pending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                      <span>Revoking...</span>
+                      <span>{t("revoking")}</span>
                     </>
                   ) : (
                     <>
                       <Ban className="h-4 w-4" aria-hidden="true" />
-                      <span>Revoke Access</span>
+                      <span>{t("confirm")}</span>
                     </>
                   )}
                 </button>

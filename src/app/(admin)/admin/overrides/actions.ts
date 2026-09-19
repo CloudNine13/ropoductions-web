@@ -41,6 +41,25 @@ export async function handleUpsertOverrideCore(
     };
   }
 
+  // Re-verify the caller still holds an active admin override at mutation time,
+  // symmetric with the revoke path — the session may be stale.
+  let callerOverride = null;
+  try {
+    callerOverride = await getPatronOverride(db, callingSession.patron_id);
+  } catch (err) {
+    console.error("[handleUpsertOverrideCore] Failed to re-verify caller override:", err);
+    return {
+      success: false,
+      error: "Database operation failed while verifying administrator status.",
+    };
+  }
+  if (!callerOverride || callerOverride.role !== "admin") {
+    return {
+      success: false,
+      error: "Unauthorized. Administrator session required.",
+    };
+  }
+
   if (!validatePatreonId(patronId)) {
     return {
       success: false,
@@ -79,14 +98,16 @@ export async function handleUpsertOverrideCore(
     };
   }
 
-  if (existing && isSealedCreatorAdmin(existing, creatorAdminIds)) {
+  if (existing && isSealedCreatorAdmin(existing)) {
     return {
       success: false,
       error: "Creator Admin accounts are permanently sealed and cannot be modified.",
     };
   }
 
-  const sanitizedNotes = typeof notes === "string" ? notes.trim().slice(0, 500) : null;
+  const sanitizedNotes = typeof notes === "string"
+    ? (Array.from(notes.trim()).slice(0, 500).join("") || null)
+    : null;
   const currentTime = nowSec ?? Math.floor(Date.now() / 1000);
 
   try {
@@ -149,7 +170,6 @@ export type RevokeErrorCode =
   | "unauthorized"
   | "invalid_patron_id"
   | "sealed_creator_admin"
-  | "sole_admin"
   | "db_error";
 
 export interface RevokeOverrideActionState {
@@ -228,7 +248,7 @@ export async function handleRevokeOverrideCore(
     };
   }
 
-  if (existing && isSealedCreatorAdmin(existing, creatorAdminIds)) {
+  if (existing && isSealedCreatorAdmin(existing)) {
     return {
       success: false,
       code: "sealed_creator_admin",
@@ -256,29 +276,11 @@ export async function handleRevokeOverrideCore(
   }
 
   if (changes === 0) {
-    // 0 means either a blocked sole-admin delete or the target was removed
-    // between the existence check and the guarded DELETE. Re-read to tell apart.
-    let stillExists = null;
-    try {
-      stillExists = await getPatronOverride(db, normalizedPatronId);
-    } catch (err) {
-      console.error("[handleRevokeOverrideCore] Failed to re-check override after guarded delete:", err);
-      return {
-        success: false,
-        code: "db_error",
-        error: "Database operation failed while verifying revocation.",
-      };
-    }
-    if (!stillExists) {
-      return {
-        success: true,
-        message: `No override exists for Patreon ID ${normalizedPatronId}.`,
-      };
-    }
+    // The guard never blocks: 0 means the target was already absent
+    // (sealed founders are rejected above; the last added admin MAY self-revoke).
     return {
-      success: false,
-      code: "sole_admin",
-      error: "Cannot revoke the sole remaining administrator",
+      success: true,
+      message: `No override exists for Patreon ID ${normalizedPatronId}.`,
     };
   }
 

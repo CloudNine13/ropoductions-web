@@ -4,52 +4,28 @@ import { cookies } from "next/headers";
 import type { PatronOverrideRecord, SessionRecord } from "@/types/database";
 import { validateSessionAccess } from "@/lib/auth";
 import { getPatronOverride } from "@/lib/db";
-import { bootstrapInitialAdminIfEligible, isCreatorAdmin } from "@/lib/patreon";
+import { bootstrapInitialAdminIfEligible } from "@/lib/patreon";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
 import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME, unquoteCookieValue } from "@/lib/cookies";
+import {
+  PATREON_ID_REGEX,
+  PATREON_ID_PATTERN,
+  validatePatreonId,
+} from "@/lib/patreon-id";
 
-export const ADMIN_BACKGROUND_COLOR = "#090A0F";
-export const ADMIN_CARD_SURFACE = "#121522";
-export const ADMIN_BORDER_COLOR = "#23283E";
-export const ADMIN_BADGE_GOLD = "#FBBF24";
-export const ADMIN_ROLE_ADMIN_COLOR = "#FBBF24";
-export const ADMIN_ROLE_COMP_COLOR = "#38BDF8";
-export const ADMIN_CREATOR_TIER_LABEL = "Creator Admin (Sealed)";
-export const ADMIN_PANEL_TIER_LABEL = "Panel Admin";
+export { PATREON_ID_REGEX, PATREON_ID_PATTERN, validatePatreonId };
 
-export const PATREON_ID_REGEX = /^\d{1,20}$/;
-
-export function validatePatreonId(patronId: string): boolean {
-  return PATREON_ID_REGEX.test(patronId);
-}
-
-export function isSealedCreatorAdmin(
-  override: PatronOverrideRecord,
-  creatorAdminIds?: string | null
-): boolean {
-  if (
+/**
+ * A creator override is sealed iff its stored bootstrap marker says so.
+ * Sealing is decided from the row's stored grant source only — never OR-ed with
+ * the live env list at read time (retro item 5), which would silently seal/unseal
+ * rows as env toggles. Founder env access is guaranteed by bootstrap
+ * materialization (system_bootstrap) independent of this predicate.
+ */
+export function isSealedCreatorAdmin(override: PatronOverrideRecord): boolean {
+  return (
     override.granted_by === "creator_bootstrap" ||
     override.granted_by === "system_bootstrap"
-  ) {
-    return true;
-  }
-  if (creatorAdminIds && isCreatorAdmin(override.patron_id, creatorAdminIds)) {
-    return true;
-  }
-  return false;
-}
-
-export function isSoleAdminSelf(
-  override: PatronOverrideRecord,
-  currentAdminPatronId: string,
-  adminOverrideCount: number,
-  creatorAdminIds?: string | null
-): boolean {
-  return (
-    !isSealedCreatorAdmin(override, creatorAdminIds) &&
-    override.role === "admin" &&
-    override.patron_id === currentAdminPatronId &&
-    adminOverrideCount <= 1
   );
 }
 

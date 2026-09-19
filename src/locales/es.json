@@ -221,5 +221,84 @@
     "accessDeniedDesc": "La autorización de Patreon fue cancelada o denegada.",
     "genericTitle": "Error de autenticación",
     "genericDesc": "Ocurrió un error durante la autorización de Patreon. Inténtalo de nuevo."
+  },
+  "admin": {
+    "layout": {
+      "brand": "ROPO",
+      "brandAdmin": "ADMIN",
+      "navDashboard": "Panel",
+      "navOverrides": "Anulaciones",
+      "statusBadge": "Admin del Estudio",
+      "statusTitle": "Admin del Estudio autenticado ({patronId})",
+      "returnToGame": "Volver al juego"
+    },
+    "dashboard": {
+      "title": "Panel de administración del estudio",
+      "subtitle": "Controles internos de acceso y gestión del estudio para Ropoductions.",
+      "credentialsTitle": "Credenciales de administrador",
+      "patronId": "ID del patrocinador:",
+      "role": "Rol:",
+      "entitlement": "Derechos de acceso:",
+      "overridesTitle": "Anulaciones de patrocinadores",
+      "overridesDesc": "Gestiona los pases administrativos y de prueba complementarios en tiempo de ejecución en D1.",
+      "overridesOpen": "Abrir directorio de anulaciones →",
+      "launchPlayerTitle": "Iniciar reproductor web",
+      "launchPlayerDesc": "Acceso directo al cliente web RPG Maker MZ en entorno aislado.",
+      "launchGame": "Iniciar juego →"
+    },
+    "overrides": {
+      "title": "Directorio de anulaciones de patrocinadores",
+      "subtitle": "Configura registros administrativos y de acceso complementario de bypass.",
+      "backToDashboard": "Volver al panel"
+    },
+    "form": {
+      "title": "Conceder o actualizar pase de acceso",
+      "subtitle": "Asigna anulaciones administrativas elevadas o complementarias de prueba por ID numérico de Patreon.",
+      "patronIdLabel": "ID de Patreon",
+      "patronIdRequired": "*",
+      "patronIdPlaceholder": "p. ej. 12345678",
+      "roleLabel": "Rol asignado",
+      "roleRequired": "*",
+      "compOption": "Pase complementario (prueba gratuita)",
+      "adminOption": "Pase de administrador (personal del estudio)",
+      "notesLabel": "Notas de auditoría",
+      "notesOptional": "(Opcional)",
+      "notesPlaceholder": "p. ej. Pase del evaluador QA principal",
+      "sealedNotice": "Los administradores creadores sellados no pueden ser reasignados ni modificados a través de esta interfaz.",
+      "processing": "Procesando...",
+      "savePass": "Guardar pase de acceso"
+    },
+    "table": {
+      "emptyTitle": "Sin anulaciones de acceso",
+      "emptyDesc": "Aún no se han concedido pases administrativos ni complementarios. Usa el formulario de registro de arriba para conceder acceso.",
+      "title": "Directorio activo ({count})",
+      "enforcement": "Aplicación de administración de dos niveles",
+      "patronId": "ID de Patreon",
+      "role": "Rol",
+      "adminTier": "Nivel de administrador",
+      "notes": "Notas de auditoría",
+      "grantedBy": "Concedido por",
+      "dateAdded": "Fecha de alta",
+      "status": "Estado",
+      "roleAdmin": "Admin",
+      "roleComp": "Comp",
+      "sealed": "Sellado",
+      "sealedTitle": "Cuenta de creador fundador sellada permanentemente",
+      "tierCreatorSealed": "Admin creador (sellado)",
+      "tierPanelAdmin": "Admin de panel"
+    },
+    "revoke": {
+      "trigger": "Revocar",
+      "ariaLabel": "Revocar anulación de {role} para el ID de Patreon {patronId}",
+      "dialogTitle": "Revocar pase de acceso",
+      "closeLabel": "Cerrar confirmación de revocación",
+      "cannotUndo": "Esta acción no se puede deshacer.",
+      "description": "Estás a punto de revocar el pase de acceso de {role} para el ID de Patreon {patronId}. Este pase se revoca de inmediato. Cualquier sesión activa de este patrocinador se invalidará en su próxima navegación.",
+      "cancel": "Cancelar",
+      "revoking": "Revocando...",
+      "confirm": "Revocar acceso",
+      "error": "No se pudo revocar el pase de acceso.",
+      "errorRetry": "No se pudo revocar el pase de acceso. Inténtalo de nuevo."
+    }
   }
 }

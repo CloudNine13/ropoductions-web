@@ -5,92 +5,16 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PatronOverrideRecord, SessionRecord } from "../src/types/database";
 import {
-  ADMIN_BACKGROUND_COLOR,
-  ADMIN_CARD_SURFACE,
-  ADMIN_BORDER_COLOR,
-  ADMIN_BADGE_GOLD,
-  ADMIN_ROLE_ADMIN_COLOR,
-  ADMIN_ROLE_COMP_COLOR,
-  ADMIN_CREATOR_TIER_LABEL,
-  ADMIN_PANEL_TIER_LABEL,
   PATREON_ID_REGEX,
+  PATREON_ID_PATTERN,
   validatePatreonId,
   isSealedCreatorAdmin,
 } from "../src/lib/admin";
 import { handleUpsertOverrideCore } from "../src/app/(admin)/admin/overrides/actions";
+import { createMockD1 } from "./helpers/mock-d1";
 
 const worktreeDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readSource = (rel: string): string => readFileSync(join(worktreeDir, rel), "utf8");
-
-function createMockD1() {
-  const overrides = new Map<string, PatronOverrideRecord>();
-  const sessions = new Map<string, SessionRecord>();
-
-  const db = {
-    _overrides: overrides,
-    _sessions: sessions,
-    prepare(sql: string) {
-      const stmt = {
-        params: [] as unknown[],
-        bind(...params: unknown[]) {
-          stmt.params = params;
-          return stmt;
-        },
-        async first<T>(): Promise<T | null> {
-          if (sql.includes("FROM patron_overrides WHERE patron_id = ?")) {
-            const patronId = stmt.params[0] as string;
-            return (overrides.get(patronId) as T | undefined) ?? null;
-          }
-          if (sql.includes("FROM sessions WHERE id = ?")) {
-            const sessionId = stmt.params[0] as string;
-            return (sessions.get(sessionId) as T | undefined) ?? null;
-          }
-          throw new Error(`Unhandled query in mock first(): ${sql}`);
-        },
-        async all<T>(): Promise<{ results: T[] }> {
-          if (sql.includes("FROM patron_overrides")) {
-            return { results: Array.from(overrides.values()) as unknown as T[] };
-          }
-          throw new Error(`Unhandled query in mock all(): ${sql}`);
-        },
-        async run(): Promise<{ success: boolean; meta: Record<string, unknown> }> {
-          if (sql.includes("INSERT INTO patron_overrides")) {
-            const [patronId, role, notes, grantedBy, createdAt, updatedAt] = stmt.params as [
-              string,
-              "admin" | "comp",
-              string | null,
-              string,
-              number,
-              number,
-            ];
-            const existing = overrides.get(patronId);
-            overrides.set(patronId, {
-              patron_id: patronId,
-              role,
-              notes,
-              granted_by: grantedBy,
-              created_at_sec: existing ? existing.created_at_sec : createdAt,
-              updated_at_sec: updatedAt,
-            });
-            return { success: true, meta: {} };
-          }
-          if (sql.includes("DELETE FROM patron_overrides WHERE patron_id = ?")) {
-            const patronId = stmt.params[0] as string;
-            overrides.delete(patronId);
-            return { success: true, meta: {} };
-          }
-          throw new Error(`Unhandled query in mock run(): ${sql}`);
-        },
-      };
-      return stmt;
-    },
-  } as unknown as D1Database & {
-    _overrides: Map<string, PatronOverrideRecord>;
-    _sessions: Map<string, SessionRecord>;
-  };
-
-  return { db, overrides, sessions };
-}
 
 describe("patron ID validation & regex contract (PATREON_ID_REGEX)", () => {
   it("accepts valid numeric Patreon IDs between 1 and 20 digits", () => {
@@ -109,6 +33,19 @@ describe("patron ID validation & regex contract (PATREON_ID_REGEX)", () => {
     assert.equal(validatePatreonId("-12345"), false);
     assert.equal(validatePatreonId("123.456"), false);
     assert.equal(validatePatreonId("123456789012345678901"), false); // 21 digits
+  });
+
+  it("rejects leading-zero patron IDs as alias/dead rows", () => {
+    assert.equal(validatePatreonId("0"), false);
+    assert.equal(validatePatreonId("012345"), false);
+    assert.equal(validatePatreonId("0000"), false);
+    assert.equal(PATREON_ID_REGEX.test("012345"), false);
+  });
+
+  it("exposes the pattern string consumed by the client form", () => {
+    assert.equal(PATREON_ID_PATTERN, "^[1-9]\\d{0,19}$");
+    assert.equal(new RegExp(PATREON_ID_PATTERN).test("123"), true);
+    assert.equal(new RegExp(PATREON_ID_PATTERN).test("0123"), false);
   });
 });
 
@@ -137,7 +74,7 @@ describe("two-tier admin model immutability (isSealedCreatorAdmin)", () => {
   });
 
 
-  it("identifies configured creator IDs as sealed regardless of record granted_by", () => {
+  it("does NOT seal by live env list alone — sealing comes from stored marker only", () => {
     const record: PatronOverrideRecord = {
       patron_id: "99999999",
       role: "admin",
@@ -146,7 +83,9 @@ describe("two-tier admin model immutability (isSealedCreatorAdmin)", () => {
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
     };
-    assert.equal(isSealedCreatorAdmin(record, "99999999,11111111"), true);
+    // Env-based founder protection lives at the action layer (isCreatorAdmin);
+    // isSealedCreatorAdmin reflects stored bootstrap state (retro item 5).
+    assert.equal(isSealedCreatorAdmin(record), false);
   });
 
   it("identifies panel-assigned runtime records as mutable", () => {
@@ -158,7 +97,7 @@ describe("two-tier admin model immutability (isSealedCreatorAdmin)", () => {
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
     };
-    assert.equal(isSealedCreatorAdmin(record, "99999999"), false);
+    assert.equal(isSealedCreatorAdmin(record), false);
   });
 });
 
@@ -179,6 +118,21 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
     created_at_sec: 1700000000,
     last_verified_at_sec: 1700000000,
   };
+
+  // Item 3: the upsert path re-verifies the caller's own override at mutation
+  // time, so every authorized mutation test seeds the caller's admin row.
+  function makeCallerDb() {
+    const mock = createMockD1();
+    mock.overrides.set(adminSession.patron_id, {
+      patron_id: adminSession.patron_id,
+      role: "admin",
+      notes: null,
+      granted_by: "creator_bootstrap",
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+    return mock;
+  }
 
   it("rejects non-admin calling session with 403 / error", async () => {
     const { db } = createMockD1();
@@ -201,7 +155,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
   });
 
   it("rejects invalid Patreon ID format", async () => {
-    const { db } = createMockD1();
+    const { db } = makeCallerDb();
     const result = await handleUpsertOverrideCore({
       db,
       callingSession: adminSession,
@@ -216,7 +170,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
   });
 
   it("rejects invalid role selection", async () => {
-    const { db } = createMockD1();
+    const { db } = makeCallerDb();
     const result = await handleUpsertOverrideCore({
       db,
       callingSession: adminSession,
@@ -231,7 +185,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
   });
 
   it("strictly rejects any attempt to modify or reassign a sealed Creator Admin in D1", async () => {
-    const { db, overrides } = createMockD1();
+    const { db, overrides } = makeCallerDb();
     overrides.set("99999999", {
       patron_id: "99999999",
       role: "admin",
@@ -260,7 +214,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
   });
 
   it("strictly rejects any attempt to target a configured Creator Admin ID not yet in D1", async () => {
-    const { db, overrides } = createMockD1();
+    const { db, overrides } = makeCallerDb();
 
     const result = await handleUpsertOverrideCore({
       db,
@@ -276,7 +230,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
     assert.equal(overrides.has("88888888"), false);
   });
   it("strictly rejects any attempt to modify an existing override with granted_by = 'system_bootstrap'", async () => {
-    const { db, overrides } = createMockD1();
+    const { db, overrides } = makeCallerDb();
     overrides.set("77777777", {
       patron_id: "77777777",
       role: "admin",
@@ -299,7 +253,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
   });
 
   it("fails closed when database lookup throws during pre-mutation check", async () => {
-    const { db } = createMockD1();
+    const { db } = makeCallerDb();
     const failingDb = {
       ...db,
       prepare(sql: string) {
@@ -324,7 +278,7 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
 
 
   it("creates a new panel-assigned override on valid input", async () => {
-    const { db, overrides } = createMockD1();
+    const { db, overrides } = makeCallerDb();
 
     const result = await handleUpsertOverrideCore({
       db,
@@ -349,8 +303,8 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
     assert.equal(saved.updated_at_sec, 1710000000);
   });
 
-  it("updates an existing panel-assigned override preserving created_at_sec", async () => {
-    const { db, overrides } = createMockD1();
+  it("updates an existing panel-assigned override preserving created_at_sec and original grantor", async () => {
+    const { db, overrides } = makeCallerDb();
     overrides.set("44444444", {
       patron_id: "44444444",
       role: "comp",
@@ -376,22 +330,19 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
     assert.ok(updated);
     assert.equal(updated.role, "admin");
     assert.equal(updated.notes, "Promoted to panel admin");
-    assert.equal(updated.granted_by, adminSession.patron_id);
+    // granted_by is immutable attribution: the original grantor survives the update.
+    assert.equal(updated.granted_by, "previous_admin");
     assert.equal(updated.created_at_sec, 1700000000); // Preserved
     assert.equal(updated.updated_at_sec, 1720000000); // Updated
   });
 });
 
 describe("admin overrides directory UI and design system tokens", () => {
-  it("exports required design tokens for admin overrides directory", () => {
-    assert.equal(ADMIN_BACKGROUND_COLOR, "#090A0F");
-    assert.equal(ADMIN_CARD_SURFACE, "#121522");
-    assert.equal(ADMIN_BORDER_COLOR, "#23283E");
-    assert.equal(ADMIN_BADGE_GOLD, "#FBBF24");
-    assert.equal(ADMIN_ROLE_ADMIN_COLOR, "#FBBF24");
-    assert.equal(ADMIN_ROLE_COMP_COLOR, "#38BDF8");
-    assert.equal(ADMIN_CREATOR_TIER_LABEL, "Creator Admin (Sealed)");
-    assert.equal(ADMIN_PANEL_TIER_LABEL, "Panel Admin");
+  it("localizes the table via the admin.table namespace for every locale", () => {
+    const en = JSON.parse(readSource("src/locales/en.json"));
+    assert.ok(en.admin?.table, "admin.table namespace must exist");
+    assert.equal(en.admin.table.title, "Active Directory ({count})");
+    assert.equal(en.admin.table.tierCreatorSealed, "Creator Admin (Sealed)");
   });
 
   it("provisions OverrideForm component with touch targets, accessible status, and testids", () => {
@@ -418,8 +369,8 @@ describe("admin overrides directory UI and design system tokens", () => {
     assert.match(tableSrc, /data-testid="override-tier-sealed"/);
     assert.match(tableSrc, /data-testid="override-tier-panel"/);
     assert.match(tableSrc, /data-testid="override-sealed-indicator"/);
-    assert.match(tableSrc, /ADMIN_CREATOR_TIER_LABEL/);
-    assert.match(tableSrc, /ADMIN_PANEL_TIER_LABEL/);
+    assert.match(tableSrc, /t\("tierCreatorSealed"\)/);
+    assert.match(tableSrc, /t\("tierPanelAdmin"\)/);
     assert.match(tableSrc, /title=\{override\.notes \|\| undefined\}/);
   });
 
@@ -429,7 +380,7 @@ describe("admin overrides directory UI and design system tokens", () => {
     assert.match(pageSrc, /listPatronOverrides/);
     assert.match(pageSrc, /OverrideForm/);
     assert.match(pageSrc, /OverridesTable/);
-    assert.match(pageSrc, /Back to Dashboard/);
+    assert.match(pageSrc, /backToDashboard/);
     assert.match(pageSrc, /min-h-\[44px\]/);
   });
 

@@ -12,7 +12,6 @@
 import { getPlatformProxy } from "wrangler";
 import {
   countAdminOverrides,
-  deletePatronOverride,
   deletePatronOverrideGuarded,
   deleteSession,
   getPatronOverride,
@@ -445,22 +444,22 @@ async function runVerification() {
     );
     console.log(`  PASS: listPatronOverrides returned ${allOverrides.length} record(s) including test override.`);
 
-    // 7.10 deletePatronOverride
-    await deletePatronOverride(db, overridePatronId);
+    // 7.10 deletePatronOverrideGuarded (plain delete; sealing lives at action layer)
+    await deletePatronOverrideGuarded(db, overridePatronId);
     const deletedOverride = await getPatronOverride(db, overridePatronId);
-    assert(deletedOverride === null, "deletePatronOverride must remove the override");
-    console.log("  PASS: deletePatronOverride removed record; getPatronOverride returned null.");
+    assert(deletedOverride === null, "deletePatronOverrideGuarded must remove the override");
+    console.log("  PASS: deletePatronOverrideGuarded removed record; getPatronOverride returned null.");
 
-    // 7.11 countAdminOverrides & deletePatronOverrideGuarded (Story 5.3 sole-admin invariant)
-    // Clear admin overrides first so the sole-admin precondition is deterministic regardless
-    // of seeded or leftover rows from prior runs; seeded admins re-bootstrap on next admin visit.
+    // 7.11 countAdminOverrides & deletePatronOverrideGuarded
+    // Founder-preservation (Amendment A-2026-09-19-01): the DB delete carries no
+    // sole-admin block; founder access is env-guaranteed. A lone admin row is
+    // still deletable; only sealing (action layer) protects founder rows.
     await db.prepare("DELETE FROM patron_overrides WHERE role = ?").bind("admin").run();
     assert(
       (await countAdminOverrides(db)) === 0,
       "Step 7.11 requires a clean admin set; admin overrides remained after clear"
     );
     const soleAdminId = `sole-admin-${Date.now()}`;
-    const coAdminId = `co-admin-${Date.now()}`;
     const compId = `comp-${Date.now()}`;
     const grantingAdminId = "11111111";
     await upsertPatronOverride(db, {
@@ -472,15 +471,23 @@ async function runVerification() {
     });
     assert((await countAdminOverrides(db)) >= 1, "countAdminOverrides must count admin overrides");
 
-    // Sole admin deletion must be blocked (0 changes) and leave the row intact.
-    const blockedChanges = await deletePatronOverrideGuarded(db, soleAdminId);
-    assert(blockedChanges === 0, "deletePatronOverrideGuarded must block deleting the sole admin");
+    // The last admin override is deletable (founder access is env-guaranteed).
+    const soleChanges = await deletePatronOverrideGuarded(db, soleAdminId);
+    assert(soleChanges === 1, "deletePatronOverrideGuarded must delete the last admin override");
     assert(
-      (await getPatronOverride(db, soleAdminId)) !== null,
-      "Sole admin override must remain after blocked deletion"
+      (await getPatronOverride(db, soleAdminId)) === null,
+      "Deleted sole admin override must be absent"
     );
 
-    // A comp override is always deletable, even when no other admin exists.
+    await upsertPatronOverride(db, {
+      patron_id: soleAdminId,
+      role: "admin",
+      granted_by: grantingAdminId,
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+
+    // A comp override is always deletable.
     await upsertPatronOverride(db, {
       patron_id: compId,
       role: "comp",
@@ -492,19 +499,8 @@ async function runVerification() {
     assert(compChanges === 1, "deletePatronOverrideGuarded must always delete a comp override");
     assert((await getPatronOverride(db, compId)) === null, "Deleted comp override must be absent");
 
-    // With a second admin present, the guarded delete must succeed.
-    await upsertPatronOverride(db, {
-      patron_id: coAdminId,
-      role: "admin",
-      granted_by: grantingAdminId,
-      created_at_sec: 1700000000,
-      updated_at_sec: 1700000000,
-    });
-    const allowedChanges = await deletePatronOverrideGuarded(db, soleAdminId);
-    assert(allowedChanges === 1, "deletePatronOverrideGuarded must delete when another admin remains");
-    assert((await getPatronOverride(db, soleAdminId)) === null, "Deleted override must be absent");
-    await deletePatronOverride(db, coAdminId);
-    console.log("  PASS: countAdminOverrides and deletePatronOverrideGuarded enforce the sole-admin invariant.");
+    await deletePatronOverrideGuarded(db, soleAdminId);
+    console.log("  PASS: countAdminOverrides and deletePatronOverrideGuarded enforce founder-preservation (no sole-admin DB block).");
 
     // ----------------------------------------------------
     // Step 8: Parameterized Query Sanitization (AD-8)
