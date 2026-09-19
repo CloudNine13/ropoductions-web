@@ -9,7 +9,7 @@ import {
   validateSessionAccess,
 } from "../src/lib/auth";
 import { signValue, verifySignedValue } from "../src/lib/crypto";
-import { parseCookies, SESSION_COOKIE_MAX_AGE, SESSION_COOKIE_NAME } from "../src/lib/cookies";
+import { SESSION_COOKIE_MAX_AGE } from "../src/lib/cookies";
 import {
   getPatronCampaignMembership,
   PATREON_CAMPAIGNS_URL,
@@ -575,8 +575,10 @@ describe("session access validation and transactional override revocation valida
   const SECRET = "test-session-secret-32-chars-long!";
   const NOW = 1750000000;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- override fixtures are partial D1 rows
   function createTestDb(initialSessions: SessionRecord[] = [], initialOverrides: any[] = []) {
     const sessions = new Map<string, SessionRecord>(initialSessions.map((s) => [s.id, { ...s }]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- override rows are keyed by patron_id
     const overrides = new Map<string, any>(initialOverrides.map((o) => [o.patron_id, { ...o }]));
 
     return {
@@ -794,6 +796,7 @@ describe("resolveOAuthOriginContext origin normalization and mismatch detection"
 
 describe("issueSessionResponse unified session issuance helper", () => {
   function createTestDb() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- session rows carry constraint alias keys
     const sessions = new Map<string, any>();
     const db = {
       prepare(sql: string) {

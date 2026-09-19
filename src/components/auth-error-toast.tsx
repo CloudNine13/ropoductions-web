@@ -14,6 +14,8 @@ export function AuthErrorToast({ errorCode }: AuthErrorToastProps) {
   const t = useTranslations("authError");
 
   useEffect(() => {
+    // Re-open the toast and re-run the enter animation when the error changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
     setMounted(false);
     const id = requestAnimationFrame(() => setMounted(true));

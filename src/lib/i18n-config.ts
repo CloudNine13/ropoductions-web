@@ -30,15 +30,6 @@ export const LOCALES: Record<Locale, LocaleInfo> = {
 
 export type Messages = typeof en;
 
-const rawDictionaries: Record<Locale, Messages> = {
-  es,
-  en,
-  ru,
-  pl,
-  ja,
-  zh,
-};
-
 export function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
   const output: Record<string, unknown> = { ...target };
   for (const key of Object.keys(target)) {

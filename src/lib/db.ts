@@ -5,7 +5,6 @@
  */
 
 import type {
-  CreateSessionInput,
   PatronOverrideRecord,
   SessionRecord,
   UpsertPatronOverrideInput,

@@ -1,4 +1,3 @@
-import { isSecureCookieScope } from "@/lib/cookies";
 import { upsertPatronOverride } from "@/lib/db";
 import type {
   PatreonCampaignMembersResponse,

@@ -20,12 +20,10 @@ export function AgeGateDialog({
   const t = useTranslations("ageGate");
 
   useEffect(() => {
-    // Client-side cookie check synchronizes local storage state
-    if (hasAgeVerifiedCookie()) {
-      setIsOpen(false);
-    } else {
-      setIsOpen(true);
-    }
+    // Client-side cookie check syncs the gate with persisted state after mount;
+    // a lazy initializer would read `document` during SSR and mismatch markup.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsOpen(!hasAgeVerifiedCookie());
   }, []);
 
   const handleOpenChange = useCallback((open: boolean) => {
