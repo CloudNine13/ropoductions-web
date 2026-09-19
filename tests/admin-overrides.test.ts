@@ -200,6 +200,22 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
     assert.match(result.error ?? "", /unauthorized/i);
   });
 
+  it("rejects upserts when the caller override was revoked before mutation", async () => {
+    const { db } = createMockD1();
+
+    const result = await handleUpsertOverrideCore({
+      db,
+      callingSession: adminSession,
+      patronId: "22222222",
+      role: "comp",
+      notes: "Attempt",
+      creatorAdminIds: "99999999",
+    });
+
+    assert.equal(result.success, false);
+    assert.match(result.error ?? "", /unauthorized/i);
+  });
+
   it("rejects invalid Patreon ID format", async () => {
     const { db } = createMockD1();
     const result = await handleUpsertOverrideCore({
@@ -286,6 +302,15 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
       updated_at_sec: 1700000000,
     });
 
+    overrides.set("12345678", {
+      patron_id: "12345678",
+      role: "admin",
+      notes: "Panel admin",
+      granted_by: "previous_admin",
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+
     const result = await handleUpsertOverrideCore({
       db,
       callingSession: adminSession,
@@ -326,6 +351,15 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
   it("creates a new panel-assigned override on valid input", async () => {
     const { db, overrides } = createMockD1();
 
+    overrides.set("12345678", {
+      patron_id: "12345678",
+      role: "admin",
+      notes: "Panel admin",
+      granted_by: "previous_admin",
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+
     const result = await handleUpsertOverrideCore({
       db,
       callingSession: adminSession,
@@ -355,6 +389,15 @@ describe("override creation & update action core logic (handleUpsertOverrideCore
       patron_id: "44444444",
       role: "comp",
       notes: "Old note",
+      granted_by: "previous_admin",
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+
+    overrides.set("12345678", {
+      patron_id: "12345678",
+      role: "admin",
+      notes: "Panel admin",
       granted_by: "previous_admin",
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
