@@ -37,12 +37,9 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // Protect /admin routes: anti-enumeration guard
-  // Must NEVER redirect unauthorized visitors (which leaks route existence).
-  // Passes to (admin)/layout.tsx where authoritative D1 session evaluation returns notFound() (404).
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    return NextResponse.next();
-  }
+  // Anti-enumeration for /admin lives entirely in (admin)/layout.tsx:
+  // requireAdminSession → notFound() (404). Middleware deliberately does NOT
+  // route /admin so no redirect ever leaks route existence.
 
   return NextResponse.next();
 }

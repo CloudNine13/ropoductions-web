@@ -1,35 +1,27 @@
 import { Lock, Shield, UserCheck, Users } from "lucide-react";
 import type { PatronOverrideRecord } from "@/types/database";
-import {
-  ADMIN_CREATOR_TIER_LABEL,
-  ADMIN_PANEL_TIER_LABEL,
-  isSealedCreatorAdmin,
-  isSoleAdminSelf,
-} from "@/lib/admin";
+import { isSealedCreatorAdmin } from "@/lib/admin";
 import { RevokeOverrideButton } from "@/components/admin/revoke-override-button";
+import { getTranslations } from "next-intl/server";
 
 export interface OverridesTableProps {
   overrides: PatronOverrideRecord[];
-  creatorAdminIds?: string | null;
-  currentAdminPatronId: string;
-  adminOverrideCount: number;
 }
 
-export function OverridesTable({
+export async function OverridesTable({
   overrides,
-  creatorAdminIds,
-  currentAdminPatronId,
-  adminOverrideCount,
 }: OverridesTableProps) {
+  const t = await getTranslations("admin.table");
+
   if (overrides.length === 0) {
     return (
       <div className="bg-[#121522] border border-[#23283E] rounded-xl p-8 flex flex-col items-center justify-center text-center gap-3">
         <div className="rounded-full bg-muted/20 p-3 text-muted-foreground">
           <Users className="h-6 w-6" aria-hidden="true" />
         </div>
-        <h3 className="text-base font-semibold text-foreground">No Access Overrides</h3>
+        <h3 className="text-base font-semibold text-foreground">{t("emptyTitle")}</h3>
         <p className="text-xs text-muted-foreground max-w-sm">
-          No administrative or complimentary passes have been granted yet. Use the registration form above to grant access.
+          {t("emptyDesc")}
         </p>
       </div>
     );
@@ -41,34 +33,28 @@ export function OverridesTable({
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
           <h2 className="font-display text-base font-bold text-foreground">
-            Active Directory ({overrides.length})
+            {t("title", { count: overrides.length })}
           </h2>
         </div>
-        <span className="text-xs text-muted-foreground">Two-Tier Admin Enforcement</span>
+        <span className="text-xs text-muted-foreground">{t("enforcement")}</span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm border-collapse">
           <thead>
             <tr className="border-b border-[#23283E] bg-[#090A0F]/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <th scope="col" className="py-3 px-4 sm:px-6">Patreon ID</th>
-              <th scope="col" className="py-3 px-4">Role</th>
-              <th scope="col" className="py-3 px-4">Admin Tier</th>
-              <th scope="col" className="py-3 px-4">Audit Notes</th>
-              <th scope="col" className="py-3 px-4">Granted By</th>
-              <th scope="col" className="py-3 px-4">Date Added</th>
-              <th scope="col" className="py-3 px-4 text-right">Status</th>
+              <th scope="col" className="py-3 px-4 sm:px-6">{t("patronId")}</th>
+              <th scope="col" className="py-3 px-4">{t("role")}</th>
+              <th scope="col" className="py-3 px-4">{t("adminTier")}</th>
+              <th scope="col" className="py-3 px-4">{t("notes")}</th>
+              <th scope="col" className="py-3 px-4">{t("grantedBy")}</th>
+              <th scope="col" className="py-3 px-4">{t("dateAdded")}</th>
+              <th scope="col" className="py-3 px-4 text-right">{t("status")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#23283E]/60 text-foreground">
             {overrides.map((override) => {
-              const sealed = isSealedCreatorAdmin(override, creatorAdminIds);
-              const soleAdminSelf = isSoleAdminSelf(
-                override,
-                currentAdminPatronId,
-                adminOverrideCount,
-                creatorAdminIds
-              );
+              const sealed = isSealedCreatorAdmin(override);
               const formattedDate = new Date(override.created_at_sec * 1000).toISOString().split("T")[0];
 
               return (
@@ -87,7 +73,7 @@ export function OverridesTable({
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30"
                       >
                         <Shield className="h-3 w-3" aria-hidden="true" />
-                        Admin
+                        {t("roleAdmin")}
                       </span>
                     ) : (
                       <span
@@ -95,7 +81,7 @@ export function OverridesTable({
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/30"
                       >
                         <UserCheck className="h-3 w-3" aria-hidden="true" />
-                        Comp
+                        {t("roleComp")}
                       </span>
                     )}
                   </td>
@@ -107,14 +93,14 @@ export function OverridesTable({
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/20"
                       >
                         <Lock className="h-3 w-3" aria-hidden="true" />
-                        {ADMIN_CREATOR_TIER_LABEL}
+                        {t("tierCreatorSealed")}
                       </span>
                     ) : (
                       <span
                         data-testid="override-tier-panel"
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/20"
                       >
-                        {ADMIN_PANEL_TIER_LABEL}
+                        {t("tierPanelAdmin")}
                       </span>
                     )}
                   </td>
@@ -139,21 +125,15 @@ export function OverridesTable({
                       <span
                         data-testid="override-sealed-indicator"
                         className="inline-flex items-center gap-1 text-xs text-[#FBBF24] font-medium"
-                        title="Permanently sealed founding creator account"
+                        title={t("sealedTitle")}
                       >
                         <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Sealed</span>
+                        <span>{t("sealed")}</span>
                       </span>
                     ) : (
                       <RevokeOverrideButton
                         patronId={override.patron_id}
                         role={override.role}
-                        disabled={soleAdminSelf}
-                        disabledReason={
-                          soleAdminSelf
-                            ? "Cannot revoke the sole remaining administrator"
-                            : undefined
-                        }
                       />
                     )}
                   </td>

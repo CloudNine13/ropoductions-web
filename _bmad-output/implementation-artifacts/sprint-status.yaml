@@ -66,7 +66,7 @@ development_status:
   5-1-restricted-admin-layout-authentication-guard: done
   5-2-patron-override-directory-creation-interface: done
   5-3-override-revocation-self-lockout-prevention: done
-  5-4-override-integrity-hardening: ready-for-dev
+  5-4-override-integrity-hardening: in-progress
   5-5-grant-revoke-audit-trail: backlog
   epic-5-retrospective: done
 action_items:
@@ -179,7 +179,7 @@ action_items:
       admin can self-revoke; dated amendment to epics.md 5.3 recording founder-preservation
       as the protected invariant; do NOT add a sole-admin guard to upsertPatronOverride"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-2-preserve-granted-by-on-update"
     epic: 5
@@ -187,7 +187,7 @@ action_items:
       db.ts:203, actions.ts:97); flip admin-overrides.test.ts:379 to preserved-grantor
       assertion red-first; document that pre-fix clobbered grantors are unrecoverable"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-3-symmetrize-caller-freshness"
     epic: 5
@@ -195,7 +195,7 @@ action_items:
       mirroring actions.ts:151-166; raise upsert to revoke-path rigor, never lower
       revoke"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-4-remove-dead-admin-proxy-branch"
     epic: 5
@@ -204,7 +204,7 @@ action_items:
       tests/proxy.test.ts; reconcile spec-5-1 middleware-AND-layout wording to layout-authority
       reality"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-5-single-sealing-source"
     epic: 5
@@ -212,7 +212,7 @@ action_items:
       or document the writerless creator_bootstrap branch, stop OR-ing live CREATOR_ADMIN_PATREON_IDS
       at read time, record decision in deferred-work and AD-8 note"
     owner: "architect"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-6-close-admin-verification-gaps"
     epic: 5
@@ -220,7 +220,7 @@ action_items:
       add e2e/admin.spec.ts (unauthorized 404 without redirect leak, seeded-admin
       render); move guarded-write atomicity assertions into the real-D1 contract suite"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-7-harden-id-and-notes-validation"
     epic: 5
@@ -228,7 +228,7 @@ action_items:
       constant consumed by the form; code-point-safe notes truncation replacing slice(0,500)
       at actions.ts:90"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-8-delete-dead-code-and-dedupe"
     epic: 5
@@ -237,7 +237,7 @@ action_items:
       inline quote-strip at play/page.tsx:16-17 with unquoteCookieValue (epic-2 item-4
       remainder)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-9-prd-fr-reconciliation"
     epic: 5
@@ -261,7 +261,7 @@ action_items:
       per owner decision; replace hardcoded English in admin components and lib/admin.ts
       label constants"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-12-wire-status-to-merge-events"
     epic: 5

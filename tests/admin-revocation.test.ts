@@ -5,8 +5,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PatronOverrideRecord, SessionRecord } from "../src/types/database";
 import { countAdminOverrides, deletePatronOverrideGuarded } from "../src/lib/db";
-import { isSoleAdminSelf } from "../src/lib/admin";
 import { handleRevokeOverrideCore } from "../src/app/(admin)/admin/overrides/actions";
+import { createMockD1 } from "./helpers/mock-d1";
 
 const worktreeDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readSource = (rel: string): string => readFileSync(join(worktreeDir, rel), "utf8");
@@ -45,65 +45,6 @@ function overrideFixture(
   };
 }
 
-function createMockD1() {
-  const overrides = new Map<string, PatronOverrideRecord>();
-
-  const db = {
-    _overrides: overrides,
-    prepare(sql: string) {
-      const stmt = {
-        params: [] as unknown[],
-        bind(...params: unknown[]) {
-          stmt.params = params;
-          return stmt;
-        },
-        async first<T>(): Promise<T | null> {
-          if (sql.includes("SELECT COUNT(*)")) {
-            const role = stmt.params[0] as string;
-            const count = Array.from(overrides.values()).filter((o) => o.role === role).length;
-            return { count } as T;
-          }
-          if (sql.includes("FROM patron_overrides WHERE patron_id = ?")) {
-            const patronId = stmt.params[0] as string;
-            return (overrides.get(patronId) as T | undefined) ?? null;
-          }
-          throw new Error(`Unhandled query in mock first(): ${sql}`);
-        },
-        async all<T>(): Promise<{ results: T[] }> {
-          throw new Error(`Unhandled query in mock all(): ${sql}`);
-        },
-        async run(): Promise<{ success: boolean; meta: Record<string, unknown> }> {
-          if (sql.includes("DELETE FROM patron_overrides")) {
-            const patronId = stmt.params[0] as string;
-            const target = overrides.get(patronId);
-            if (!target) {
-              return { success: true, meta: { changes: 0 } };
-            }
-            if (target.role === "comp") {
-              overrides.delete(patronId);
-              return { success: true, meta: { changes: 1 } };
-            }
-            const otherAdmins = Array.from(overrides.values()).filter(
-              (o) => o.role === "admin" && o.patron_id !== patronId
-            ).length;
-            if (otherAdmins >= 1) {
-              overrides.delete(patronId);
-              return { success: true, meta: { changes: 1 } };
-            }
-            return { success: true, meta: { changes: 0 } };
-          }
-          throw new Error(`Unhandled query in mock run(): ${sql}`);
-        },
-      };
-      return stmt;
-    },
-  } as unknown as D1Database & {
-    _overrides: Map<string, PatronOverrideRecord>;
-  };
-
-  return { db, overrides };
-}
-
 describe("countAdminOverrides", () => {
   it("counts only admin overrides", async () => {
     const { db, overrides } = createMockD1();
@@ -119,7 +60,7 @@ describe("countAdminOverrides", () => {
   });
 });
 
-describe("deletePatronOverrideGuarded (atomic sole-admin invariant)", () => {
+describe("deletePatronOverrideGuarded (founder-preservation invariant)", () => {
   it("always deletes a comp override", async () => {
     const { db, overrides } = createMockD1();
     overrides.set("22222222", overrideFixture("22222222", "comp"));
@@ -138,12 +79,12 @@ describe("deletePatronOverrideGuarded (atomic sole-admin invariant)", () => {
     assert.equal(overrides.has("11111111"), true);
   });
 
-  it("blocks deleting the sole admin override", async () => {
+  it("deletes the last admin override (founder access is env-guaranteed)", async () => {
     const { db, overrides } = createMockD1();
     overrides.set("11111111", overrideFixture("11111111", "admin"));
     const changes = await deletePatronOverrideGuarded(db, "11111111");
-    assert.equal(changes, 0);
-    assert.equal(overrides.has("11111111"), true);
+    assert.equal(changes, 1);
+    assert.equal(overrides.has("11111111"), false);
   });
 
   it("reports zero changes for an absent override", async () => {
@@ -228,7 +169,7 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
     assert.match(result.message ?? "", /no override exists/i);
   });
 
-  it("blocks self-revocation of the sole remaining administrator", async () => {
+  it("allows self-revocation of the last added admin (founder-preservation)", async () => {
     const { db, overrides } = createMockD1();
     overrides.set("12345678", overrideFixture("12345678", "admin"));
     const result = await handleRevokeOverrideCore({
@@ -236,10 +177,8 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
       callingSession: adminSessionFixture("12345678"),
       patronId: "12345678",
     });
-    assert.equal(result.success, false);
-    assert.equal(result.code, "sole_admin");
-    assert.match(result.error ?? "", /sole remaining administrator/i);
-    assert.equal(overrides.has("12345678"), true);
+    assert.equal(result.success, true);
+    assert.equal(overrides.has("12345678"), false);
   });
 
   it("revokes a panel admin when another admin remains", async () => {
@@ -296,7 +235,7 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
     assert.equal(result.code, "db_error");
   });
 
-  it("returns idempotent success when the target vanishes between the check and guarded delete", async () => {
+  it("returns idempotent success when the target vanishes between the check and delete", async () => {
     const caller = "12345678";
     const target = "22222222";
     let targetReads = 0;
@@ -336,33 +275,6 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
   });
 });
 
-describe("isSoleAdminSelf", () => {
-  it("flags the sole admin self-revocation", () => {
-    const override = overrideFixture("11111111", "admin");
-    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), true);
-  });
-
-  it("allows self-revocation when another admin remains", () => {
-    const override = overrideFixture("11111111", "admin");
-    assert.equal(isSoleAdminSelf(override, "11111111", 2, "99999999"), false);
-  });
-
-  it("does not flag a different patron's row", () => {
-    const override = overrideFixture("22222222", "admin");
-    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), false);
-  });
-
-  it("does not flag a comp override", () => {
-    const override = overrideFixture("11111111", "comp");
-    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), false);
-  });
-
-  it("never flags a sealed Creator Admin", () => {
-    const override = overrideFixture("11111111", "admin", "system_bootstrap");
-    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), false);
-  });
-});
-
 describe("revocation UI wiring and design tokens", () => {
   it("provisions RevokeOverrideButton with Radix Dialog, crimson confirm, and accessible names", () => {
     const src = readSource("src/components/admin/revoke-override-button.tsx");
@@ -375,20 +287,18 @@ describe("revocation UI wiring and design tokens", () => {
     assert.match(src, /data-testid="override-revoke-confirm-button"/);
     assert.match(src, /data-testid="override-revoke-cancel-button"/);
     assert.match(src, /data-testid="override-revoke-error"/);
-    assert.match(src, /data-testid="override-revoke-lockout-warning"/);
     assert.match(src, /role="alert"/);
     assert.match(src, /#E11D48/);
     assert.match(src, /min-h-\[44px\]/);
-    assert.match(src, /aria-label=\{`Revoke \$\{role\} override for Patreon ID \$\{patronId\}`\}/);
+    assert.match(src, /aria-label=\{t\("ariaLabel", \{ role, patronId \}\)\}/);
   });
 
-  it("wires the overrides table with revoke button and sole-admin lockout warning", () => {
+  it("wires the overrides table with revoke button, dropping the sole-admin block", () => {
     const src = readSource("src/components/admin/overrides-table.tsx");
     assert.match(src, /RevokeOverrideButton/);
-    assert.match(src, /soleAdminSelf/);
-    assert.match(src, /currentAdminPatronId/);
-    assert.match(src, /adminOverrideCount/);
-    assert.match(src, /Cannot revoke the sole remaining administrator/);
+    assert.ok(!src.includes("soleAdminSelf"));
+    assert.ok(!src.includes("adminOverrideCount"));
+    assert.ok(!src.includes("Cannot revoke the sole remaining administrator"));
   });
 
   it("wires the Server Action with guarded delete, session revocation, and revalidatePath", () => {
@@ -397,14 +307,7 @@ describe("revocation UI wiring and design tokens", () => {
     assert.match(src, /handleRevokeOverrideCore/);
     assert.match(src, /deletePatronOverrideGuarded/);
     assert.match(src, /revalidatePath/);
-    assert.match(src, /sole_admin/);
+    assert.ok(!src.includes("sole_admin"));
     assert.match(src, /sealed_creator_admin/);
-  });
-
-  it("wires the overrides page with admin count and current admin patron id", () => {
-    const src = readSource("src/app/(admin)/admin/overrides/page.tsx");
-    assert.match(src, /countAdminOverrides/);
-    assert.match(src, /currentAdminPatronId=\{session\.patron_id\}/);
-    assert.match(src, /adminOverrideCount=\{adminOverrideCount\}/);
   });
 });

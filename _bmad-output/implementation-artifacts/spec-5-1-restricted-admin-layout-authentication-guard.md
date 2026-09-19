@@ -39,7 +39,7 @@ context:
 ## Acceptance Criteria
 
 - **Given** an unauthorized visitor or regular patron navigating to `/admin` or any `/admin/*` subroute
-- **When** middleware and the `(admin)/layout.tsx` Server Component evaluate session state
+- **When** the `(admin)/layout.tsx` Server Component evaluates session state (middleware does NOT route `/admin`; anti-enumeration is enforced entirely at the layout via `requireAdminSession`)
 - **Then** if `session.role !== 'admin'`, the request returns a standard Next.js `notFound()` (HTTP 404) to prevent route enumeration
 - **And** if `session.role === 'admin'`, the page renders the isolated `(admin)` layout with dark studio theme (`#090A0F` background, `#121522` card surface)
 - **And** displays an admin status badge (`#FBBF24` Gold) and a direct navigation link back to `/play`.

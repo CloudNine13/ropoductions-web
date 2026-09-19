@@ -5,7 +5,7 @@ import { ArrowLeft, Shield, Lock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { GameViewport } from "@/components/game-viewport";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
-import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/cookies";
+import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME, unquoteCookieValue } from "@/lib/cookies";
 import { validateSessionAccess } from "@/lib/auth";
 import { mapSessionStatusToPaywall, sessionClearHref } from "@/lib/paywall";
 
@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function PlayPage() {
   const cookieStore = await cookies();
-  const ageCookie = cookieStore.get(AGE_VERIFIED_COOKIE_NAME)?.value?.replace(/^"|"$/g, "");
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value?.replace(/^"|"$/g, "");
+  const ageCookie = unquoteCookieValue(cookieStore.get(AGE_VERIFIED_COOKIE_NAME)?.value);
+  const sessionCookie = unquoteCookieValue(cookieStore.get(SESSION_COOKIE_NAME)?.value);
 
   if (ageCookie !== "true") {
     redirect("/?auth_required=true");

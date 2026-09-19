@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  deletePatronOverride,
+  deletePatronOverrideGuarded,
   deleteSession,
   getPatronOverride,
   getSessionById,
@@ -72,7 +72,7 @@ function createMockDb(): D1Database {
           }
           throw new Error(`Unhandled all() query: ${sql}`);
         },
-        async run(): Promise<void> {
+        async run(): Promise<{ meta?: Record<string, unknown> }> {
           if (sql.startsWith("INSERT INTO sessions")) {
             const [
               id, patron_id, email, role, tier_id, tier_name, pledge_cents,
@@ -88,7 +88,7 @@ function createMockDb(): D1Database {
                 token_expires_at_sec, expires_at_sec, revoked,
                 created_at_sec: createdAt, last_verified_at_sec: lastVerifiedAt,
               });
-              return;
+              return { meta: {} };
             }
             if (roleGuard !== null) existing.role = role;
             if (revokedGuard !== null) existing.revoked = revoked;
@@ -98,22 +98,22 @@ function createMockDb(): D1Database {
               token_expires_at_sec, expires_at_sec,
               last_verified_at_sec: lastVerifiedAt,
             });
-            return;
+            return { meta: {} };
           }
           if (sql === "UPDATE sessions SET revoked = 1 WHERE id = ?") {
             const target = sessions.get(stmt.params[0] as string);
             if (target) target.revoked = 1;
-            return;
+            return { meta: {} };
           }
           if (sql === "UPDATE sessions SET revoked = 1 WHERE patron_id = ?") {
             for (const s of sessions.values()) {
               if (s.patron_id === stmt.params[0]) s.revoked = 1;
             }
-            return;
+            return { meta: {} };
           }
           if (sql === "DELETE FROM sessions WHERE id = ?") {
             sessions.delete(stmt.params[0] as string);
-            return;
+            return { meta: {} };
           }
           if (sql.startsWith("INSERT INTO patron_overrides")) {
             const [patron_id, role, notes, granted_by, createdAt, updatedAt, notesGuard] =
@@ -124,17 +124,17 @@ function createMockDb(): D1Database {
                 patron_id, role, notes, granted_by,
                 created_at_sec: createdAt, updated_at_sec: updatedAt,
               });
-              return;
+              return { meta: {} };
             }
             existing.role = role;
-            existing.granted_by = granted_by;
+            // granted_by is immutable attribution (set on INSERT only).
             existing.updated_at_sec = updatedAt;
             if (notesGuard !== null) existing.notes = notes;
-            return;
+            return { meta: {} };
           }
           if (sql === "DELETE FROM patron_overrides WHERE patron_id = ?") {
-            patronOverrides.delete(stmt.params[0] as string);
-            return;
+            const removed = patronOverrides.delete(stmt.params[0] as string);
+            return { meta: { changes: removed ? 1 : 0 } };
           }
           throw new Error(`Unhandled run() query: ${sql}`);
         },
@@ -257,12 +257,14 @@ describe("patron override entry points", () => {
     const updated = await getPatronOverride(db, "patron-override-1");
     assert.equal(updated!.role, "comp");
     assert.equal(updated!.created_at_sec, 1700000000);
+    // granted_by is immutable attribution: original grantor survives the update.
+    assert.equal(updated!.granted_by, "system_bootstrap");
 
     assert.ok(
       (await listPatronOverrides(db)).some((o) => o.patron_id === "patron-override-1")
     );
 
-    await deletePatronOverride(db, "patron-override-1");
+    await deletePatronOverrideGuarded(db, "patron-override-1");
     assert.equal(await getPatronOverride(db, "patron-override-1"), null);
   });
 });
