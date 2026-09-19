@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, Ban, Loader2, ShieldOff, X } from "lucide-react";
 import { revokeOverrideAction } from "@/app/(admin)/admin/overrides/actions";
@@ -22,6 +23,7 @@ export function RevokeOverrideButton({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const handleConfirm = () => {
     setError(null);
@@ -32,6 +34,7 @@ export function RevokeOverrideButton({
         const result = await revokeOverrideAction(undefined, formData);
         if (result.success) {
           setOpen(false);
+          router.refresh();
         } else {
           setError(result.error ?? "Failed to revoke the access pass.");
         }
@@ -114,7 +117,8 @@ export function RevokeOverrideButton({
                     <span className="font-semibold text-foreground">{role}</span> access pass for
                     Patreon ID{" "}
                     <span className="font-mono font-semibold text-foreground">{patronId}</span>.
-                    Their active sessions will be invalidated.
+                    This access pass is revoked immediately. Any active session for this patron is
+                    invalidated on their next navigation.
                   </p>
                 </div>
               </Dialog.Description>

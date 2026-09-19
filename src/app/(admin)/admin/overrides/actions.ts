@@ -256,6 +256,25 @@ export async function handleRevokeOverrideCore(
   }
 
   if (changes === 0) {
+    // 0 means either a blocked sole-admin delete or the target was removed
+    // between the existence check and the guarded DELETE. Re-read to tell apart.
+    let stillExists = null;
+    try {
+      stillExists = await getPatronOverride(db, normalizedPatronId);
+    } catch (err) {
+      console.error("[handleRevokeOverrideCore] Failed to re-check override after guarded delete:", err);
+      return {
+        success: false,
+        code: "db_error",
+        error: "Database operation failed while verifying revocation.",
+      };
+    }
+    if (!stillExists) {
+      return {
+        success: true,
+        message: `No override exists for Patreon ID ${normalizedPatronId}.`,
+      };
+    }
     return {
       success: false,
       code: "sole_admin",

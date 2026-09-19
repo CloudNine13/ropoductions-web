@@ -4,6 +4,7 @@ import {
   ADMIN_CREATOR_TIER_LABEL,
   ADMIN_PANEL_TIER_LABEL,
   isSealedCreatorAdmin,
+  isSoleAdminSelf,
 } from "@/lib/admin";
 import { RevokeOverrideButton } from "@/components/admin/revoke-override-button";
 
@@ -62,11 +63,12 @@ export function OverridesTable({
           <tbody className="divide-y divide-[#23283E]/60 text-foreground">
             {overrides.map((override) => {
               const sealed = isSealedCreatorAdmin(override, creatorAdminIds);
-              const soleAdminSelf =
-                !sealed &&
-                override.role === "admin" &&
-                override.patron_id === currentAdminPatronId &&
-                adminOverrideCount <= 1;
+              const soleAdminSelf = isSoleAdminSelf(
+                override,
+                currentAdminPatronId,
+                adminOverrideCount,
+                creatorAdminIds
+              );
               const formattedDate = new Date(override.created_at_sec * 1000).toISOString().split("T")[0];
 
               return (

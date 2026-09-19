@@ -5,6 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PatronOverrideRecord, SessionRecord } from "../src/types/database";
 import { countAdminOverrides, deletePatronOverrideGuarded } from "../src/lib/db";
+import { isSoleAdminSelf } from "../src/lib/admin";
 import { handleRevokeOverrideCore } from "../src/app/(admin)/admin/overrides/actions";
 
 const worktreeDir = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -293,6 +294,72 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
     });
     assert.equal(result.success, false);
     assert.equal(result.code, "db_error");
+  });
+
+  it("returns idempotent success when the target vanishes between the check and guarded delete", async () => {
+    const caller = "12345678";
+    const target = "22222222";
+    let targetReads = 0;
+
+    const concurrentDb = {
+      prepare(sql: string) {
+        const isSelect = sql.includes("FROM patron_overrides WHERE patron_id = ?");
+        const isDelete = sql.includes("DELETE FROM patron_overrides");
+        let params: unknown[] = [];
+        return {
+          bind(...p: unknown[]) {
+            params = p;
+            return this;
+          },
+          async first<T>(): Promise<T | null> {
+            if (!isSelect) return null;
+            const patronId = params[0] as string;
+            if (patronId === caller) return overrideFixture(caller, "admin") as unknown as T;
+            targetReads += 1;
+            return targetReads === 1 ? (overrideFixture(target, "comp") as unknown as T) : null;
+          },
+          async run() {
+            return { success: true, meta: { changes: isDelete ? 0 : 0 } };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const result = await handleRevokeOverrideCore({
+      db: concurrentDb,
+      callingSession: adminSessionFixture(caller),
+      patronId: target,
+    });
+
+    assert.equal(result.success, true);
+    assert.match(result.message ?? "", /no override exists/i);
+  });
+});
+
+describe("isSoleAdminSelf", () => {
+  it("flags the sole admin self-revocation", () => {
+    const override = overrideFixture("11111111", "admin");
+    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), true);
+  });
+
+  it("allows self-revocation when another admin remains", () => {
+    const override = overrideFixture("11111111", "admin");
+    assert.equal(isSoleAdminSelf(override, "11111111", 2, "99999999"), false);
+  });
+
+  it("does not flag a different patron's row", () => {
+    const override = overrideFixture("22222222", "admin");
+    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), false);
+  });
+
+  it("does not flag a comp override", () => {
+    const override = overrideFixture("11111111", "comp");
+    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), false);
+  });
+
+  it("never flags a sealed Creator Admin", () => {
+    const override = overrideFixture("11111111", "admin", "system_bootstrap");
+    assert.equal(isSoleAdminSelf(override, "11111111", 1, "99999999"), false);
   });
 });
 

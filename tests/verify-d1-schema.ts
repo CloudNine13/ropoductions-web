@@ -452,6 +452,13 @@ async function runVerification() {
     console.log("  PASS: deletePatronOverride removed record; getPatronOverride returned null.");
 
     // 7.11 countAdminOverrides & deletePatronOverrideGuarded (Story 5.3 sole-admin invariant)
+    // Clear admin overrides first so the sole-admin precondition is deterministic regardless
+    // of seeded or leftover rows from prior runs; seeded admins re-bootstrap on next admin visit.
+    await db.prepare("DELETE FROM patron_overrides WHERE role = ?").bind("admin").run();
+    assert(
+      (await countAdminOverrides(db)) === 0,
+      "Step 7.11 requires a clean admin set; admin overrides remained after clear"
+    );
     const soleAdminId = `sole-admin-${Date.now()}`;
     const coAdminId = `co-admin-${Date.now()}`;
     const compId = `comp-${Date.now()}`;
