@@ -2,7 +2,7 @@
 title: 'Story 5.1: Restricted Admin Layout & Authentication Guard'
 type: 'feature'
 created: '2026-09-19'
-status: 'review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context:

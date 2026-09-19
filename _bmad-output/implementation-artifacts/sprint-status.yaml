@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-19-2026 00:19
+last_updated: 09-19-2026 10:50
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -62,11 +62,13 @@ development_status:
   4-4-save-import-validation-dialog-safe-storage-reset-modal: done
   epic-4-retrospective: done
 
-  epic-5: in-progress
+  epic-5: done
   5-1-restricted-admin-layout-authentication-guard: done
-  5-2-patron-override-directory-creation-interface: review
-  5-3-override-revocation-self-lockout-prevention: review
-  epic-5-retrospective: optional
+  5-2-patron-override-directory-creation-interface: done
+  5-3-override-revocation-self-lockout-prevention: done
+  5-4-override-integrity-hardening: ready-for-dev
+  5-5-grant-revoke-audit-trail: backlog
+  epic-5-retrospective: done
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
     epic: 1
@@ -169,44 +171,121 @@ action_items:
     owner: "dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-18.md"
+  - id: "epic-5-retro-item-1-founder-preservation-not-mutable-pool"
+    epic: 5
+    action: "Owner-corrected F2 disposition: regression test proving a founder session
+      reaches /admin with zero override rows and zero other admins (env bootstrap
+      path); relax deletePatronOverrideGuarded sole-admin block so the last added
+      admin can self-revoke; dated amendment to epics.md 5.3 recording founder-preservation
+      as the protected invariant; do NOT add a sole-admin guard to upsertPatronOverride"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-2-preserve-granted-by-on-update"
+    epic: 5
+    action: "Remove granted_by from the DO UPDATE SET clause (set on INSERT only,
+      db.ts:203, actions.ts:97); flip admin-overrides.test.ts:379 to preserved-grantor
+      assertion red-first; document that pre-fix clobbered grantors are unrecoverable"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-3-symmetrize-caller-freshness"
+    epic: 5
+    action: "Re-read the caller's own override at mutation time in handleUpsertOverrideCore
+      mirroring actions.ts:151-166; raise upsert to revoke-path rigor, never lower
+      revoke"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-4-remove-dead-admin-proxy-branch"
+    epic: 5
+    action: "Remove the unreachable /admin branch from src/proxy.ts:40-45 or extend
+      the matcher and document the real authority; pin exported config.matcher in
+      tests/proxy.test.ts; reconcile spec-5-1 middleware-AND-layout wording to layout-authority
+      reality"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-5-single-sealing-source"
+    epic: 5
+    action: "Collapse sealing to one stored immutable property (admin.ts:26-39): drop
+      or document the writerless creator_bootstrap branch, stop OR-ing live CREATOR_ADMIN_PATREON_IDS
+      at read time, record decision in deferred-work and AD-8 note"
+    owner: "architect"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-6-close-admin-verification-gaps"
+    epic: 5
+    action: "Execute exported action wrappers in tests with real FormData (sealed/sole_admin/db_error/success);
+      add e2e/admin.spec.ts (unauthorized 404 without redirect leak, seeded-admin
+      render); move guarded-write atomicity assertions into the real-D1 contract suite"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-7-harden-id-and-notes-validation"
+    epic: 5
+    action: "PATREON_ID_REGEX to /^[1-9]\\d{0,19}$/ shared server and client via one
+      constant consumed by the form; code-point-safe notes truncation replacing slice(0,500)
+      at actions.ts:90"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-8-delete-dead-code-and-dedupe"
+    epic: 5
+    action: "Delete zero-caller deletePatronOverride (db.ts:224); resolve 6 dead admin.ts
+      token exports via caller grep; share createMockD1 into tests/helpers; replace
+      inline quote-strip at play/page.tsx:16-17 with unquoteCookieValue (epic-2 item-4
+      remainder)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-9-prd-fr-reconciliation"
+    epic: 5
+    action: "Add FR-20/FR-21 to the PRD with as-built scope (epics.md:122 cites them;
+      PRD stops at FR-19); adopt dated amendment note convention for post-merge criterion
+      changes in epics.md"
+    owner: "pm"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-10-audit-trail-story"
+    epic: 5
+    action: "Draft Story 5.5 Grant/Revoke Audit Trail (actor, target, before/after
+      role, timestamp on every mutation; epic-title promise fulfilled; substrate for
+      future 4-eyes); record 4-eyes as formal v1 non-goal with reopen trigger in deferred-work.md"
+    owner: "pm"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-11-localize-admin-panel"
+    epic: 5
+    action: "Localize the full admin panel UI across all six locales via next-intl
+      per owner decision; replace hardcoded English in admin components and lib/admin.ts
+      label constants"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-5-retro-item-12-wire-status-to-merge-events"
+    epic: 5
+    action: "CI check deriving story status from merge events (dorny/paths-filter
+      precedent) failing PRs whose sprint-status.yaml lags; every retro action item
+      carries a one-line verify command and flips to done only when it passes"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
 priorities:
   # P0 = next up, P1 = tech debt / hardening, P2 = internal admin, P3 = optional hygiene.
-  # Order within Epic 4 is strict: 4-1 unblocks 4-2, which unblocks 4-3/4-4.
   # NOTE: epics.md retitled stories 2-1..2-4 and 3-3, so `generate --dry-run` reports
   # them as dropped orphans plus new entries. Do NOT regenerate until reconciled;
   # transplant done statuses with --set <new-key>=done per generate-tracking.md.
+  # Re-ranked by epic-5-retro-2026-09-19 (party + owner decisions 2026-09-19).
   - rank: P0
-    item: "4-1-in-game-postmessage-web-bridge-ropoductions_webbridge-js-wit"
-    why: "Save bridge unblocks the whole Epic 4 HUD; plugin scaffold already in src/engine-plugins/"
-  - rank: P0
-    item: "4-2-floating-frosted-glass-save-hud-dock-with-auto-dimming"
-    why: "Second in Epic 4 sequence; depends on the 4-1 bridge"
-  - rank: P0
-    item: "4-3-client-side-zip-save-export-compression-via-jszip"
-    why: "Third in sequence; jszip 3.10.1 already installed"
-  - rank: P0
-    item: "4-4-save-import-validation-dialog-safe-storage-reset-modal"
-    why: "Closes Epic 4 (FR-13..FR-16); depends on the 4-1 bridge"
+    item: "5-4-override-integrity-hardening"
+    why: "Owner-gated before any new epic work: preserved-grantor attribution, caller-fresh upsert, founder-preservation regression + relaxed self-revoke, dead-code and validation fixes (retro items 1-8, 11)"
   - rank: P1
-    item: "epic-2-retro-item-3-dedupe-auth-callback-session-issuance"
-    why: "Remove duplicated session-issuance code before Epic 4/5 add more auth-touching
-      routes"
+    item: "5-5-grant-revoke-audit-trail"
+    why: "Fulfills the epic 5 title's dropped audit-logs promise (F9); substrate for any future 4-eyes control (retro item 10)"
   - rank: P1
     item: "epic-2-retro-item-5-document-server-component-cookie-route-pattern"
-    why: "Records the cookie-mutation constraint Epic 4/5 Server Components will rely
-      on"
-  - rank: P1
-    item: "deferred-work: revoked/lapsed session enforcement on /api/game/[...asset]"
-    why: "Story 2-4 covers /play only; fold into 3-2 hardening per deferred-work.md"
-  - rank: P2
-    item: "5-1-restricted-admin-layout-authentication-guard"
-    why: "Internal admin shell; starts Epic 5 after player-facing saves ship"
-  - rank: P2
-    item: "5-2-patron-override-directory-creation-interface"
-    why: "Depends on the 5-1 guard"
-  - rank: P2
-    item: "5-3-override-revocation-self-lockout-prevention"
-    why: "Depends on the 5-2 directory"
+    why: "Open since epic 2; three epics running undocumented; fold into 5.4/5.5 cutover docs work"
   - rank: P3
     item: "epic-3-retrospective"
     why: "Optional hygiene; Epic 3 verified done (200/200 unit tests pass)"

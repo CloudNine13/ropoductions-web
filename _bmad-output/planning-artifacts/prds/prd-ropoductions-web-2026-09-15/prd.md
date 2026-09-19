@@ -279,6 +279,24 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
   - Selecting a language updates all portal text instantly without requiring a full page refresh.
   - Selected locale is stored in a `ropoductions_lang` cookie and persists across sessions.
   - Fallback mechanism defaults gracefully to English for any missing translation keys.
+
+#### FR-20: Internal Studio Administration & Override Management
+* **Actor:** Studio administrator (founder or panel-assigned).
+* **Capability:** A restricted `/admin` surface (anti-enumerated: unauthorized access returns 404, never a redirect) lets administrators grant and manage `admin`/`comp` passes by Patreon ID through a Server-Action dashboard, enforcing the Two-Tier Admin Model: founder/creator accounts (bootstrapped from `CREATOR_ADMIN_PATREON_IDS` and sealed sentinels) are permanently immutable; panel-assigned records are manageable and attribute their grantor.
+* **Consequences (testable):**
+  - Non-admin and unauthenticated requests to any `/admin/*` route render the standard 404 with no existence leak.
+  - Mutation attempts against sealed founder records are rejected server-side regardless of UI state.
+  - `patron_overrides` rows created via the panel record `granted_by` as the acting admin, and updates preserve the original grantor.
+  - *Back-filled 2026-09-19 from as-built scope (Story 5.1/5.2, PRs #41/#42) — previously cited by epics.md but absent from this PRD; see epic-5-retro-2026-09-19.md F10.*
+
+#### FR-21: Self-Lockout Safeguards & Override Audit Trail
+* **Actor:** Studio owner (founder).
+* **Capability:** Founder access to `/admin` can never be lost: it is guaranteed by `CREATOR_ADMIN_PATREON_IDS` env bootstrap independent of database row state, and sealed founder records cannot be modified or revoked by anyone. Added administrators retain full self-service (including self-revocation) per Amendment A-2026-09-19-01 in `epics.md`. Every grant, change, and revocation is recorded in an append-only audit trail (delivered by Story 5.5).
+* **Consequences (testable):**
+  - With zero `patron_overrides` rows, a session whose patron ID is in `CREATOR_ADMIN_PATREON_IDS` reaches `/admin`.
+  - No panel action can delete or alter a sealed founder record.
+  - After Story 5.5, every successful role mutation produces exactly one audit row (actor, target, action, before/after, timestamp).
+  - *Back-filled 2026-09-19 from as-built scope (Story 5.3, PR #44) plus the epic-title audit-logs promise and its retro correction; see epic-5-retro-2026-09-19.md F9.*
 ---
 
 ## 5. Non-Goals (Explicit)
