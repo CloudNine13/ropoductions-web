@@ -9,7 +9,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 - NEVER push to `develop` or `master`, and NEVER commit directly on them; NEVER do work on `master`. NEVER merge branches (you may only merge to update the branch over the develop), ONLY the user can do it. ONLY prepare a PR and ask user explicitly to continue after he merges. Always pass the full link to PR.
 - Agent pushes ONLY to a working branch cut from `develop`, then opens a PR with base `develop` ONLY.
-- GitHub workflow is mandatory in this order: `git fetch origin`, check `git branch -a` and status of `develop`, `git checkout develop && git pull`, create working branch from `develop`, commit work on that branch, `git status` plus `git diff` review, `git push -u origin <branch>`, open PR to `develop` with `gh`.
+- You MUST use GitHub MCP interacting with Git. GitHub workflow is mandatory in this order: `git fetch origin`, check `git branch -a` and status of `develop`, `git checkout develop && git pull`, create working branch from `develop`, commit work on that branch, `git status` plus `git diff` review, `git push -u origin <branch>`, open PR to `develop`.
 - Branch name format is mandatory: `<type>/<story-id>-<kebab-slug>` (example: `feat/1-2-age-gate-modal`); types allowed are `feat`, `fix`, `chore`, `docs`, `refactor`.
 - Commit and PR title format is mandatory Conventional Commits: `<type>(<scope>): <imperative summary>` (example: `feat(auth): add Patreon OAuth callback`); scopes are `portal`, `auth`, `play`, `save-hud`, `i18n`, `edge`, `db`; PR body MUST list story ID and FRs covered.
 - Never expose Patreon access or refresh tokens to client JavaScript; store them server-side in D1 only.
