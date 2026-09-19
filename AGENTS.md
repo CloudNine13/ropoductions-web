@@ -95,6 +95,8 @@ Don't wrap internal function calls in try/catch unless they actually throw.
 
 ## MUST rules
 
+- You MUST debate every advise you have from the advisor model. You may listen to his advices ONLY if you find his information relevant, useful and secure. 
+- You MUST be less verbose. Share ONLY the most important and relevant information, the decisions and encountered problems. The rest of information should be THOUGH in silence.
 - Don't wait GitHub CI to pass, it's human responsibility.
 - NEVER do git reset hard. You may do reset ONLY if it won't wipe out the work of others worktrees and agentic sessions.
 - Before preparing a PR you MUST check if there is merge conflicts.
