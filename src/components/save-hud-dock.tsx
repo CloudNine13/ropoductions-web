@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Download, Upload, Maximize2, Minimize2, RotateCcw, Check, Loader2, CircleX } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { HUD_ACTIVITY_MESSAGE_TYPE } from "../types/save";
 
 export type SaveHudExportStatus = "idle" | "exporting" | "success" | "error";
 
@@ -175,7 +176,7 @@ export function SaveHudDock({
     const onMessage = (event: MessageEvent) => {
       if (
         event.origin === window.location.origin &&
-        event.data?.type === "ROPODUCTIONS_ACTIVITY"
+        event.data?.type === HUD_ACTIVITY_MESSAGE_TYPE
       ) {
         handleActivity();
       }

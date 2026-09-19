@@ -114,7 +114,7 @@ function testCookies(): void {
     sameSite: "Lax",
   });
   assert.ok(serialized.includes("test_cookie=value_123"));
-  assert.ok(serialized.includes("max-age=600"));
+  assert.ok(serialized.includes("Max-Age=600"));
   assert.ok(serialized.includes("HttpOnly"));
   assert.ok(serialized.includes("Secure"));
   assert.ok(serialized.includes("SameSite=Lax"));
@@ -571,7 +571,7 @@ async function testRouteHandlers(): Promise<void> {
   assert.ok(
     errorCallbackResponse.headers
       .get("Set-Cookie")
-      ?.includes("max-age=0")
+      ?.includes("Max-Age=0")
   );
 
   const missingStateRequest = new Request(
@@ -615,6 +615,7 @@ async function testRouteHandlers(): Promise<void> {
       ?.includes("invalid_state")
   );
 
+  process.env.PATREON_REDIRECT_URI = "https://example.com/api/auth/callback";
   const httpsInitRequest = new Request(
     "https://example.com/api/auth/patreon",
     { method: "GET" }
@@ -628,6 +629,7 @@ async function testRouteHandlers(): Promise<void> {
   );
   const httpsErrorResponse = await callbackAuth(httpsErrorRequest);
   assert.ok(httpsErrorResponse.headers.get("Set-Cookie")?.includes("Secure"));
+  delete process.env.PATREON_REDIRECT_URI;
 
   const originalFetch = globalThis.fetch;
   const mockPatreonSuccessFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -735,7 +737,7 @@ async function testRouteHandlers(): Promise<void> {
     const callbackCookies = parseResponseCookies(validCallbackResponse.headers);
     const signedSessionId1 = callbackCookies[SESSION_COOKIE_NAME];
     assert.ok(signedSessionId1, "Session cookie must be issued for admin override");
-    assert.ok(validCallbackResponse.headers.get("Set-Cookie")?.includes("max-age=0"));
+    assert.ok(validCallbackResponse.headers.get("Set-Cookie")?.includes("Max-Age=0"));
 
     assert.equal(
       (capturedTokenRequestBody as URLSearchParams | null)?.get("redirect_uri"),
@@ -750,7 +752,7 @@ async function testRouteHandlers(): Promise<void> {
     assert.ok(sessionCookieHeaderStr, "Session cookie header must be present");
     assert.ok(sessionCookieHeaderStr.includes("HttpOnly"), "Session cookie must be HttpOnly");
     assert.ok(sessionCookieHeaderStr.includes("SameSite=Lax"), "Session cookie must be SameSite=Lax");
-    assert.ok(sessionCookieHeaderStr.includes("max-age=2592000"), "Session cookie max-age must be 2592000");
+    assert.ok(sessionCookieHeaderStr.includes("Max-Age=2592000"), "Session cookie max-age must be 2592000");
     const sessionId1 = await verifySignedValue(
       signedSessionId1,
       process.env.SESSION_SECRET!
@@ -831,6 +833,7 @@ async function testRouteHandlers(): Promise<void> {
           currently_entitled_tiers: {
             data: [{ id: "tier_ork_5", type: "tier" }],
           },
+          user: { data: { id: "regular_patron_111", type: "user" } },
         },
       },
     ];
@@ -880,6 +883,9 @@ async function testRouteHandlers(): Promise<void> {
           patron_status: "active_patron",
           currently_entitled_amount_cents: 300,
         },
+        relationships: {
+          user: { data: { id: "sub_patron_222", type: "user" } },
+        },
       },
     ];
     campaignMembershipIncluded = [];
@@ -910,6 +916,9 @@ async function testRouteHandlers(): Promise<void> {
         attributes: {
           patron_status: "declined_patron",
           currently_entitled_amount_cents: 500,
+        },
+        relationships: {
+          user: { data: { id: "lapsed_patron_333", type: "user" } },
         },
       },
     ];

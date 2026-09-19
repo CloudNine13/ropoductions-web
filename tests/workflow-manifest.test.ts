@@ -106,4 +106,11 @@ describe("workflow and upstream integration manifest verification", () => {
     assert.match(content, /game_release_published/);
     assert.match(content, /ROPODUCTIONS_TRIGGER_TOKEN/);
   });
+
+  it("targets the real R2 bucket name, not the wrangler binding", () => {
+    assert.ok(fs.existsSync(workflowPath));
+    const wf = fs.readFileSync(workflowPath, "utf-8");
+    assert.match(wf, /R2_BUCKET_NAME:\s*ropoductions-game-assets/);
+    assert.equal(wf.includes("s3://GAME_ASSETS/"), false);
+  });
 });

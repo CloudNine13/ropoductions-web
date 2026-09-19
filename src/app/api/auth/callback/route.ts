@@ -35,7 +35,18 @@ const PROVIDER_ERROR_ALLOWLIST = [
 export async function GET(request: Request): Promise<Response> {
   const requestUrl = new URL(request.url);
   const authEnv = await getAuthEnv();
-  const originCtx = resolveOAuthOriginContext(request, authEnv.redirectUri);
+  let originCtx;
+  try {
+    originCtx = resolveOAuthOriginContext(request, authEnv.redirectUri);
+  } catch {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/?auth_error=server_configuration_error",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  }
 
   if (originCtx.isOriginMismatch) {
     const bounceUrl = new URL(`${originCtx.redirectOrigin}/api/auth/callback`);
@@ -258,11 +269,7 @@ export async function GET(request: Request): Promise<Response> {
       });
     }
 
-    if (
-      membership.patronStatus === "declined_patron" ||
-      membership.patronStatus === "former_patron" ||
-      membership.patronStatus !== "active_patron"
-    ) {
+    if (membership.patronStatus !== "active_patron") {
       return new Response(null, {
         status: 302,
         headers: {

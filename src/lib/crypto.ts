@@ -122,11 +122,22 @@ export async function verifySignedValue(
 
 async function deriveAesGcmKey(secret: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
-  const keyDigest = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
-  return crypto.subtle.importKey(
+  const baseKey = await crypto.subtle.importKey(
     "raw",
-    keyDigest,
-    { name: "AES-GCM" },
+    encoder.encode(secret),
+    { name: "HKDF" },
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(32),
+      info: encoder.encode("ropoductions-patreon-token-v1"),
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
     false,
     ["encrypt", "decrypt"]
   );

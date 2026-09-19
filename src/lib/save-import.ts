@@ -126,6 +126,21 @@ export async function parseAndValidateZipArchive(
       throw new Error(INVALID_SAVE_FORMAT_ERROR);
     }
 
+    const declaredSize = (entry as unknown as { _data?: { uncompressedSize?: number } })
+      ._data?.uncompressedSize;
+    if (
+      typeof declaredSize === "number" &&
+      (declaredSize <= 0 || declaredSize > MAX_SLOT_SIZE_BYTES)
+    ) {
+      throw new Error(INVALID_SAVE_FORMAT_ERROR);
+    }
+    if (
+      typeof declaredSize === "number" &&
+      totalExtractedBytes + declaredSize > MAX_TOTAL_ARCHIVE_SIZE_BYTES
+    ) {
+      throw new Error(INVALID_SAVE_FORMAT_ERROR);
+    }
+
     const raw = await entry.async("uint8array");
     if (raw.length === 0 || raw.length > MAX_SLOT_SIZE_BYTES) {
       throw new Error(INVALID_SAVE_FORMAT_ERROR);

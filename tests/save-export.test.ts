@@ -5,6 +5,7 @@ import {
   formatSaveZipFilename,
   normalizeSaveFileMap,
   buildSaveZip,
+  buildSaveZipFromMap,
   triggerDownload,
   exportSaves,
 } from "../src/lib/save-export";
@@ -174,15 +175,13 @@ describe("client-side zip save export (Story 4.3)", () => {
       assert.equal(globalText, '{"titleUnlocked":true}');
     });
 
-    it("generates an empty archive when no save slots are populated", async () => {
+    it("rejects empty save sets instead of producing an empty zip", async () => {
       const payload: SaveSlotsPayload = {
         slots: {},
       };
 
-      const blob = await buildSaveZip(payload);
-      assert.ok(blob instanceof Blob);
-      const zip = await JSZip.loadAsync(await blob.arrayBuffer());
-      assert.equal(Object.keys(zip.files).length, 0);
+      await assert.rejects(() => buildSaveZip(payload), /No populated saves to export/);
+      await assert.rejects(() => buildSaveZipFromMap({}), /No populated saves to export/);
     });
   });
 

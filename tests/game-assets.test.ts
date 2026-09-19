@@ -453,7 +453,7 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
     assert.equal(text, "");
   });
 
-  it("burst session cache absorbs repeated calls within TTL", async () => {
+  it("validates the session against D1 on every asset request", async () => {
     let d1Queries = 0;
     const trackingDb = {
       prepare(_sql: string) {
@@ -462,7 +462,7 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
             return {
               async first() {
                 d1Queries++;
-                return createSessionFixture();
+                return createSessionFixture({ id: "session-burst-test" });
               },
             };
           },
@@ -484,8 +484,35 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
       assert.equal(res.status, 200);
     }
 
-    // Only the first call should query D1; subsequent calls hit in-isolate cache
-    assert.equal(d1Queries, 1);
+    assert.equal(d1Queries, 5);
+  });
+
+  it("rejects revoked sessions immediately without a stale window", async () => {
+    const revokedDb = {
+      prepare(_sql: string) {
+        return {
+          bind() {
+            return {
+              async first() {
+                return createSessionFixture({ id: "session-revoked-test", revoked: 1 });
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    globalThis.__D1_TEST_DB__ = revokedDb;
+
+    const revokedCookie = await signValue("session-revoked-test", TEST_SECRET);
+    const req = makeRequest("/api/game/data/System.json", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: revokedCookie,
+      },
+    });
+    const res = await GET(req, { params: Promise.resolve({ asset: ["data", "System.json"] }) });
+
+    assert.equal(res.status, 403);
   });
 
   it("rejects encoded forward slashes in asset segments with 400 Bad Request", async () => {

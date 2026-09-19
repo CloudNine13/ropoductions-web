@@ -79,6 +79,12 @@ describe("approved campaign tiers and threshold", () => {
     assert.ok(findApprovedTier("Ork Patron"));
   });
 
+  it("falls back to amount-based match when a renamed tier reports sufficient pledge", () => {
+    const tier = findApprovedTier("Mind Fucker Avatar", 500);
+    assert.ok(tier);
+    assert.equal(tier?.name, "Ork Patron");
+  });
+
   it("resolves approved tiers by amount in cents", () => {
     const tier500 = findApprovedTier(null, 500);
     assert.ok(tier500);
@@ -480,7 +486,7 @@ describe("patreon campaign membership client getPatronCampaignMembership", () =>
     assert.equal(membership, null);
   });
 
-  it("uses the single campaign member when user linkage is absent", async () => {
+  it("rejects a lone campaign member whose user linkage does not match", async () => {
     const mockFetch: typeof fetch = async () => {
       return new Response(
         JSON.stringify({
@@ -506,8 +512,7 @@ describe("patreon campaign membership client getPatronCampaignMembership", () =>
       fetchFn: mockFetch,
     });
 
-    assert.ok(membership);
-    assert.equal(membership.memberId, "member_solo");
+    assert.equal(membership, null);
   });
   it("falls back to identity memberships endpoint when creator campaign endpoint returns 403", async () => {
     const mockFetch: typeof fetch = async (input) => {
@@ -765,10 +770,17 @@ describe("resolveOAuthOriginContext origin normalization and mismatch detection"
     const req = new Request("http://localhost.evil.com:3000/api/auth/patreon", {
       headers: { Host: "localhost.evil.com:3000" },
     });
-    const ctx = resolveOAuthOriginContext(req);
-    assert.equal(ctx.clientOrigin, "http://localhost.evil.com:3000");
-    assert.notEqual(ctx.redirectOrigin, "http://localhost:3000");
-    assert.equal(ctx.isOriginMismatch, false);
+    assert.throws(() => resolveOAuthOriginContext(req), /PATREON_REDIRECT_URI/);
+  });
+
+  it("refuses to derive redirect_uri from forwarding headers without configuration", () => {
+    const req = new Request("http://ropoductions.com/api/auth/patreon", {
+      headers: {
+        Host: "ropoductions.com",
+        "x-forwarded-host": "evil.example",
+      },
+    });
+    assert.throws(() => resolveOAuthOriginContext(req), /PATREON_REDIRECT_URI/);
   });
 
   it("parses first proto from multi-value x-forwarded-proto header", () => {
@@ -894,8 +906,8 @@ describe("issueSessionResponse unified session issuance helper", () => {
     assert.ok(setCookies[1].includes("Secure"));
     assert.ok(setCookies[1].includes("HttpOnly"));
     assert.ok(setCookies[1].includes("SameSite=Lax"));
-    assert.ok(setCookies[1].includes("path=/"));
-    assert.ok(setCookies[1].includes(`max-age=${SESSION_COOKIE_MAX_AGE}`));
+    assert.ok(setCookies[1].includes("Path=/"));
+    assert.ok(setCookies[1].includes(`Max-Age=${SESSION_COOKIE_MAX_AGE}`));
 
     assert.equal(sessions.size, 1);
     const [savedSession] = sessions.values();

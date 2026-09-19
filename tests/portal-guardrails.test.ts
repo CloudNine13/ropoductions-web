@@ -50,8 +50,8 @@ describe("portal base contract", () => {
     assert.ok(serialized.includes("HttpOnly"));
     assert.ok(serialized.includes("Secure"));
     assert.ok(serialized.includes("SameSite=Lax"));
-    assert.ok(serialized.includes("path=/"));
-    assert.ok(serialized.includes(`max-age=${SESSION_COOKIE_MAX_AGE}`));
+    assert.ok(serialized.includes("Path=/"));
+    assert.ok(serialized.includes(`Max-Age=${SESSION_COOKIE_MAX_AGE}`));
   });
 
   it("keeps the OAuth verifier cookie short-lived at ten minutes", () => {

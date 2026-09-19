@@ -22,6 +22,9 @@ export type SaveBridgeMessageType =
   | "ROPODUCTIONS_RESET_SAVES"
   | "ROPODUCTIONS_RESET_SAVES_SUCCESS"
   | "ROPODUCTIONS_SAVE_ERROR";
+
+export const HUD_ACTIVITY_MESSAGE_TYPE = "ROPODUCTIONS_ACTIVITY" as const;
+export type HudActivityMessageType = typeof HUD_ACTIVITY_MESSAGE_TYPE;
 export interface BaseBridgeMessage {
   requestId?: string;
 }

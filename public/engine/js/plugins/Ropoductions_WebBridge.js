@@ -47,13 +47,14 @@
 
   function normalizeSlotKey(key) {
     if (typeof key !== "string") return null;
-    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+    const lower = key.toLowerCase();
+    if (lower === "__proto__" || lower === "constructor" || lower === "prototype") {
       return null;
     }
-    if (!ALLOWED_SLOT_REGEX.test(key)) {
+    if (!ALLOWED_SLOT_REGEX.test(lower)) {
       return null;
     }
-    return key.replace(/\.rpgsave$/, "");
+    return lower.replace(/\.rpgsave$/, "");
   }
 
   async function handleGetSaves(requestId) {

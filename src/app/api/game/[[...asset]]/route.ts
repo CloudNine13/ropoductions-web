@@ -17,30 +17,6 @@ const ALLOWED_ROOT_DIRS: Record<string, true> = {
   data: true,
 };
 
-// In-isolate memory cache to absorb burst asset storms and maintain <300ms latency (PRD SM-C2).
-// Only stores verified "authorized" session tokens to prevent cache eviction DoS via invalid tokens.
-const sessionCache = new Map<string, number>();
-const CACHE_TTL_MS = 20_000;
-const MAX_CACHE_ENTRIES = 500;
-
-function isSessionCached(token: string): boolean {
-  const expiresAt = sessionCache.get(token);
-  if (!expiresAt) return false;
-  if (Date.now() > expiresAt) {
-    sessionCache.delete(token);
-    return false;
-  }
-  return true;
-}
-
-function cacheAuthorizedSession(token: string) {
-  if (sessionCache.size >= MAX_CACHE_ENTRIES) {
-    const firstKey = sessionCache.keys().next().value;
-    if (firstKey) sessionCache.delete(firstKey);
-  }
-  sessionCache.set(token, Date.now() + CACHE_TTL_MS);
-}
-
 const MIME_MAP: Record<string, string> = {
   ".json": "application/json",
   ".png": "image/png",
@@ -197,67 +173,47 @@ async function handleAssetRequest(
     );
   }
 
-  if (!isSessionCached(sessionCookie)) {
-    let db;
-    let authEnv;
-    try {
-      db = await getDatabase();
-      authEnv = await getAuthEnv();
-    } catch {
-      return NextResponse.json(
-        {
-          error: {
-            code: "INTERNAL_ERROR",
-            message: "An unexpected error occurred.",
-          },
+  let db;
+  let authEnv;
+  try {
+    db = await getDatabase();
+    authEnv = await getAuthEnv();
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "An unexpected error occurred.",
         },
-        {
-          status: 500,
-          headers: {
-            "Cache-Control": "no-store",
-            "Cross-Origin-Resource-Policy": "same-origin",
-          },
-        }
-      );
-    }
-
-    try {
-      const validation = await validateSessionAccess({
-        db,
-        sessionCookie,
-        sessionSecret: authEnv.sessionSecret,
-        initialAdminIds: authEnv.initialAdminPatreonIds,
-      });
-
-      if (validation.status !== "authorized") {
-        return NextResponse.json(
-          {
-            error: {
-              code: "UNAUTHORIZED",
-              message: "Invalid or unverified patron session.",
-            },
-          },
-          {
-            status: 403,
-            headers: {
-              "Cache-Control": "no-store",
-              "Cross-Origin-Resource-Policy": "same-origin",
-            },
-          }
-        );
+      },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+          "Cross-Origin-Resource-Policy": "same-origin",
+        },
       }
+    );
+  }
 
-      cacheAuthorizedSession(sessionCookie);
-    } catch {
+  try {
+    const validation = await validateSessionAccess({
+      db,
+      sessionCookie,
+      sessionSecret: authEnv.sessionSecret,
+      initialAdminIds: authEnv.initialAdminPatreonIds,
+    });
+
+    if (validation.status !== "authorized") {
       return NextResponse.json(
         {
           error: {
-            code: "INTERNAL_ERROR",
-            message: "An unexpected error occurred.",
+            code: "UNAUTHORIZED",
+            message: "Invalid or unverified patron session.",
           },
         },
         {
-          status: 500,
+          status: 403,
           headers: {
             "Cache-Control": "no-store",
             "Cross-Origin-Resource-Policy": "same-origin",
@@ -265,6 +221,22 @@ async function handleAssetRequest(
         }
       );
     }
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "An unexpected error occurred.",
+        },
+      },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+          "Cross-Origin-Resource-Policy": "same-origin",
+        },
+      }
+    );
   }
 
   const { asset } = await paramsPromise;

@@ -79,6 +79,11 @@ export function resolveOAuthOriginContext(
   }
 
   let finalRedirectUri = configuredRedirectUri?.trim() || `${canonicalOrigin}/api/auth/callback`;
+  if (!configuredRedirectUri?.trim() && !isLoopback && requestUrl.hostname !== "localhost") {
+    throw new Error(
+      "PATREON_REDIRECT_URI is not configured for a non-loopback host; refusing to derive redirect_uri from forwarding headers."
+    );
+  }
 
   let redirectOrigin: string;
   try {
@@ -283,9 +288,6 @@ export async function getPatronCampaignMembership(
         const uId = Array.isArray(userData) ? userData[0]?.id : userData?.id;
         return uId === patronId;
       });
-      if (!memberData && payload.data.length === 1) {
-        memberData = payload.data[0];
-      }
     } else {
       memberData = payload.data[0];
     }

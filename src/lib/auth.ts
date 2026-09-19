@@ -35,7 +35,6 @@ export function findApprovedTier(
       if (cents === undefined || cents === null || cents >= byName.cents) {
         return byName;
       }
-      return undefined;
     }
   }
 
@@ -165,6 +164,7 @@ export async function validateSessionAccess(options: {
         tier_id: `override_${override.role}`,
         tier_name:
           override.role === "admin" ? "Studio Admin" : "Complimentary Pass",
+        expires_at_sec: nowSec + SESSION_COOKIE_MAX_AGE,
         last_verified_at_sec: nowSec,
       };
       try {

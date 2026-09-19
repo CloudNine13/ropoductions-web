@@ -55,6 +55,9 @@ export function normalizeSaveFileMap(payload: SaveSlotsPayload): Record<string, 
 }
 
 export async function buildSaveZipFromMap(fileMap: Record<string, string>): Promise<Blob> {
+  if (!fileMap || typeof fileMap !== "object" || Object.keys(fileMap).length === 0) {
+    throw new Error("No populated saves to export");
+  }
   const zip = new JSZip();
 
   for (const [filename, content] of Object.entries(fileMap)) {
