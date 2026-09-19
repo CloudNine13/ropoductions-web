@@ -96,6 +96,11 @@ describe("edge gate entry points", () => {
     assert.equal(response.status, 200);
   });
 
+  it("does not treat lookalike paths as play routes", async () => {
+    assert.equal(proxy(mockRequest("/player") as never).status, 200);
+    assert.equal(proxy(mockRequest("/playground") as never).status, 200);
+  });
+
   it("passes /admin and /admin/* routes through without redirect for anti-enumeration evaluation", async () => {
     const unauthAdmin = proxy(mockRequest("/admin") as never);
     assert.equal(unauthAdmin.status, 200);

@@ -28,7 +28,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Protect /play route: redirect unverified visitors to landing page
-  if (pathname.startsWith("/play")) {
+  if (pathname === "/play" || pathname.startsWith("/play/")) {
     if (!ageVerified || !sessionToken) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
@@ -48,5 +48,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/play/:path*", "/api/game/:path*"],
+  matcher: ["/play/:path*", "/api/game/:path*", "/admin/:path*"],
 };
