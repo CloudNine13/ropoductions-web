@@ -337,13 +337,48 @@ async function runCli() {
   console.log("Ingestion engine execution completed successfully.");
 }
 
+/**
+ * Resolves and prints the validated upstream branch for workflow use.
+ * Reads BRANCH_INPUT; 'main' when unset, empty, or 'auto'.
+ */
+export async function printResolvedBranch(branchInput?: string): Promise<string> {
+  const resolved = await resolveTargetBranch(branchInput ?? process.env.BRANCH_INPUT);
+  console.log(resolved);
+  return resolved;
+}
+
+/**
+ * Detects and prints the game root for the workflow's media sync step.
+ */
+export function printGameRoot(upstreamDir: string): string {
+  const gameRoot = locateGameRoot(upstreamDir);
+  console.log(gameRoot);
+  return gameRoot;
+}
+
 const isDirectExecution =
   process.argv[1] &&
   fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
 if (isDirectExecution) {
-  runCli().catch((err) => {
-    console.error("Fatal ingestion error:", err);
-    process.exit(1);
-  });
+  const subcommand = process.argv[2];
+
+  if (subcommand === "resolve-branch") {
+    printResolvedBranch().catch((err) => {
+      console.error("Branch resolution failed:", err);
+      process.exit(1);
+    });
+  } else if (subcommand === "locate-game-root") {
+    try {
+      printGameRoot(process.argv[3] ?? "tmp_upstream");
+    } catch (err) {
+      console.error("Game root detection failed:", err);
+      process.exit(1);
+    }
+  } else {
+    runCli().catch((err) => {
+      console.error("Fatal ingestion error:", err);
+      process.exit(1);
+    });
+  }
 }

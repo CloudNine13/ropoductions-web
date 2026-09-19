@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,6 +12,8 @@ import {
   injectWebBridge,
   segregateAssets,
   generateBuildMetadata,
+  printResolvedBranch,
+  printGameRoot,
 } from "../scripts/sync-game-release";
 
 describe("upstream game release ingestion engine (scripts/sync-game-release.ts)", () => {
@@ -319,6 +321,55 @@ describe("upstream game release ingestion engine (scripts/sync-game-release.ts)"
       assert.equal(parsed.branch, "0.6.0");
       assert.equal(parsed.commitSha, "abc1234567890");
       assert.equal(parsed.syncedAt, "2026-09-17T12:00:00.000Z");
+    });
+  });
+
+  describe("workflow CLI output contracts", () => {
+    it("prints the resolved branch to stdout and returns it", async () => {
+      const logs: string[] = [];
+      const logged = mock.method(console, "log", (line: unknown) => logs.push(String(line)));
+      try {
+        const branch = await printResolvedBranch("0.5.8");
+        assert.equal(branch, "0.5.8");
+        assert.deepEqual(logs, ["0.5.8"]);
+      } finally {
+        logged.mock.restore();
+      }
+    });
+
+    it("defaults to main when BRANCH_INPUT is unset", async () => {
+      const saved = process.env.BRANCH_INPUT;
+      delete process.env.BRANCH_INPUT;
+      const logs: string[] = [];
+      const logged = mock.method(console, "log", (line: unknown) => logs.push(String(line)));
+      try {
+        const branch = await printResolvedBranch();
+        assert.equal(branch, "main");
+        assert.deepEqual(logs, ["main"]);
+      } finally {
+        logged.mock.restore();
+        if (saved === undefined) {
+          delete process.env.BRANCH_INPUT;
+        } else {
+          process.env.BRANCH_INPUT = saved;
+        }
+      }
+    });
+
+    it("prints the detected game root and returns it", () => {
+      const gameDir = path.join(tempDir, "Final Orginity");
+      fs.mkdirSync(path.join(gameDir, "data"), { recursive: true });
+      fs.writeFileSync(path.join(gameDir, "data", "System.json"), "{}");
+
+      const logs: string[] = [];
+      const logged = mock.method(console, "log", (line: unknown) => logs.push(String(line)));
+      try {
+        const root = printGameRoot(tempDir);
+        assert.equal(root, gameDir);
+        assert.deepEqual(logs, [gameDir]);
+      } finally {
+        logged.mock.restore();
+      }
     });
   });
 });

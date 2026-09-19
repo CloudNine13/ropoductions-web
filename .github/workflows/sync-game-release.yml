@@ -24,14 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout ropoductions-web
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 24.x
+          node-version: 24
 
       - name: Install Dependencies
         run: npm ci
@@ -41,11 +41,7 @@ jobs:
         env:
           BRANCH_INPUT: ${{ github.event.inputs.branch || github.event.client_payload.branch || 'main' }}
         run: |
-          SAFE_BRANCH=$(npx tsx -e "
-            import { resolveTargetBranch } from './scripts/sync-game-release.ts';
-            const branch = await resolveTargetBranch(process.env.BRANCH_INPUT);
-            console.log(branch);
-          ")
+          SAFE_BRANCH=$(npx tsx scripts/sync-game-release.ts resolve-branch)
           echo "safe_branch=${SAFE_BRANCH}" >> "$GITHUB_OUTPUT"
           echo "Resolved release branch: ${SAFE_BRANCH}"
 
@@ -85,10 +81,7 @@ jobs:
           R2_BUCKET_NAME: ropoductions-game-assets
         run: |
           # Locate game root relative to cloned repository
-          GAME_ROOT=$(npx tsx -e "
-            import { locateGameRoot } from './scripts/sync-game-release.ts';
-            console.log(locateGameRoot('tmp_upstream'));
-          ")
+          GAME_ROOT=$(npx tsx scripts/sync-game-release.ts locate-game-root tmp_upstream)
           echo "Syncing media assets from: ${GAME_ROOT}"
 
           R2_ENDPOINT="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
