@@ -11,7 +11,9 @@
 
 import { getPlatformProxy } from "wrangler";
 import {
+  countAdminOverrides,
   deletePatronOverride,
+  deletePatronOverrideGuarded,
   deleteSession,
   getPatronOverride,
   getSessionById,
@@ -448,6 +450,40 @@ async function runVerification() {
     const deletedOverride = await getPatronOverride(db, overridePatronId);
     assert(deletedOverride === null, "deletePatronOverride must remove the override");
     console.log("  PASS: deletePatronOverride removed record; getPatronOverride returned null.");
+
+    // 7.11 countAdminOverrides & deletePatronOverrideGuarded (Story 5.3 sole-admin invariant)
+    const soleAdminId = `sole-admin-${Date.now()}`;
+    const coAdminId = `co-admin-${Date.now()}`;
+    await upsertPatronOverride(db, {
+      patron_id: soleAdminId,
+      role: "admin",
+      granted_by: "panel_admin",
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+    assert((await countAdminOverrides(db)) >= 1, "countAdminOverrides must count admin overrides");
+
+    // Sole admin deletion must be blocked (0 changes) and leave the row intact.
+    const blockedChanges = await deletePatronOverrideGuarded(db, soleAdminId);
+    assert(blockedChanges === 0, "deletePatronOverrideGuarded must block deleting the sole admin");
+    assert(
+      (await getPatronOverride(db, soleAdminId)) !== null,
+      "Sole admin override must remain after blocked deletion"
+    );
+
+    // With a second admin present, the guarded delete must succeed.
+    await upsertPatronOverride(db, {
+      patron_id: coAdminId,
+      role: "admin",
+      granted_by: "panel_admin",
+      created_at_sec: 1700000000,
+      updated_at_sec: 1700000000,
+    });
+    const allowedChanges = await deletePatronOverrideGuarded(db, soleAdminId);
+    assert(allowedChanges === 1, "deletePatronOverrideGuarded must delete when another admin remains");
+    assert((await getPatronOverride(db, soleAdminId)) === null, "Deleted override must be absent");
+    await deletePatronOverride(db, coAdminId);
+    console.log("  PASS: countAdminOverrides and deletePatronOverrideGuarded enforce the sole-admin invariant.");
 
     // ----------------------------------------------------
     // Step 8: Parameterized Query Sanitization (AD-8)

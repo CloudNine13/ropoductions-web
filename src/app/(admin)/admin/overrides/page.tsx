@@ -2,17 +2,20 @@ import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
-import { listPatronOverrides } from "@/lib/db";
+import { countAdminOverrides, listPatronOverrides } from "@/lib/db";
 import { OverrideForm } from "@/components/admin/override-form";
 import { OverridesTable } from "@/components/admin/overrides-table";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverridesPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const db = await getDatabase();
   const authEnv = await getAuthEnv();
-  const overrides = await listPatronOverrides(db, 100);
+  const [overrides, adminOverrideCount] = await Promise.all([
+    listPatronOverrides(db, 100),
+    countAdminOverrides(db),
+  ]);
   return (
     <div className="flex flex-col gap-6 rounded-xl">
       <div className="flex items-center justify-between border-b border-[#23283E] pb-4">
@@ -42,6 +45,8 @@ export default async function AdminOverridesPage() {
       <OverridesTable
         overrides={overrides}
         creatorAdminIds={authEnv.creatorAdminPatreonIds || authEnv.initialAdminPatreonIds}
+        currentAdminPatronId={session.patron_id}
+        adminOverrideCount={adminOverrideCount}
       />
     </div>
   );
