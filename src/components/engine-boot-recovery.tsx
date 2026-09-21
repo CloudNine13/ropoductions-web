@@ -48,6 +48,29 @@ export interface EngineBootRecoveryProps {
 
 const COPIED_LABEL_MS = 2000;
 
+function copyFallback(text: string): boolean {
+  try {
+    if (typeof document === "undefined" || typeof document.createElement !== "function") {
+      return false;
+    }
+    if (typeof document.execCommand !== "function") {
+      return false;
+    }
+    const element = document.createElement("textarea");
+    element.value = text;
+    element.setAttribute("readonly", "");
+    element.style.position = "fixed";
+    element.style.opacity = "0";
+    document.body.appendChild(element);
+    element.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(element);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export function EngineBootRecovery({
   report,
   onRetry,
@@ -58,7 +81,12 @@ export function EngineBootRecovery({
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<number | null>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
   const diagnosticsId = useId();
+
+  useEffect(() => {
+    retryRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -104,12 +132,19 @@ export function EngineBootRecovery({
 
   const handleCopy = async () => {
     const text = formatEngineBootDiagnostics(report, diagnosticsLabels);
+    let ok = false;
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
+        ok = true;
+      } else {
+        ok = copyFallback(text);
       }
     } catch {
-      // Clipboard access is optional: the diagnostics stay readable on screen.
+      ok = copyFallback(text);
+    }
+    if (!ok) {
+      return;
     }
     setCopied(true);
     if (copiedTimerRef.current !== null) {
@@ -121,7 +156,7 @@ export function EngineBootRecovery({
   return (
     <div
       data-testid="engine-boot-recovery"
-      className={`absolute inset-0 z-10 flex items-center justify-center overflow-y-auto bg-black/90 px-4 py-6 ${className}`}
+      className={`absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-black/90 px-4 py-6 ${className}`}
     >
       <section className="w-full max-w-md rounded-xl border border-border/80 bg-card p-5 text-left shadow-2xl">
         <div className="flex items-start gap-3">
@@ -140,6 +175,7 @@ export function EngineBootRecovery({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
+            ref={retryRef}
             data-testid="engine-boot-recovery-retry"
             onClick={onRetry}
             className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none cursor-pointer"
@@ -169,8 +205,8 @@ export function EngineBootRecovery({
               data-testid="engine-boot-recovery-diagnostics"
               className="max-h-56 overflow-y-auto border border-border/60 bg-[#090A0F] p-3 font-mono text-[11px] leading-relaxed tabular-nums text-muted-foreground"
             >
-              {rows.map((row) => (
-                <div key={row.label} className="flex gap-2">
+              {rows.map((row, index) => (
+                <div key={`${row.label}-${index}`} className="flex gap-2">
                   <dt className="shrink-0 text-foreground/70">{row.label}</dt>
                   <dd className="min-w-0 break-all whitespace-pre-wrap">{row.value}</dd>
                 </div>

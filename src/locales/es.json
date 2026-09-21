@@ -208,7 +208,7 @@
       "diagnosticsUrl": "URL con error",
       "diagnosticsStatus": "Estado de la respuesta",
       "diagnosticsNetworkError": "Error de red",
-      "diagnosticsProbe": "Sondeo de WebGL",
+      "diagnosticsProbe": "Comprobación de WebGL",
       "diagnosticsProbeSupported": "contexto creado",
       "diagnosticsProbeUnsupported": "contexto rechazado",
       "diagnosticsStatusMessage": "Mensaje de estado",

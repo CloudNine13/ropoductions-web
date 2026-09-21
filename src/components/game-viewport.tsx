@@ -46,6 +46,19 @@ const BOOT_READY_TIMEOUT_MS = 6000;
 /** MZ's boot script, as it appears in the shell document's `script[src]` list. */
 const BOOT_SCRIPT_PATTERN = /(^|\/)main\.js(\?|#|$)/;
 
+function isSafeEngineSrc(value: string): boolean {
+  const trimmed = value.trim().toLowerCase();
+  if (
+    trimmed.startsWith("javascript:") ||
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("vbscript:")
+  ) {
+    return false;
+  }
+  return value.startsWith("/") || value.startsWith("https://") || value.startsWith("http://");
+}
+
 interface EngineBootFailureInput {
   failureClass: EngineBootFailureClass;
   raw?: string;
@@ -76,10 +89,14 @@ export function GameViewport({
   const t = useTranslations("game");
 
   const probeRef = useRef<WebglProbeResult | null>(null);
+  // Overlay state vs boot-window boundary: isEngineReady dismisses the loading
+  // overlay on any iframe load (pre-protocol shells included); bootReadyRef
+  // closes the boot window only on the explicit READY report.
   const bootReadyRef = useRef(false);
   const frameLoadedRef = useRef(false);
   const loadInFlightRef = useRef(false);
   const watchdogRef = useRef<number | null>(null);
+  const bootCheckRef = useRef<AbortController | null>(null);
 
   const clearWatchdog = useCallback(() => {
     if (watchdogRef.current !== null) {
@@ -103,7 +120,10 @@ export function GameViewport({
         ...(failure.raw ? { raw: failure.raw } : {}),
         diagnostics: buildDiagnosticsReport(
           failure.diagnostics,
-          probeRef.current ? webglProbeDiagnostics(probeRef.current) : undefined
+          probeRef.current ? webglProbeDiagnostics(probeRef.current) : undefined,
+          typeof navigator !== "undefined" && navigator.userAgent
+            ? { userAgent: navigator.userAgent }
+            : undefined
         ),
       });
     },
@@ -143,10 +163,16 @@ export function GameViewport({
     const bootScript = scriptSources.find((src) => BOOT_SCRIPT_PATTERN.test(src));
     if (!bootScript) {
       if (!doc) {
+        let documentUrl = engineSrc;
+        try {
+          documentUrl = new URL(engineSrc, window.location.href).href;
+        } catch {
+          documentUrl = engineSrc;
+        }
         applyFailure({
           failureClass: "boot_request_failed",
           diagnostics: {
-            url: engineSrc,
+            url: documentUrl,
             networkError: "engine document unavailable",
             engineScripts: scriptSources,
           },
@@ -157,14 +183,57 @@ export function GameViewport({
       return;
     }
 
+    // Skip non-fetchable schemes: nothing to verify, and silence is not failure.
+    if (/^(data|blob):/i.test(bootScript)) {
+      return;
+    }
+
+    // Resolve against the engine document base, not the host /play base:
+    // getAttribute("src") is often relative ("js/main.js").
+    let engineBase: string;
     try {
-      const response = await fetch(bootScript, { cache: "no-store" });
+      engineBase =
+        doc?.baseURI ??
+        frame?.contentWindow?.location.href ??
+        new URL(engineSrc, window.location.href).href;
+    } catch {
+      engineBase = new URL(engineSrc, window.location.href).href;
+    }
+
+    let bootScriptUrl: string;
+    try {
+      bootScriptUrl = new URL(bootScript, engineBase).href;
+    } catch {
+      return;
+    }
+    if (/^(data|blob):/i.test(bootScriptUrl)) {
+      return;
+    }
+
+    bootCheckRef.current?.abort();
+    const controller = new AbortController();
+    bootCheckRef.current = controller;
+
+    try {
+      const response = await fetch(bootScriptUrl, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) {
+        return;
+      }
       if (!response.ok) {
+        // 401/403 is an entitlement boundary, not a broken asset: surface it as
+        // a boot request failure so the panel does not invite a blind reload loop.
+        const failureClass =
+          response.status === 401 || response.status === 403
+            ? "boot_request_failed"
+            : "asset_load_failed";
         applyFailure({
-          failureClass: "asset_load_failed",
-          raw: `Failed to load ${bootScript}`,
+          failureClass,
+          raw: `Failed to load ${bootScriptUrl}`,
           diagnostics: {
-            url: bootScript,
+            url: bootScriptUrl,
             status: response.status,
             engineScripts: scriptSources,
           },
@@ -173,11 +242,14 @@ export function GameViewport({
       // A reachable boot script means the engine is still booting: the watchdog
       // never concludes a failure from silence alone.
     } catch (error) {
+      if (controller.signal.aborted) {
+        return;
+      }
       applyFailure({
         failureClass: "boot_request_failed",
         raw: "Your browser does not allow to read local files.",
         diagnostics: {
-          url: bootScript,
+          url: bootScriptUrl,
           networkError: error instanceof Error ? error.message : String(error),
           engineScripts: scriptSources,
         },
@@ -206,6 +278,14 @@ export function GameViewport({
   }, [clearWatchdog]);
 
   useEffect(() => {
+    if (!isSafeEngineSrc(engineSrc)) {
+      applyFailure({
+        failureClass: "boot_request_failed",
+        raw: `Refused engine source: ${engineSrc}`,
+        diagnostics: { url: engineSrc },
+      });
+      return;
+    }
     const probe = runWebglProbe();
     probeRef.current = probe;
     if (!probe.supported) {
@@ -315,7 +395,12 @@ export function GameViewport({
     return () => window.clearInterval(id);
   }, [isEngineReady, bootFailure]);
 
-  useEffect(() => clearWatchdog, [clearWatchdog]);
+  useEffect(() => {
+    return () => {
+      clearWatchdog();
+      bootCheckRef.current?.abort();
+    };
+  }, [clearWatchdog]);
 
   const handleIframeLoad = useCallback(() => {
     frameLoadedRef.current = true;
@@ -364,24 +449,42 @@ export function GameViewport({
       return;
     }
 
+    const frame = iframeRef.current;
+    const wasLoaded = frameLoadedRef.current;
+
+    // Reset to the loading state so the overlay and progress tick re-appear.
     setBootFailure(null);
+    setIsEngineReady(false);
+    setLoadProgress(0);
+    frameLoadedRef.current = false;
+    bootReadyRef.current = false;
+    bootCheckRef.current?.abort();
     loadInFlightRef.current = true;
 
-    const frame = iframeRef.current;
+    const forceSrcNavigation = (target: HTMLIFrameElement) => {
+      // Re-setting an identical src is a no-op: cache-bust and keep React
+      // state in sync so a re-render does not revert the DOM write.
+      const separator = engineSrc.includes("?") ? "&" : "?";
+      const busted = `${engineSrc}${separator}retry=${Date.now()}`;
+      setFrameSrc(busted);
+      target.removeAttribute("src");
+      target.setAttribute("src", busted);
+    };
+
     if (!frame) {
       // The preflight refused the first mount, so the frame was never created.
       setFrameSrc(engineSrc);
-    } else if (frameLoadedRef.current) {
+    } else if (wasLoaded) {
       try {
         frame.contentWindow?.location.reload();
       } catch {
-        frame.setAttribute("src", engineSrc);
+        forceSrcNavigation(frame);
       }
     } else {
       try {
         frame.contentWindow?.location.replace(engineSrc);
       } catch {
-        frame.setAttribute("src", engineSrc);
+        forceSrcNavigation(frame);
       }
     }
     armWatchdog(BOOT_LOAD_TIMEOUT_MS);

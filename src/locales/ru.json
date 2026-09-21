@@ -214,7 +214,7 @@
       "diagnosticsStatusMessage": "Сообщение состояния",
       "diagnosticsRenderer": "Рендерер",
       "diagnosticsVendor": "Производитель",
-      "diagnosticsUserAgent": "User agent",
+      "diagnosticsUserAgent": "Агент пользователя",
       "diagnosticsScripts": "Скрипты движка",
       "diagnosticsForeignScript": "не с этого origin",
       "diagnosticsNone": "Нет"

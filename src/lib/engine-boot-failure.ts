@@ -45,6 +45,15 @@ const ASSET_LOAD_MARKERS: readonly string[] = ["Failed to load", "has failed to 
 /** Unclassifiable raw strings still owe the player a surface: the request class covers them. */
 export const UNCLASSIFIED_FAILURE_CLASS: EngineBootFailureClass = "boot_request_failed";
 
+export const MAX_ENGINE_BOOT_RAW_CHARS = 2000;
+export const MAX_ENGINE_SCRIPT_ENTRIES = 50;
+export const MAX_ENGINE_SCRIPT_CHARS = 2000;
+export const MAX_ENGINE_DIAGNOSTIC_STRING_CHARS = 2000;
+
+function truncateString(value: string, max: number): string {
+  return value.length > max ? value.slice(0, max) : value;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === "object" &&
@@ -108,10 +117,18 @@ export function buildDiagnosticsReport(
       if (key in result) {
         continue;
       }
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      if (typeof value === "string") {
+        const max =
+          key === "engineScripts"
+            ? MAX_ENGINE_SCRIPT_CHARS
+            : MAX_ENGINE_DIAGNOSTIC_STRING_CHARS;
+        (result as Record<string, unknown>)[key] = truncateString(value, max);
+      } else if (typeof value === "number" || typeof value === "boolean") {
         (result as Record<string, unknown>)[key] = value;
       } else if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) {
-        (result as Record<string, unknown>)[key] = value as string[];
+        (result as Record<string, unknown>)[key] = (value as string[])
+          .slice(0, MAX_ENGINE_SCRIPT_ENTRIES)
+          .map((entry) => truncateString(entry, MAX_ENGINE_SCRIPT_CHARS));
       }
     }
   }
@@ -147,7 +164,7 @@ export function parseEngineBootFailureReport(
     diagnostics: buildDiagnosticsReport(data.diagnostics),
   };
   if (typeof data.raw === "string" && data.raw) {
-    report.raw = data.raw;
+    report.raw = truncateString(data.raw, MAX_ENGINE_BOOT_RAW_CHARS);
   }
   return report;
 }
@@ -196,9 +213,14 @@ export function runWebglProbe(
   };
 
   canvas.addEventListener("webglcontextcreationerror", onCreationError);
-  let context: WebGLRenderingContext | null = null;
+  let context: WebGLRenderingContext | WebGL2RenderingContext | null = null;
   try {
-    context = canvas.getContext("webgl");
+    context =
+      (canvas.getContext("webgl2") as
+        | WebGLRenderingContext
+        | WebGL2RenderingContext
+        | null) ??
+      (canvas.getContext("webgl") as WebGLRenderingContext | null);
   } catch {
     context = null;
   }

@@ -412,7 +412,7 @@
       canvas.addEventListener("webglcontextcreationerror", onCreationError);
       let context = null;
       try {
-        context = canvas.getContext("webgl");
+        context = canvas.getContext("webgl2") || canvas.getContext("webgl");
       } catch (error) {
         context = null;
       }
@@ -445,23 +445,82 @@
     };
   }
 
-  function installCapabilityHook() {
+  function installCapabilityHook(allowReadyFallback) {
     if (typeof SceneManager === "undefined" || typeof SceneManager.checkBrowser !== "function") {
       return false;
     }
     const originalCheckBrowser = SceneManager.checkBrowser;
     SceneManager.checkBrowser = function () {
+      let result;
       try {
-        const result = originalCheckBrowser.apply(this, arguments);
-        postEngineReady();
-        return result;
+        result = originalCheckBrowser.apply(this, arguments);
       } catch (error) {
         const raw = error && error.message ? String(error.message) : String(error);
         reportBootFailure(classifyBootFailure(raw), raw, webglProbeDetail);
         throw error;
       }
+      // Readiness is posted by the scene hook below (boot exit), not by the
+      // capability gate: checkBrowser runs before DataManager asset loads.
+      // Fall back to the gate only when no scene hook is available (e.g. unit
+      // mocks exposing checkBrowser without goto).
+      if (allowReadyFallback) {
+        postEngineReady();
+      }
+      return result;
     };
     return true;
+  }
+
+  function installSceneReadyHook() {
+    if (typeof SceneManager === "undefined" || typeof SceneManager.goto !== "function") {
+      return false;
+    }
+    const originalGoto = SceneManager.goto;
+    let gotoCount = 0;
+    SceneManager.goto = function (sceneClass) {
+      const result = originalGoto.apply(this, arguments);
+      try {
+        gotoCount += 1;
+        const name = sceneClass && sceneClass.name ? sceneClass.name : "";
+        // First goto is run(Scene_Boot); the second (Boot -> Title/Map) means the
+        // database/assets finished loading. A non-Boot first goto (battle test,
+        // direct map) is already past boot.
+        if (gotoCount >= 2 || (name && name !== "Scene_Boot")) {
+          postEngineReady();
+        }
+      } catch {
+        // Readiness is best effort.
+      }
+      return result;
+    };
+    if (typeof SceneManager.onSceneStart === "function") {
+      const originalOnSceneStart = SceneManager.onSceneStart;
+      SceneManager.onSceneStart = function () {
+        const result = originalOnSceneStart.apply(this, arguments);
+        try {
+          const current = SceneManager._scene;
+          const currentName =
+            current && current.constructor && current.constructor.name
+              ? current.constructor.name
+              : "";
+          if (currentName && currentName !== "Scene_Boot") {
+            postEngineReady();
+          }
+        } catch {
+          // Readiness is best effort.
+        }
+        return result;
+      };
+    }
+    return true;
+  }
+
+  function extractAssetUrl(raw) {
+    if (typeof raw !== "string" || !raw) return "";
+    const match = raw.match(
+      /https?:\/\/[^\s"'<>]+|[^\s"'<>]+\.(?:png|jpe?g|webp|gif|ogg|m4a|mp3|wav|json|js)(?:[?#][^\s"'<>]*)?/i
+    );
+    return match ? match[0].replace(/[),.;:!?]+$/, "") : "";
   }
 
   function installPrintErrorHook() {
@@ -482,8 +541,15 @@
       const raw = parts.join(": ");
       const failureClass = classifyBootFailure(raw);
       const diagnostics = {};
-      if (failureClass === "asset_load_failed" && typeof message === "string" && message) {
-        diagnostics.url = message;
+      if (failureClass === "asset_load_failed") {
+        if (typeof message === "string" && message) {
+          diagnostics.url = message;
+        } else {
+          const urlFromRaw = extractAssetUrl(raw);
+          if (urlFromRaw) {
+            diagnostics.url = urlFromRaw;
+          }
+        }
       }
       if (webglProbeDetail && webglProbeDetail.probeSupported === false) {
         diagnostics.probeSupported = false;
@@ -515,7 +581,8 @@
   const hasMzRuntime = typeof SceneManager !== "undefined" || typeof Graphics !== "undefined";
 
   installWebglProbeHook();
-  installCapabilityHook();
+  const sceneReadyInstalled = installSceneReadyHook();
+  installCapabilityHook(!sceneReadyInstalled);
   installPrintErrorHook();
   installResourceErrorHook();
 

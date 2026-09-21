@@ -458,8 +458,53 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(second.diagnostics?.url, "https://ropoductions.com/img/pictures/hero.png");
   });
 
-  it("single-source verification: generated engine mock stays byte-for-byte identical to its committed sources", () => {
-    const bridgeSource = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
+  it("keeps the bridge boot taxonomy in parity with the host taxonomy", () => {
+    const code = fs.readFileSync(pluginPath, "utf-8");
+    for (const sentence of [
+      "Your browser does not support WebGL.",
+      "Your browser does not support Web Audio API.",
+      "Your browser does not support CSS Font Loading.",
+      "Your browser does not support IndexedDB.",
+      "Your browser does not allow to read local files.",
+      "Failed to initialize graphics.",
+      "Failed to load",
+      "has failed to load",
+    ]) {
+      assert.ok(code.includes(sentence), `bridge taxonomy must include: ${sentence}`);
+    }
+  });
+
+  it("posts readiness on scene transition rather than the capability gate", () => {
+    let gotoTarget: unknown = null;
+    sandbox.SceneManager = {
+      checkBrowser: () => true,
+      goto: (sceneClass: unknown) => {
+        gotoTarget = sceneClass;
+      },
+    };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    (sandbox.SceneManager as { checkBrowser: () => void }).checkBrowser();
+    assert.equal(
+      postedMessages.length,
+      0,
+      "capability gate must not close the boot window"
+    );
+
+    class SceneBootForTest {}
+    Object.defineProperty(SceneBootForTest, "name", { value: "Scene_Boot" });
+    class SceneMapForTest {}
+    Object.defineProperty(SceneMapForTest, "name", { value: "Scene_Map" });
+    (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneBootForTest);
+    assert.equal(postedMessages.length, 0);
+    (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneMapForTest);
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
+    assert.equal(gotoTarget, SceneMapForTest);
+  });
+
+  it("single-source verification: generated engine mock stays byte-for-byte identical to its committed sources", () => {    const bridgeSource = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
     const mockHtmlSource = path.resolve(process.cwd(), "src/engine-plugins/mock-shell.html");
 
     assert.ok(fs.existsSync(bridgeSource), "src/engine-plugins/Ropoductions_WebBridge.js must exist");
