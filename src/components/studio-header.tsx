@@ -26,7 +26,7 @@ export function StudioHeader({ isAdmin = false }: StudioHeaderProps) {
           aria-label="Ropoductions Studio Home"
         >
           <Image
-            src="/branding/studio-logo.webp"
+            src="/branding/studio-logo.png"
             alt="Ropoductions Studio Emblem"
             width={36}
             height={36}

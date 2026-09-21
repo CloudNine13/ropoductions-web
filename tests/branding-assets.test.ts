@@ -93,7 +93,17 @@ describe("emblem art contract", () => {
     assert.ok(hero.includes('"/branding/studio-logo-animated.gif"'), "Hero must reference the animated emblem");
     assert.ok(hero.includes("motion-reduce:hidden"), "Animated emblem must be hidden under reduced motion");
     assert.ok(hero.includes("motion-reduce:block"), "Static emblem must replace it under reduced motion");
-    for (const asset of ["/branding/studio-logo-animated.gif", "/branding/studio-logo.webp"]) {
+    for (const asset of ["/branding/studio-logo-animated.gif", "/branding/studio-logo.png"]) {
+      assert.ok(existsSync(join(rootDir, "public", asset)), `${asset} must exist in public/branding`);
+    }
+  });
+
+  it("points the browser tab icon at a shipped emblem asset", () => {
+    const layout = readSource("src/app/layout.tsx");
+    const declared = [...layout.matchAll(/"(\/branding\/[^"]+\.(?:png|webp|gif))"/g)].map((match) => match[1]);
+    assert.ok(declared.length > 0, "The layout must declare at least one branding asset as the tab icon");
+    assert.ok(declared.includes("/branding/studio-logo.png"), "The tab icon must be the studio emblem");
+    for (const asset of declared) {
       assert.ok(existsSync(join(rootDir, "public", asset)), `${asset} must exist in public/branding`);
     }
   });

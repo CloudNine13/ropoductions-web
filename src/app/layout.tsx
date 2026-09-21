@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   title: "Ropoductions Studio — Adult Indie Games",
   description: "Official web portal and browser client for Ropoductions RPG Maker MZ games.",
   icons: {
-    icon: "/branding/studio-logo.webp",
-    apple: "/branding/studio-logo.webp",
+    icon: [{ url: "/branding/studio-logo.png", type: "image/png", sizes: "72x72" }],
+    apple: [{ url: "/branding/studio-logo.png", type: "image/png", sizes: "72x72" }],
   },
   robots: {
     index: false,

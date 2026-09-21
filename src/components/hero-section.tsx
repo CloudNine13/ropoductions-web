@@ -8,7 +8,7 @@ import { saveLandingScrollPosition } from "@/lib/paywall";
 
 const HERO_BANNER_SRC = "/branding/studio-banner.jpeg";
 const HERO_EMBLEM_ANIMATED_SRC = "/branding/studio-logo-animated.gif";
-const HERO_EMBLEM_STATIC_SRC = "/branding/studio-logo.webp";
+const HERO_EMBLEM_STATIC_SRC = "/branding/studio-logo.png";
 const HERO_EMBLEM_CLASS = "pixelated";
 
 export function HeroSection() {
