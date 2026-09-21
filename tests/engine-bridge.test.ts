@@ -19,6 +19,18 @@ interface BridgeMessage {
   payload?: BridgeResponsePayload | Record<string, string>;
 }
 
+interface BootReportMessage {
+  type: string;
+  failureClass?: string;
+  raw?: string;
+  diagnostics?: {
+    url?: string;
+    statusMessage?: string;
+    probeSupported?: boolean;
+    engineScripts?: string[];
+  };
+}
+
 describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
   const pluginPath = path.resolve(
     process.cwd(),
@@ -34,6 +46,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
   let globalInfoLoaded: boolean;
   let eventListeners: Record<string, Array<(event: unknown) => void>>;
   let sandbox: Record<string, unknown>;
+  let errorPrinterElement: { style: { display: string } };
 
   function setupEnvironment(currentOrigin = "https://ropoductions.com") {
     storageStore = {};
@@ -91,8 +104,35 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
       },
     };
 
+    errorPrinterElement = { style: { display: "" } };
+
+    const canvasListeners: Array<(event: unknown) => void> = [];
+    const mockDocument = {
+      readyState: "loading",
+      getElementById: (id: string) => (id === "errorPrinter" ? errorPrinterElement : null),
+      createElement: () => ({
+        addEventListener: (type: string, listener: (event: unknown) => void) => {
+          canvasListeners.push(listener);
+        },
+        removeEventListener: (type: string, listener: (event: unknown) => void) => {
+          const index = canvasListeners.indexOf(listener);
+          if (index >= 0) {
+            canvasListeners.splice(index, 1);
+          }
+        },
+        getContext: () => {
+          for (const listener of canvasListeners) {
+            listener({ statusMessage: "GPU process crashed" });
+          }
+          return null;
+        },
+      }),
+      querySelectorAll: () => [],
+    };
+
     sandbox = {
       window: mockWindow,
+      document: mockDocument,
       StorageManager: mockStorageManager,
       DataManager: mockDataManager,
       console,
@@ -113,6 +153,13 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     };
     for (const listener of listeners) {
       await listener(event);
+    }
+  }
+
+  function fireWindowEvent(type: string, event: Record<string, unknown> = {}) {
+    const listeners = eventListeners[type] || [];
+    for (const listener of listeners) {
+      listener({ type, ...event });
     }
   }
 
@@ -302,8 +349,162 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_RESET_SAVES_SUCCESS");
   });
 
-  it("single-source verification: generated engine mock stays byte-for-byte identical to its committed sources", () => {
-    const bridgeSource = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
+  it("reports readiness against the document load when the document carries no MZ runtime", () => {
+    (sandbox.document as { readyState: string }).readyState = "complete";
+    loadPlugin();
+
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
+    assert.equal(postedMessages[0].targetOrigin, "https://ropoductions.com");
+  });
+
+  it("holds readiness until the document load when the mock harness is still parsing", () => {
+    loadPlugin();
+    assert.equal(postedMessages.length, 0);
+
+    fireWindowEvent("load");
+
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
+  });
+
+  it("classifies an MZ capability failure, keeps the raw probe detail and hides the error printer", () => {
+    sandbox.Utils = { canUseWebGL: () => false };
+    sandbox.SceneManager = {
+      checkBrowser: () => {
+        (sandbox.Utils as { canUseWebGL: () => boolean }).canUseWebGL();
+        throw new Error("Your browser does not support WebGL.");
+      },
+    };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    assert.throws(() => (sandbox.SceneManager as { checkBrowser: () => void }).checkBrowser());
+
+    assert.equal(postedMessages.length, 1);
+    const report = postedMessages[0].message as unknown as BootReportMessage;
+    assert.equal(report.type, "ROPODUCTIONS_ENGINE_BOOT_FAILURE");
+    assert.equal(report.failureClass, "webgl_unavailable");
+    assert.equal(report.raw, "Your browser does not support WebGL.");
+    assert.equal(report.diagnostics?.statusMessage, "GPU process crashed");
+    assert.equal(report.diagnostics?.probeSupported, false);
+    assert.equal(errorPrinterElement.style.display, "none");
+  });
+
+  it("stops reporting boot failures once readiness is posted", () => {
+    sandbox.SceneManager = { checkBrowser: () => true };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    (sandbox.SceneManager as { checkBrowser: () => void }).checkBrowser();
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
+
+    (sandbox.Graphics as { printError: (name: string, message: string) => void }).printError(
+      "TypeError",
+      "cannot read properties of undefined"
+    );
+    fireWindowEvent("error", {
+      target: { tagName: "IMG", src: "https://ropoductions.com/img/pictures/hero.png" },
+    });
+
+    assert.equal(postedMessages.length, 1);
+  });
+
+  it("covers an unclassifiable engine error with the boot request class and its raw text", () => {
+    sandbox.SceneManager = { checkBrowser: () => true };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    (sandbox.Graphics as { printError: (name: string, message: string) => void }).printError(
+      "TypeError",
+      "cannot read properties of undefined"
+    );
+
+    assert.equal(postedMessages.length, 1);
+    const report = postedMessages[0].message as unknown as BootReportMessage;
+    assert.equal(report.failureClass, "boot_request_failed");
+    assert.equal(report.raw, "TypeError: cannot read properties of undefined");
+  });
+
+  it("classifies an MZ load failure as an asset failure and names the failing URL once", () => {
+    sandbox.SceneManager = { checkBrowser: () => true };
+    const printedErrors: Array<[unknown, unknown]> = [];
+    sandbox.Graphics = {
+      printError: (name: unknown, message: unknown) => {
+        printedErrors.push([name, message]);
+      },
+    };
+    loadPlugin();
+
+    (sandbox.Graphics as { printError: (n: string, m: string) => void }).printError(
+      "Failed to load",
+      "js/main.js"
+    );
+    fireWindowEvent("error", {
+      target: { tagName: "IMG", src: "https://ropoductions.com/img/pictures/hero.png" },
+    });
+    fireWindowEvent("error", {
+      target: { tagName: "IMG", src: "https://ropoductions.com/img/pictures/hero.png" },
+    });
+
+    assert.equal(printedErrors.length, 1);
+    assert.equal(postedMessages.length, 2);
+    const first = postedMessages[0].message as unknown as BootReportMessage;
+    assert.equal(first.failureClass, "asset_load_failed");
+    assert.equal(first.diagnostics?.url, "js/main.js");
+    const second = postedMessages[1].message as unknown as BootReportMessage;
+    assert.equal(second.failureClass, "asset_load_failed");
+    assert.equal(second.diagnostics?.url, "https://ropoductions.com/img/pictures/hero.png");
+  });
+
+  it("keeps the bridge boot taxonomy in parity with the host taxonomy", () => {
+    const code = fs.readFileSync(pluginPath, "utf-8");
+    for (const sentence of [
+      "Your browser does not support WebGL.",
+      "Your browser does not support Web Audio API.",
+      "Your browser does not support CSS Font Loading.",
+      "Your browser does not support IndexedDB.",
+      "Your browser does not allow to read local files.",
+      "Failed to initialize graphics.",
+      "Failed to load",
+      "has failed to load",
+    ]) {
+      assert.ok(code.includes(sentence), `bridge taxonomy must include: ${sentence}`);
+    }
+  });
+
+  it("posts readiness on scene transition rather than the capability gate", () => {
+    let gotoTarget: unknown = null;
+    sandbox.SceneManager = {
+      checkBrowser: () => true,
+      goto: (sceneClass: unknown) => {
+        gotoTarget = sceneClass;
+      },
+    };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    (sandbox.SceneManager as { checkBrowser: () => void }).checkBrowser();
+    assert.equal(
+      postedMessages.length,
+      0,
+      "capability gate must not close the boot window"
+    );
+
+    class SceneBootForTest {}
+    Object.defineProperty(SceneBootForTest, "name", { value: "Scene_Boot" });
+    class SceneMapForTest {}
+    Object.defineProperty(SceneMapForTest, "name", { value: "Scene_Map" });
+    (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneBootForTest);
+    assert.equal(postedMessages.length, 0);
+    (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneMapForTest);
+    assert.equal(postedMessages.length, 1);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
+    assert.equal(gotoTarget, SceneMapForTest);
+  });
+
+  it("single-source verification: generated engine mock stays byte-for-byte identical to its committed sources", () => {    const bridgeSource = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");
     const mockHtmlSource = path.resolve(process.cwd(), "src/engine-plugins/mock-shell.html");
 
     assert.ok(fs.existsSync(bridgeSource), "src/engine-plugins/Ropoductions_WebBridge.js must exist");

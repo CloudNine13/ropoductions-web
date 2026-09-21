@@ -407,6 +407,15 @@ describe("save-bridge client utilities (src/lib/save-bridge.ts)", () => {
 
       const sandbox = {
         window: iframeWindowMock,
+        document: {
+          readyState: "loading",
+          getElementById: () => null,
+          createElement: () => ({
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            getContext: () => null,
+          }),
+        },
         StorageManager: mockStorageManager,
         DataManager: mockDataManager,
         console,

@@ -150,7 +150,7 @@ describe("game viewport and engine container contract", () => {
     );
   });
 
-  it("shows a determinate loading state and an error fallback for the engine iframe", () => {
+  it("shows a determinate loading state while the engine boots", () => {
     const src = readSource(gameViewportPath);
 
     assert.ok(src.includes('role="progressbar"'), "Loading overlay must expose role=progressbar");
@@ -158,7 +158,5 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("hud-load-pulse"), "Loading emblem may pulse as the sanctioned live-state exception");
     assert.ok(src.includes("motion-reduce:animate-none"), "Loading pulse must stop under reduced-motion");
     assert.ok(src.includes("onError={handleIframeError}"), "Iframe must surface load errors");
-    assert.ok(src.includes("engineLoadError"), "Load error fallback must render localized copy");
-    assert.ok(src.includes("engineRetry"), "Load error fallback must offer a retry action");
   });
 });
