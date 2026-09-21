@@ -22,7 +22,17 @@ export const E2E_AGE_COOKIE = "ropoductions_age_verified";
 export const E2E_ORIGIN = "127.0.0.1";
 
 const DEV_VARS_FILE = ".dev.vars";
-const GENERATED_DEV_VARS_MARKER = "# generated-by: scripts/e2e/setup-e2e-env.ts";
+
+/** Marker the setup script writes and this helper verifies; one constant, both sides. */
+export const GENERATED_DEV_VARS_MARKER = "# generated-by: scripts/e2e/setup-e2e-env.ts";
+
+/**
+ * Disposable founder id written by the setup script under a key of its own. The
+ * suite must never resolve a founder through CREATOR_ADMIN_PATREON_IDS: the
+ * founder fixture is deleted from the local D1 before seeding, and that key holds
+ * real creator-admins on a developer machine.
+ */
+export const FOUNDER_PATRON_ID_KEY = "E2E_FOUNDER_PATRON_ID";
 
 function readDevVarsValue(key: string): string | undefined {
   const file = resolve(process.cwd(), DEV_VARS_FILE);
@@ -65,18 +75,17 @@ export function isGeneratedDevVars(): boolean {
   return existsSync(file) && readFileSync(file, "utf-8").includes(GENERATED_DEV_VARS_MARKER);
 }
 
-/** Founder env-bootstrap identity, available only from the generated local file. */
+/**
+ * Founder identity for the env-bootstrap fixture: only ever the disposable id the
+ * setup script wrote. A hand-edited `.dev.vars` therefore cannot hand this suite a
+ * real creator id to delete.
+ */
 export function readFounderPatronId(): string | undefined {
   if (!isGeneratedDevVars()) {
     return undefined;
   }
-  const raw =
-    readDevVarsValue("CREATOR_ADMIN_PATREON_IDS") ?? process.env.CREATOR_ADMIN_PATREON_IDS;
-  const first = raw
-    ?.split(",")
-    .map((value) => value.trim())
-    .find((value) => value.length > 0);
-  return first ?? undefined;
+  const value = readDevVarsValue(FOUNDER_PATRON_ID_KEY)?.trim();
+  return value ? value : undefined;
 }
 
 export function daysFromNow(days: number): number {
