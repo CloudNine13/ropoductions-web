@@ -63,50 +63,102 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - `/admin` denial is an ordinary 404 and that IS the whole anti-enumeration contract (owner decision 2026-09-21): no redirect, no auth prompt, no distinct status for anonymous, forged, stale, or valid-non-admin callers. The response is deliberately NOT byte-identical to an unknown-path 404 — route-matched denials render Next's `__next_error__` document and name the route segments in the flight payload (measured: 7216 B vs 8476 B for a same-length unknown path). Do not re-file this as a leak, and do not add a differential test for it.
 - DELETE and MODIFY must never be applied to a founder admin's override row. Local dev/e2e D1 state is one shared file (`.wrangler/state/v3`) used by `npm run dev`, `npm test` and the e2e harness, so any cleanup that clears override rows by role (`tests/verify-d1-schema.ts:457` does `DELETE FROM patron_overrides WHERE role = 'admin'`) or by an id read from `CREATOR_ADMIN_PATREON_IDS` can destroy a developer's own bootstrapped founder row. Fixtures must use a dedicated disposable key (`E2E_FOUNDER_PATRON_ID`), never a real creator id.
 
-## Comments
+---
 
-Default to writing no comments.
-Only add a comment when the WHY is non-obvious.
-Never comment WHAT the code does. The code already says what it does.
-Never reference the current task, ticket, or fix in a comment.
+## 1. BMAD Phase Role Routing
 
-## Testing
+Agents must route work strictly through configured built-in roles:
 
-Always use testing-guidelines skill.
-Write tests for business logic and API endpoints.
-Don't test implementation details - test behavior.
-Don't mock what you don't own.
+1. **Architecture & System Planning (`role: plan`)** — architectural planning, system boundaries, schema design, dependency mapping; token-dense outputs.
+2. **Specification & Contract Authoring (`role: advisor`)** — turning architecture and epics into atomic stories and PRDs: TypeScript interfaces, database contracts, Given-When-Then acceptance criteria. Also acts as the independent reviewer validating story viability before implementation.
+3. **Mechanical Code Implementation (`role: default`)** — writing code strictly against the specs from step 2, including multi-file edits and refactors. Background subagents dispatched via `omp task` use **`role: task`** and stay strictly scoped to their assigned files.
+4. **Testing, Verification & Triage (`role: smol`)** — behavior-driven tests covering the acceptance criteria, running the test runner, parsing trace logs, applying targeted fixes.
+5. **Git & Housekeeping (`role: commit`)** — Conventional Commits, diff review, Git operations.
+6. **Visual Inspection (`role: vision`)** — screenshot layout verification, UI alignment checks, design token compliance.
 
-## Git
+---
 
-Use conventional commit format: type(scope): description
-Types: feat, fix, refactor, test, docs, chore
-Keep commits focused on one change.
-Don't mention AI, Claude, or "generated" in commit messages.
+## 2. Mandatory Rules (Invariants)
 
-## Security
+- **Await Pending Work:** You MUST wait for tools and subagents to finish before moving forward with the task or thought process. Never assume a pending result, and never keep reasoning on unfinished output.
+- **No Direct Environment Reads:** NEVER read environment variable values directly. Exercise the variable and verify the outcome from the observable answer instead of printing the value.
+- **Advisor Critical Debate:** You MUST critically debate every recommendation given by the advisor model. Accept and implement its advice ONLY if you independently verify that the solution is relevant, technically sound, and secure.
+- **Strict Verbosity Control:** You MUST be concise. Output ONLY essential decisions, code changes, and encountered blockers. Think through all exploratory reasoning and chain-of-thought in silence; do not output verbose step-by-step narration.
+- **Git Worktree Isolation:** When working with git, you MUST create and operate within a distinct `git worktree` (via the `using-git-worktrees` skill) so that parallel agent sessions and the user's workspace do not overlap or corrupt state.
+- **Repository Scope & Permissions:**
+  - The ONLY repository you are permitted to modify is the local project repository: `https://github.com/CloudNine13/ropoductions-web`.
+  - When accessing or querying any external GitHub repository, you operate in strict **READ-ONLY** mode. Writing to, creating issues in, or modifying external repos is strictly prohibited.
+- **Tool Invariant (`context7-mcp`):** Always use `context7-mcp` when reading the codebase, inspecting system context, or invoking technical tools.
+- **No Emojis:** Never use emojis in code, documentation, pull requests, or commit messages. Never use icons unless they are official Lucide SVG components.
+- **Zero Hallucinated Roles:** Do not invent or route to custom roles (`spec`, `test`, `architect`). Work strictly within configured built-in roles (`default`, `plan`, `advisor`, `task`, `smol`, `commit`, `vision`).
 
-Never commit .env files, API keys, tokens, private keys, or credentials.
-Never log sensitive data.
-Never put secrets in comments or test fixtures.
-If you need a secret for testing, use environment variables with placeholder values.
+---
 
-## Error Handling
+## 3. Git & GitHub MCP Workflow
 
-Don't add error handling for scenarios that can't happen.
-Trust internal function contracts.
-Only validate at system boundaries: user input, API responses, file reads.
-Don't wrap internal function calls in try/catch unless they actually throw.
+All Git interactions MUST go through GitHub MCP in this exact sequence:
 
-## MUST rules
+1. `git fetch origin`
+2. Inspect `git branch -a` and check the status of `develop`.
+3. `git checkout develop && git pull`
+4. Create a dedicated worktree and cut a new branch from `develop`:
+   * Branch naming format is mandatory: `<type>/<story-id>-<kebab-slug>` (e.g., `feat/1-2-age-gate-modal`).
+   * Permitted types: `feat`, `fix`, `chore`, `docs`, `refactor`.
+5. Implement work and commit using `role: commit`.
+6. Review changes thoroughly via `git status` and `git diff`.
+7. Check for merge conflicts against the latest `develop` branch before opening a PR.
+8. `git push -u origin <branch>`
+9. Open a Pull Request targeting base `develop` ONLY.
+   * PR Title format: `<type>(<scope>): <imperative summary>` (Scopes: `portal`, `auth`, `play`, `save-hud`, `i18n`, `edge`, `db`).
+   * PR Body MUST explicitly list the Story ID and all Functional Requirements (FRs) covered.
+   * Provide the user with the full URL to the created PR.
+10. **Handoff:** Do NOT wait for GitHub CI to pass (that is the user's responsibility). Request explicit user confirmation before proceeding with any subsequent branch work.
+11. **Safety Restrictions:**
+    * NEVER push to `develop` or `master`.
+    * NEVER commit directly on `develop` or `master`.
+    * NEVER merge branches into `develop` or `master` (only the user may merge PRs).
+    * NEVER execute `git reset --hard` if it risks wiping out uncommitted changes in active worktrees or concurrent sessions.
 
-- You MUST debate every advise you have from the advisor model. You may listen to his advices ONLY if you find his information relevant, useful and secure. 
-- You MUST be less verbose. Share ONLY the most important and relevant information, the decisions and encountered problems. The rest of information should be THOUGH in silence.
-- Don't wait GitHub CI to pass, it's human responsibility.
-- NEVER do git reset hard. You may do reset ONLY if it won't wipe out the work of others worktrees and agentic sessions.
-- Before preparing a PR you MUST check if there is merge conflicts.
-- Always use context7-mcp working with code base or tech tools.
-- When working with github repos not related to the project's one, you are operating in READ-ONLY mode. You are PROHIBITED to write in the repos, not related to the project. The only repo you can write is the local project's repo: https://github.com/CloudNine13/ropoductions-web
-- Never use emojis, never use useless/WHAT comments, keep only hard WHY ones. 
-- When working, you must create a separate working tree, so the other sessions could work and don't overlap you. 
-- Always test your code. Make sure you are making thoughtful tests and not a bunch of false greens.
+**Commit hygiene:** Conventional Commits `<type>(<scope>): <imperative summary>`; permitted types are `feat`, `fix`, `refactor`, `test`, `docs`, `chore`; keep each commit focused on one logical change; never mention AI, Claude, or "generated" in commit messages.
+
+---
+
+## 4. Code Style & Comments
+
+- **Default to Silence:** Write no comments by default. Code must be self-explanatory.
+- **Strict WHY Rule:** Add comments ONLY when the architectural or business reasoning (WHY) is non-obvious.
+- **Forbidden:** Never comment WHAT the code does. The implementation already demonstrates the action.
+- **Clean History:** Never reference tickets, task numbers, story IDs, fixes, or AI attribution within code comments.
+
+---
+
+## 5. Testing & Verification
+
+- Always utilize the `testing-guidelines` skill.
+- Test pure business logic, edge functions, and API endpoints. Test visible behavior and contract compliance rather than internal implementation details.
+- **No False Greens:** Write rigorous assertions. Never write tautological tests (testing your own mocks) or shallow checks that pass without exercising actual runtime logic.
+- **Do Not Mock What You Do Not Own:** Prefer lightweight integrations or in-memory fixtures (e.g., D1 / SQLite test binders) over synthetic mocks.
+- **Circuit Breaker:** Run test execution on `role: smol`. If a test fails more than twice due to interface or structural contract ambiguities, stop testing loops immediately and escalate to `role: default` or `role: plan`.
+
+---
+
+## 6. Security & Secret Management
+
+- Never commit `.env` files, production tokens, API keys, private keys, or credentials.
+- Never put personal, account-level, or machine-local information in this repository, its commits, branches, PR titles, PR descriptions, or comments: no subscription plans or tiers, no pricing, quota or rate-limit figures, no vendor or provider billing details, no model or plan names from your own tooling account, no personal paths, and no account identifiers beyond the public project ones named above.
+- Never expose Patreon access or refresh tokens to client-side code; store them strictly in server-side D1 instances.
+- Never log sensitive user payloads, session IDs, or OAuth authorization codes.
+- Never place secrets in test fixtures or comments. Use placeholder environment variables for testing.
+- Validate all incoming session cookies (`ropoductions_session`) against D1 inside `/play` and `/api/game/*` routes.
+
+---
+
+## 7. Error Handling & System Boundaries
+
+- Do not introduce defensive error handling for invariants that are structurally impossible.
+- Trust internal function contracts; validate strictly at external system boundaries:
+  - User input and query params.
+  - Third-party API responses (Patreon OAuth).
+  - External file reads and JSZip unpack operations.
+  - Client postMessage payloads (verify `event.origin === window.location.origin` and validate schema before calling `StorageManager`).
+- Do not wrap internal routines in generic `try/catch` blocks unless the underlying call can throw an unhandled exception.
