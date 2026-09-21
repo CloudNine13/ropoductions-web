@@ -17,7 +17,7 @@ export function StudioFooter() {
           {/* Brand Slot */}
           <div className="flex items-center gap-3">
             <Image
-              src="/branding/studio-logo.webp"
+              src="/branding/studio-logo.png"
               alt="Ropoductions Emblem"
               width={32}
               height={32}

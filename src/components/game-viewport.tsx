@@ -633,7 +633,7 @@ export function GameViewport({
       aria-label={t("engineLoading")}
     >
       <Image
-        src="/branding/studio-logo.webp"
+        src="/branding/studio-logo.png"
         alt=""
         aria-hidden="true"
         width={64}
