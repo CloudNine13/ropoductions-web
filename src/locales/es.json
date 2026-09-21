@@ -217,6 +217,9 @@
       "diagnosticsUserAgent": "Agente de usuario",
       "diagnosticsScripts": "Scripts del motor",
       "diagnosticsForeignScript": "no se sirve desde este origen",
+      "diagnosticsRetries": "Intentos de reintento",
+      "diagnosticsSessionRejected": "Sesión",
+      "diagnosticsSessionRejectedValue": "rechazada por el servidor (401/403)",
       "diagnosticsNone": "Ninguno"
     },
     "saveImportTitle": "Importar partidas guardadas",

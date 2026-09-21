@@ -217,6 +217,9 @@
       "diagnosticsUserAgent": "Agent użytkownika",
       "diagnosticsScripts": "Skrypty silnika",
       "diagnosticsForeignScript": "spoza tego origin",
+      "diagnosticsRetries": "Próby ponowienia",
+      "diagnosticsSessionRejected": "Sesja",
+      "diagnosticsSessionRejectedValue": "odrzucona przez serwer (401/403)",
       "diagnosticsNone": "Brak"
     },
     "saveImportTitle": "Importuj zapisy gry",

@@ -217,6 +217,9 @@
       "diagnosticsUserAgent": "Агент пользователя",
       "diagnosticsScripts": "Скрипты движка",
       "diagnosticsForeignScript": "не с этого origin",
+      "diagnosticsRetries": "Повторные попытки",
+      "diagnosticsSessionRejected": "Сессия",
+      "diagnosticsSessionRejectedValue": "отклонена сервером (401/403)",
       "diagnosticsNone": "Нет"
     },
     "saveImportTitle": "Импорт сохранений игры",

@@ -217,6 +217,9 @@
       "diagnosticsUserAgent": "ユーザーエージェント",
       "diagnosticsScripts": "エンジンのスクリプト",
       "diagnosticsForeignScript": "このオリジン以外から配信",
+      "diagnosticsRetries": "再試行回数",
+      "diagnosticsSessionRejected": "セッション",
+      "diagnosticsSessionRejectedValue": "サーバーに拒否されました (401/403)",
       "diagnosticsNone": "なし"
     },
     "saveImportTitle": "セーブデータのインポート",

@@ -217,6 +217,9 @@
       "diagnosticsUserAgent": "用户代理",
       "diagnosticsScripts": "引擎脚本",
       "diagnosticsForeignScript": "非本站来源",
+      "diagnosticsRetries": "重试次数",
+      "diagnosticsSessionRejected": "会话",
+      "diagnosticsSessionRejectedValue": "被服务器拒绝 (401/403)",
       "diagnosticsNone": "无"
     },
     "saveImportTitle": "导入游戏存档",

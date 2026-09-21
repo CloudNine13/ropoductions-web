@@ -30,6 +30,10 @@ export interface EngineBootDiagnostics {
   userAgent?: string;
   /** `script[src]` inventory of the engine document, in document order. */
   engineScripts?: string[];
+  /** Retry attempts the plugin spent on the failing asset before giving up. */
+  retries?: number;
+  /** The asset request was answered 401/403: the session, not the network, failed. */
+  sessionRejected?: boolean;
 }
 
 export interface EngineBootFailureReport {

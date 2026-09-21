@@ -36,6 +36,9 @@ export interface EngineBootRecoveryLabels {
   diagnosticsUserAgent?: string;
   diagnosticsScripts?: string;
   diagnosticsForeignScript?: string;
+  diagnosticsRetries?: string;
+  diagnosticsSessionRejected?: string;
+  diagnosticsSessionRejectedValue?: string;
   diagnosticsNone?: string;
 }
 
@@ -124,6 +127,10 @@ export function EngineBootRecovery({
     userAgent: labels?.diagnosticsUserAgent ?? t("bootFailure.diagnosticsUserAgent"),
     engineScripts: labels?.diagnosticsScripts ?? t("bootFailure.diagnosticsScripts"),
     foreignScript: labels?.diagnosticsForeignScript ?? t("bootFailure.diagnosticsForeignScript"),
+    retries: labels?.diagnosticsRetries ?? t("bootFailure.diagnosticsRetries"),
+    sessionRejected: labels?.diagnosticsSessionRejected ?? t("bootFailure.diagnosticsSessionRejected"),
+    sessionRejectedValue:
+      labels?.diagnosticsSessionRejectedValue ?? t("bootFailure.diagnosticsSessionRejectedValue"),
     none: labels?.diagnosticsNone ?? t("bootFailure.diagnosticsNone"),
   };
 

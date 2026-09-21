@@ -159,4 +159,21 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("motion-reduce:animate-none"), "Loading pulse must stop under reduced-motion");
     assert.ok(src.includes("onError={handleIframeError}"), "Iframe must surface load errors");
   });
+
+  it("escalates an asset answered 401/403 to a session revalidation instead of the recovery panel", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.ok(
+      src.includes("isSessionRejectedReport(report)"),
+      "A session-rejected asset report must be recognized before the panel is rendered"
+    );
+    assert.ok(
+      src.includes("window.location.reload();"),
+      "Escalation is the /play document reload, whose server validation routes to the paywall"
+    );
+    assert.ok(
+      src.includes("sessionEscalatedRef.current"),
+      "Escalation must be taken at most once per mount"
+    );
+  });
 });
