@@ -4,9 +4,11 @@ companions:
   - patron-tier-matrix.md
   - save-and-runtime-contract.md
   - tech-candidates.md
+  - engine-browser-compat.md
 sources:
   - ../../planning-artifacts/briefs/brief-ropoductions-web-2026-09-15/brief.md
   - ../../planning-artifacts/briefs/brief-epic-6-2026-09-21/brief.md
+  - ../../planning-artifacts/briefs/brief-epic-7-2026-09-21/brief.md
 ---
 
 > **Canonical contract.** This SPEC and the files in `companions:` are the complete, preservation-validated contract for what to build, test, and validate. Source documents listed in frontmatter are for traceability — consult them only if you need narrative rationale or prose color this contract intentionally omits.
@@ -65,6 +67,15 @@ Ropoductions adult game studio currently distributes titles through manual archi
 - **CAP-12**
   - **intent:** Fullscreen mode is a pure layout change of the game viewport: the engine iframe is never remounted or relocated in the DOM when entering or leaving fullscreen, and live in-memory game state survives both directions of the toggle.
   - **success:** Windowed and fullscreen presentation render from a single stable DOM tree that differs only in class names; the engine iframe element is identical across a fullscreen enter→exit round trip and fires exactly one `load` event over it; a game in progress resumes in its current scene on both transitions instead of reloading to the title screen, asserted end-to-end against the mock canvas harness.
+
+- **CAP-13**
+  - **intent:** Engine boot failures are classified and surfaced to the player as a localized, actionable recovery surface instead of the engine's raw error screen or a game-owned alert, with the browser's own diagnostic detail attached.
+  - **success:** Each failure class in `engine-browser-compat.md` §1 renders its own localized panel naming the cause and the remediation; WebGL unavailability is reported with the raw `webglcontextcreationerror` status message and renderer/vendor strings; the player can retry without the engine being remounted more than once; the panel text exists in all six locales with screen-reader parity; a permanently missing asset after bounded retries is reported by the host, not only by the shipped upstream image-guard alert.
+
+- **CAP-14**
+  - **intent:** A reload of `/play` is cheap and cannot break the engine boot: the release-addressed shell is served from an immutable private cache, media revalidation does not multiply session-validation work, and a single transient request failure does not cost a sprite, a cursor, or a boot.
+  - **success:** A reload issues at most one shell document request with no shell revalidation burst; a boot's 65+ asset requests cost no more than one session-validation read in total while remaining fail-closed; unauthenticated requests cost zero; image and data loads are retried at most twice on network-level failures only, never on `401`/`403`, and a boot that survives retries shows every sprite and the custom cursor; one boot allocates no probe WebGL contexts beyond the renderer's own.
+
 ## Constraints
 
 - Embedded game engine is RPG Maker MZ HTML5 export with an initial payload footprint of 5–30MB.
@@ -75,6 +86,9 @@ Ropoductions adult game studio currently distributes titles through manual archi
 - Web stack is Next.js (App Router) deployed on Cloudflare serverless runtime (Workers/Pages, R2 asset storage, D1 session database).
 - Upstream game releases are ingested via GitHub Actions supporting both manual execution and upstream self-service trigger (`repository_dispatch`), syncing assets (media and the MZ engine shell) to private R2 under a read-only workflow (`contents: read`), never committing game files to the web repository; the shell streams same-origin at `/engine/*`.
 - The web player iframe container and Save HUD are architecturally testable in isolation via a same-origin mock canvas harness at `/engine/index.html` prior to upstream game asset availability.
+- The engine shell is delivered release-addressed and immutable-cached per release (`engine-browser-compat.md` §2); media keeps a moderate private cache and its revalidation cost never scales with burst size (§4).
+- Engine boot failures follow the classification and recovery contract in `engine-browser-compat.md` §1; the engine's own error strings are diagnostic input, never the player-facing outcome.
+- Firefox is a first-class verification target: browser-critical behaviour is exercised in a real Firefox project, not only in Chromium (`engine-browser-compat.md` §6).
 
 ## Non-goals
 

@@ -75,6 +75,15 @@ development_status:
   6-2-fullscreen-viewport-continuity: backlog
   6-3-fullscreen-save-hud-collapsed-default: backlog
   epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-engine-boot-failure-classification-localized-recovery-surface: backlog
+  7-2-release-addressed-immutable-engine-shell-delivery: backlog
+  7-3-burst-safe-session-validation-for-engine-and-asset-requests: backlog
+  7-4-engine-asset-load-retry-in-injected-bridge-plugin: backlog
+  7-5-firefox-reload-storm-and-asset-burst-verification: backlog
+  epic-7-retrospective: optional
+
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
     epic: 1
@@ -288,6 +297,9 @@ priorities:
   - rank: P0
     item: "epic-6"
     why: "Three owner-reported defects from manual testing of the deployed portal: D1 no entry point to /admin and the role pill never renders for a pledging admin, D2 fullscreen enter/exit remounts the engine iframe and restarts the game, D3 save dock chrome covers the fullscreen game by default (analytics-epic-6-2026-09-21.md)"
+  - rank: P0
+    item: "epic-7"
+    why: "Owner-reported Firefox defects on the deployed portal: after a reload, engine asset requests fail (game image-guard alert fires, sprites and custom cursor missing) and the boot sometimes ends on MZ's 'Your browser does not support WebGL.' or 'Your browser does not allow to read local files.' screen. Scope, evidence and the measured exoneration of the iframe sandbox/CSP: brief-epic-7-2026-09-21/brief.md; contract: specs/spec-ropoductions-web/engine-browser-compat.md. OD-1 (asset-path validation amortisation) and OD-2 (shell cache addressing) need owner approval before 7.3/7.2 implementation. Story 6.2 removes the remount path that multiplies engine boots per document"
   - rank: P0
     item: "5-4-override-integrity-hardening"
     why: "Owner-gated before any new epic work: preserved-grantor attribution, caller-fresh upsert, founder-preservation regression + relaxed self-revoke, dead-code and validation fixes (retro items 1-8, 11)"
