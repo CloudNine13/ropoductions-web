@@ -217,6 +217,9 @@
       "diagnosticsUserAgent": "User agent",
       "diagnosticsScripts": "Engine scripts",
       "diagnosticsForeignScript": "not served from this origin",
+      "diagnosticsRetries": "Retry attempts",
+      "diagnosticsSessionRejected": "Session",
+      "diagnosticsSessionRejectedValue": "rejected by the server (401/403)",
       "diagnosticsNone": "None"
     },
     "saveImportTitle": "Import Game Saves",

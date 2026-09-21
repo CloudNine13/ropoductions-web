@@ -169,6 +169,14 @@ export function parseEngineBootFailureReport(
   return report;
 }
 
+/**
+ * True when an asset request was answered 401/403: the asset layer must not retry
+ * that, and the host revalidates the session instead of offering a blind reload.
+ */
+export function isSessionRejectedReport(report: EngineBootFailureReport): boolean {
+  return report.diagnostics?.sessionRejected === true;
+}
+
 /** Ready reports travel the same channel and obey the same source and origin checks. */
 export function isEngineReadyReport(
   event: Pick<MessageEvent, "origin" | "source" | "data"> | null | undefined,
@@ -277,6 +285,9 @@ export interface EngineBootDiagnosticsLabels {
   userAgent: string;
   engineScripts: string;
   foreignScript: string;
+  retries: string;
+  sessionRejected: string;
+  sessionRejectedValue: string;
   none: string;
 }
 
@@ -302,6 +313,10 @@ export function engineBootDiagnosticsRows(
   push(labels.url, diagnostics.url);
   push(labels.status, diagnostics.status === undefined ? undefined : String(diagnostics.status));
   push(labels.networkError, diagnostics.networkError);
+  push(labels.retries, diagnostics.retries === undefined ? undefined : String(diagnostics.retries));
+  if (diagnostics.sessionRejected === true) {
+    rows.push({ label: labels.sessionRejected, value: labels.sessionRejectedValue });
+  }
 
   if (diagnostics.probeSupported !== undefined) {
     push(

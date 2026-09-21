@@ -298,6 +298,11 @@
   // Reporting is scoped to the boot window: once readiness is posted, a later
   // error inside a running game stays the engine's own problem and never
   // replaces the game with a boot recovery panel.
+  //
+  // Asset loads share that window: one aborted request must not cost a sprite or
+  // the cursor, so image and data requests are retried on the same URL, at most
+  // twice, with jittered backoff. `401`/`403` are never retried here — they mean
+  // the session, not the network, and escalate to the host instead.
   // ---------------------------------------------------------------------------
 
   const BOOT_FAILURE_MESSAGE_TYPE = "ROPODUCTIONS_ENGINE_BOOT_FAILURE";
@@ -334,6 +339,81 @@
   let webglProbeDetail = null;
   const reportedFailureKeys = {};
 
+  const RETRY_MAX_ATTEMPTS = 2;
+  const RETRY_BASE_DELAY_MS = 300;
+  const RETRY_MAX_DELAY_MS = 2000;
+
+  /** Paths the engine serves its own runtime from; nothing else is retried. */
+  const ASSET_PATH_PATTERN = /^\/(?:engine|api\/game|data|img|audio|effects|movies|js|fonts)\//;
+  const retryOwnedImages = typeof WeakSet === "function" ? new WeakSet() : null;
+  const assetRetryCounts = {};
+
+  function isEngineAssetUrl(url) {
+    if (typeof url !== "string" || url === "") return false;
+    let parsed;
+    try {
+      parsed = new URL(url, window.location.href);
+    } catch (error) {
+      return false;
+    }
+    if (parsed.origin !== window.location.origin) return false;
+    return ASSET_PATH_PATTERN.test(parsed.pathname);
+  }
+
+  function retryDelayMs(attempt) {
+    const ceiling = Math.min(RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1), RETRY_MAX_DELAY_MS);
+    // Equal jitter: half the ceiling fixed, half random, so a burst of failures
+    // does not come back in lockstep and re-create the same contention.
+    return Math.round(ceiling / 2 + Math.random() * (ceiling / 2));
+  }
+
+  function scheduleRetry(callback, attempt) {
+    if (typeof window.setTimeout !== "function") {
+      return false;
+    }
+    try {
+      window.setTimeout(callback, retryDelayMs(attempt));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function absoluteUrl(url) {
+    try {
+      return new URL(url, window.location.href).href;
+    } catch (error) {
+      return url;
+    }
+  }
+
+  /**
+   * A failed image element carries no status, so the browser's own Resource
+   * Timing entry is the only evidence of what answered. No entry at all means the
+   * request never completed — a network-level failure, which is retryable.
+   */
+  function assetFailureKind(url) {
+    let status;
+    try {
+      if (typeof performance !== "undefined" && typeof performance.getEntriesByName === "function") {
+        const entries = performance.getEntriesByName(url, "resource");
+        const last = entries && entries.length ? entries[entries.length - 1] : null;
+        if (last && typeof last.responseStatus === "number" && last.responseStatus > 0) {
+          status = last.responseStatus;
+        }
+      }
+    } catch (error) {
+      status = undefined;
+    }
+    if (status === 401 || status === 403) {
+      return { retryable: false, sessionRejected: true, status: status };
+    }
+    if (status !== undefined && status < 500) {
+      return { retryable: false, sessionRejected: false, status: status };
+    }
+    return { retryable: true, sessionRejected: false, status: status };
+  }
+
   function postToHost(message) {
     try {
       if (window.parent && window.parent !== window && typeof window.parent.postMessage === "function") {
@@ -363,30 +443,41 @@
 
   function reportBootFailure(failureClass, raw, diagnostics) {
     if (bootReady) return;
+
+    const merged = {};
+    if (diagnostics) {
+      const diagnosticKeys = Object.keys(diagnostics);
+      for (let i = 0; i < diagnosticKeys.length; i++) {
+        const value = diagnostics[diagnosticKeys[i]];
+        if (value !== undefined && value !== null) {
+          merged[diagnosticKeys[i]] = value;
+        }
+      }
+    }
+    // MZ names the same resource both ways ("data/System.json" and its absolute
+    // form), so the report carries one URL for both the dedupe key and the panel.
+    if (typeof merged.url === "string" && merged.url) {
+      merged.url = absoluteUrl(merged.url);
+    }
+
     // One report per failure class per boot; asset failures are keyed by URL so a
-    // second missing resource is still named.
+    // second missing resource is still named. The same URL reports again only when
+    // the new report carries the retry outcome the first one could not know yet.
     const key =
       failureClass === "asset_load_failed"
-        ? failureClass + "\u0000" + ((diagnostics && diagnostics.url) || raw || "")
+        ? failureClass + "\u0000" + (merged.url || raw || "")
         : failureClass;
-    if (reportedFailureKeys[key]) return;
-    reportedFailureKeys[key] = true;
+    const carriesRetryOutcome =
+      merged.retries !== undefined || merged.sessionRejected === true;
+    const previous = reportedFailureKeys[key];
+    if (previous && (!carriesRetryOutcome || previous === "retried")) return;
+    reportedFailureKeys[key] = carriesRetryOutcome ? "retried" : "reported";
 
     const payload = { type: BOOT_FAILURE_MESSAGE_TYPE, failureClass: failureClass };
     if (typeof raw === "string" && raw) {
       payload.raw = raw;
     }
 
-    const merged = {};
-    if (diagnostics) {
-      const keys = Object.keys(diagnostics);
-      for (let i = 0; i < keys.length; i++) {
-        const value = diagnostics[keys[i]];
-        if (value !== undefined && value !== null) {
-          merged[keys[i]] = value;
-        }
-      }
-    }
     if (webglProbeDetail && webglProbeDetail.statusMessage && !merged.statusMessage) {
       merged.statusMessage = webglProbeDetail.statusMessage;
     }
@@ -398,9 +489,14 @@
     hideErrorPrinter();
   }
 
-  // MZ's own probe only answers yes/no; when it says no, re-run it to capture the
-  // browser's webglcontextcreationerror.statusMessage for the report.
-  function captureWebglFailureDetail() {
+  /**
+   * MZ only needs the yes/no answer from its WebGL check, but it never releases
+   * the context it creates. This probe answers the same question, releases the
+   * context through `WEBGL_lose_context`, and keeps the browser's own
+   * `webglcontextcreationerror.statusMessage` plus the renderer and vendor
+   * strings for the report.
+   */
+  function runWebglProbe() {
     try {
       const canvas = document.createElement("canvas");
       let statusMessage = null;
@@ -412,20 +508,48 @@
       canvas.addEventListener("webglcontextcreationerror", onCreationError);
       let context = null;
       try {
-        context = canvas.getContext("webgl2") || canvas.getContext("webgl");
+        context = canvas.getContext("webgl");
       } catch (error) {
         context = null;
       }
       canvas.removeEventListener("webglcontextcreationerror", onCreationError);
+
+      let renderer = null;
+      let vendor = null;
+      if (
+        context &&
+        typeof context.getExtension === "function" &&
+        typeof context.getParameter === "function"
+      ) {
+        try {
+          const debugInfo = context.getExtension("WEBGL_debug_renderer_info");
+          if (debugInfo) {
+            const rendererValue = context.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            const vendorValue = context.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+            renderer = typeof rendererValue === "string" ? rendererValue : null;
+            vendor = typeof vendorValue === "string" ? vendorValue : null;
+          }
+        } catch (error) {
+          renderer = null;
+          vendor = null;
+        }
+      }
+
       if (context && typeof context.getExtension === "function") {
         try {
           const loseContext = context.getExtension("WEBGL_lose_context");
           if (loseContext) loseContext.loseContext();
         } catch (error) {
-          // Probe context release is best effort
+          // Releasing is best effort: the probe already produced its answer.
         }
       }
-      return { statusMessage: statusMessage, probeSupported: Boolean(context) };
+
+      return {
+        statusMessage: statusMessage,
+        probeSupported: Boolean(context),
+        renderer: renderer,
+        vendor: vendor
+      };
     } catch (error) {
       return null;
     }
@@ -435,13 +559,220 @@
     if (typeof Utils === "undefined" || typeof Utils.canUseWebGL !== "function") {
       return;
     }
-    const originalCanUseWebGL = Utils.canUseWebGL;
     Utils.canUseWebGL = function () {
-      const supported = originalCanUseWebGL.apply(this, arguments);
-      if (!supported && !webglProbeDetail) {
-        webglProbeDetail = captureWebglFailureDetail();
+      const detail = runWebglProbe();
+      if (detail && (!webglProbeDetail || !detail.probeSupported)) {
+        webglProbeDetail = detail;
       }
-      return supported;
+      return Boolean(detail && detail.probeSupported);
+    };
+  }
+
+  function finishBitmapFailure(bitmap, url, diagnostics) {
+    // MZ's own failure contract is the loading state; the game-owned alert that
+    // the shipped image guard attaches to it would block the host's own recovery
+    // surface, so the report replaces the alert.
+    try {
+      bitmap._loadingState = "error";
+    } catch (error) {
+      // Nothing to mark on a bitmap that is already gone.
+    }
+    const detail = { url: absoluteUrl(url) };
+    if (diagnostics) {
+      const keys = Object.keys(diagnostics);
+      for (let i = 0; i < keys.length; i++) {
+        if (diagnostics[keys[i]] !== undefined) {
+          detail[keys[i]] = diagnostics[keys[i]];
+        }
+      }
+    }
+    reportBootFailure("asset_load_failed", "Failed to load " + url, detail);
+  }
+
+  function installBitmapRetryHook() {
+    if (typeof Bitmap === "undefined" || !Bitmap.prototype) {
+      return;
+    }
+    if (typeof Bitmap.prototype._startLoading === "function" && retryOwnedImages) {
+      const originalStartLoading = Bitmap.prototype._startLoading;
+      Bitmap.prototype._startLoading = function () {
+        const result = originalStartLoading.apply(this, arguments);
+        try {
+          if (this._image) {
+            retryOwnedImages.add(this._image);
+          }
+        } catch (error) {
+          // Best effort: an unregistered element is only reported by the generic
+          // resource-error hook instead of by this retry path.
+        }
+        return result;
+      };
+    }
+    if (typeof Bitmap.prototype._onError !== "function") {
+      return;
+    }
+    const originalOnError = Bitmap.prototype._onError;
+    Bitmap.prototype._onError = function () {
+      const bitmap = this;
+      const url = bitmap && typeof bitmap._url === "string" ? bitmap._url : "";
+      // A mid-game failure belongs to the running game: the retry budget and the
+      // host surface both close with the boot window.
+      if (bootReady || !url || !isEngineAssetUrl(url) || typeof bitmap._startLoading !== "function") {
+        return originalOnError.apply(this, arguments);
+      }
+
+      const kind = assetFailureKind(url);
+      if (!kind.retryable) {
+        finishBitmapFailure(bitmap, url, {
+          status: kind.status,
+          sessionRejected: kind.sessionRejected ? true : undefined
+        });
+        return;
+      }
+
+      const attempts = (assetRetryCounts[url] || 0) + 1;
+      assetRetryCounts[url] = attempts;
+      if (attempts > RETRY_MAX_ATTEMPTS) {
+        finishBitmapFailure(bitmap, url, {
+          retries: RETRY_MAX_ATTEMPTS,
+          status: kind.status
+        });
+        return;
+      }
+
+      const scheduled = scheduleRetry(function () {
+        if (bootReady) return;
+        try {
+          bitmap._startLoading();
+        } catch (error) {
+          finishBitmapFailure(bitmap, url, { retries: attempts });
+        }
+      }, attempts);
+      if (!scheduled) {
+        finishBitmapFailure(bitmap, url, { retries: attempts });
+      }
+    };
+  }
+
+  function installAssetRequestRetryHook() {
+    if (
+      typeof XMLHttpRequest === "undefined" ||
+      !XMLHttpRequest.prototype ||
+      typeof XMLHttpRequest.prototype.open !== "function" ||
+      typeof XMLHttpRequest.prototype.send !== "function"
+    ) {
+      return;
+    }
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    const OPEN_KEY = "__ropoductionsAssetOpen";
+    const RETRY_KEY = "__ropoductionsAssetRetry";
+
+    XMLHttpRequest.prototype.open = function (method, url) {
+      try {
+        this[OPEN_KEY] = {
+          method: typeof method === "string" ? method.toUpperCase() : "GET",
+          url: typeof url === "string" ? url : String(url)
+        };
+      } catch (error) {
+        // Unbookkeeped request: the send hook passes it through untouched.
+      }
+      return originalOpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function (body) {
+      const xhr = this;
+      const openState = xhr[OPEN_KEY];
+      if (!openState || xhr[RETRY_KEY] || bootReady) {
+        return originalSend.apply(xhr, arguments);
+      }
+      if (openState.method !== "GET" || !isEngineAssetUrl(openState.url)) {
+        return originalSend.apply(xhr, arguments);
+      }
+      // A caller that tracks readiness instead of load/error keeps native
+      // behaviour: the retry only re-dispatches handlers it can replay faithfully.
+      if (typeof xhr.onreadystatechange === "function") {
+        return originalSend.apply(xhr, arguments);
+      }
+      const savedOnLoad = xhr.onload;
+      const savedOnError = xhr.onerror;
+      if (typeof savedOnLoad !== "function" && typeof savedOnError !== "function") {
+        return originalSend.apply(xhr, arguments);
+      }
+
+      const request = {
+        url: absoluteUrl(openState.url),
+        responseType: xhr.responseType,
+        retries: 0
+      };
+      xhr[RETRY_KEY] = request;
+
+      function finish(status, event) {
+        try {
+          delete xhr[RETRY_KEY];
+        } catch (error) {
+          xhr[RETRY_KEY] = undefined;
+        }
+        // Native semantics: a response that arrived drives onload, whatever its
+        // status; a request that never completed drives onerror.
+        if (status > 0) {
+          if (typeof savedOnLoad === "function") savedOnLoad.call(xhr, event);
+        } else if (typeof savedOnError === "function") {
+          savedOnError.call(xhr, event);
+        }
+      }
+
+      function retry() {
+        try {
+          originalOpen.call(xhr, openState.method, openState.url);
+          if (request.responseType) {
+            xhr.responseType = request.responseType;
+          }
+          originalSend.call(xhr, body);
+        } catch (error) {
+          finish(0, null);
+        }
+      }
+
+      function retryOrReport(status, event) {
+        if (status === 401 || status === 403) {
+          reportBootFailure("asset_load_failed", "Failed to load " + request.url, {
+            url: request.url,
+            status: status,
+            sessionRejected: true
+          });
+          finish(status, event);
+          return;
+        }
+        if (request.retries < RETRY_MAX_ATTEMPTS) {
+          request.retries += 1;
+          if (scheduleRetry(retry, request.retries)) {
+            return;
+          }
+        }
+        const detail = { url: request.url, retries: request.retries };
+        if (status > 0) {
+          detail.status = status;
+        } else {
+          detail.networkError = "request did not complete";
+        }
+        reportBootFailure("asset_load_failed", "Failed to load " + request.url, detail);
+        finish(status, event);
+      }
+
+      xhr.onload = function (event) {
+        const status = xhr.status;
+        if (status === 401 || status === 403 || status >= 500 || status === 0) {
+          retryOrReport(status, event);
+          return;
+        }
+        finish(status, event);
+      };
+      xhr.onerror = function (event) {
+        retryOrReport(0, event);
+      };
+
+      return originalSend.apply(xhr, arguments);
     };
   }
 
@@ -570,9 +901,14 @@
         if (!target || target === window || !target.tagName) return;
         const tagName = String(target.tagName).toLowerCase();
         if (tagName !== "script" && tagName !== "img") return;
+        if (tagName === "img" && retryOwnedImages && retryOwnedImages.has(target)) {
+          // A MZ bitmap owns this element: the retry hook reports its outcome with
+          // the retry count instead of reporting the failure twice.
+          return;
+        }
         const url = target.currentSrc || target.src || "";
         if (!url) return;
-        reportBootFailure("asset_load_failed", "Failed to load " + url, { url: url });
+        reportBootFailure("asset_load_failed", "Failed to load " + url, { url: absoluteUrl(url) });
       },
       true
     );
@@ -581,6 +917,8 @@
   const hasMzRuntime = typeof SceneManager !== "undefined" || typeof Graphics !== "undefined";
 
   installWebglProbeHook();
+  installBitmapRetryHook();
+  installAssetRequestRetryHook();
   const sceneReadyInstalled = installSceneReadyHook();
   installCapabilityHook(!sceneReadyInstalled);
   installPrintErrorHook();

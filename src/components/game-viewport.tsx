@@ -13,6 +13,7 @@ import {
   buildDiagnosticsReport,
   classifyEngineBootFailure,
   isEngineReadyReport,
+  isSessionRejectedReport,
   parseEngineBootFailureReport,
   runWebglProbe,
   webglProbeDiagnostics,
@@ -103,6 +104,22 @@ export function GameViewport({
       window.clearTimeout(watchdogRef.current);
       watchdogRef.current = null;
     }
+  }, []);
+
+  const sessionEscalatedRef = useRef(false);
+
+  /**
+   * An asset answered 401/403 means the session, not the network, failed: reloading
+   * the engine cannot fix it. /play revalidates the session against D1 on every
+   * document and already routes an unauthorized session through the paywall, so the
+   * escalation is that one navigation — taken at most once per mount.
+   */
+  const escalateSessionRevalidation = useCallback(() => {
+    if (sessionEscalatedRef.current || typeof window === "undefined") {
+      return;
+    }
+    sessionEscalatedRef.current = true;
+    window.location.reload();
   }, []);
 
   const applyFailure = useCallback(
@@ -315,14 +332,19 @@ export function GameViewport({
         return;
       }
       const report = parseEngineBootFailureReport(event, frameWindow, origin);
-      if (report) {
-        applyFailure(report);
+      if (!report) {
+        return;
       }
+      if (isSessionRejectedReport(report)) {
+        escalateSessionRevalidation();
+        return;
+      }
+      applyFailure(report);
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [applyFailure, markEngineReady]);
+  }, [applyFailure, escalateSessionRevalidation, markEngineReady]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {

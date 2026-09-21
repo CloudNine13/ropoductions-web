@@ -7,6 +7,7 @@ import {
   formatEngineBootDiagnostics,
   isEngineBootFailureReport,
   isEngineReadyReport,
+  isSessionRejectedReport,
   parseEngineBootFailureReport,
   playerCopyClass,
   runWebglProbe,
@@ -34,6 +35,9 @@ const LABELS: EngineBootDiagnosticsLabels = {
   userAgent: "User agent",
   engineScripts: "Engine scripts",
   foreignScript: "not served from this origin",
+  retries: "Retry attempts",
+  sessionRejected: "Session",
+  sessionRejectedValue: "rejected by the server (401/403)",
   none: "None",
 };
 
@@ -335,5 +339,62 @@ describe("engine boot diagnostics rendering", () => {
     assert.ok(text.startsWith("class: webgl_unavailable"));
     assert.ok(text.includes("raw: Your browser does not support WebGL."));
     assert.ok(text.includes("Renderer: SwiftShader"));
+  });
+
+  it("names the retry outcome an exhausted asset failure carries", () => {
+    mutableGlobal.window = { location: { origin: ORIGIN } };
+    const rows = engineBootDiagnosticsRows(
+      {
+        type: ENGINE_BOOT_FAILURE_MESSAGE_TYPE,
+        failureClass: "asset_load_failed",
+        raw: "Failed to load img/pictures/hero.png",
+        diagnostics: {
+          url: `${ORIGIN}/engine/img/pictures/hero.png`,
+          status: 503,
+          retries: 2,
+        },
+      },
+      LABELS
+    );
+    const byLabel = Object.fromEntries(rows.map((row) => [row.label, row.value]));
+
+    assert.equal(byLabel[LABELS.retries], "2");
+    assert.equal(byLabel["Failing URL"], `${ORIGIN}/engine/img/pictures/hero.png`);
+    assert.equal(LABELS.sessionRejected in byLabel, false);
+  });
+
+  it("marks an asset the server answered 401/403 as a session rejection", () => {
+    mutableGlobal.window = { location: { origin: ORIGIN } };
+    const rows = engineBootDiagnosticsRows(
+      {
+        type: ENGINE_BOOT_FAILURE_MESSAGE_TYPE,
+        failureClass: "asset_load_failed",
+        diagnostics: { url: `${ORIGIN}/engine/data/System.json`, status: 403, sessionRejected: true },
+      },
+      LABELS
+    );
+    const byLabel = Object.fromEntries(rows.map((row) => [row.label, row.value]));
+
+    assert.equal(byLabel[LABELS.sessionRejected], LABELS.sessionRejectedValue);
+    assert.equal(LABELS.retries in byLabel, false);
+  });
+});
+
+describe("session rejection escalation", () => {
+  it("escalates only the reports an entitlement answer produced", () => {
+    const base = {
+      type: ENGINE_BOOT_FAILURE_MESSAGE_TYPE,
+      failureClass: "asset_load_failed" as EngineBootFailureClass,
+    };
+
+    assert.equal(isSessionRejectedReport({ ...base }), false);
+    assert.equal(
+      isSessionRejectedReport({ ...base, diagnostics: { url: "js/main.js", retries: 2 } }),
+      false
+    );
+    assert.equal(
+      isSessionRejectedReport({ ...base, diagnostics: { url: "js/main.js", sessionRejected: true } }),
+      true
+    );
   });
 });
