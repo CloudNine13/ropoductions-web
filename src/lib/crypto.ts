@@ -41,11 +41,16 @@ export function generatePkceVerifier(length: number = 64): string {
   return bufferToBase64Url(randomBytes).slice(0, clampedLength);
 }
 
-export async function generatePkceChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const verifierBytes = encoder.encode(verifier);
-  const digestBuffer = await crypto.subtle.digest("SHA-256", verifierBytes);
+export async function hashValue(value: string): Promise<string> {
+  const digestBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
   return bufferToBase64Url(digestBuffer);
+}
+
+export async function generatePkceChallenge(verifier: string): Promise<string> {
+  return hashValue(verifier);
 }
 
 export async function generatePkcePair(length: number = 64): Promise<{

@@ -38,7 +38,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 - Server code MUST use Web Fetch `Request`/`Response`; never import `fs`, `net`, or `child_process`.
 - Host the MZ engine ONLY in a same-origin iframe at `/engine/index.html` on the identical origin; never use subdomains or versioned domains.
-- Sessions: client gets only opaque UUIDv4 cookie `ropoductions_session` with HTTP-only, SameSite=Lax, Secure; validate it against D1 on `/play` and `/api/game/*`.
+- Sessions: client gets only opaque UUIDv4 cookie `ropoductions_session` with HTTP-only, SameSite=Lax, Secure; validate it against D1 on `/play`, and on `/api/game/*` and `/engine/*` through the bounded-TTL amortised validation (per-isolate memo keyed by a full-length digest of the cookie bound to the current `SESSION_SECRET`, 60s window, fail-closed) defined in `engine-browser-compat.md` §4.
 - postMessage actions MUST use `ROPODUCTIONS_` prefix and check `event.origin === window.location.origin`; validate save payloads before calling `StorageManager`.
 - Serve game assets ONLY through `/api/game/[...asset]` from private R2 bucket `GAME_ASSETS` (zero public access) with `Cache-Control: private, max-age=86400`; return 403 JSON envelope `{ error: { code, message } }` without a session.
 - Media (`/engine/{data,img,audio,effects,movies}/*`) rewrites to `/api/game/*`; the MZ shell is uploaded to R2 `engine/` prefix by the sync action and streamed same-origin via `/engine/[...path]` (gated like `/api/game`; anonymous requests get the open mock harness from `src/engine-plugins/`). The sync action NEVER writes to any branch (`permissions: contents: read`).
@@ -51,7 +51,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 ## Known pitfalls
 - Changing origin or serving the game from a subdomain partitions IndexedDB `rmmz_save` and hides saves; keep one stable origin across patches.
-- Never re-verify patron status by background polling that kills gameplay; check on navigation, `/play` entry, and asset requests, let the active session finish, redirect with renewal banner on next navigation.
+- Never re-verify patron status by background polling that kills gameplay; check on navigation, `/play` entry, and asset requests (asset paths amortised within the validated-session window per `engine-browser-compat.md` §4), let the active session finish, redirect with renewal banner on next navigation.
 - MZ patch saves MUST resolve missing variables with fallback defaults; do not assume new-engine saves load cleanly without plugin guards.
 - Keep the 16:9 canvas bounded by `100dvh`/`100dvw` with `touch-action: manipulation`; expanding Save HUD over gameplay controls breaks mobile input.
 - Asset auth MUST NOT add more than 300ms to initial bundle load; landing LCP target is under 1.8s, title interactive under 5s on 25Mbps.
@@ -149,7 +149,7 @@ All Git interactions MUST go through GitHub MCP in this exact sequence:
 - Never expose Patreon access or refresh tokens to client-side code; store them strictly in server-side D1 instances.
 - Never log sensitive user payloads, session IDs, or OAuth authorization codes.
 - Never place secrets in test fixtures or comments. Use placeholder environment variables for testing.
-- Validate all incoming session cookies (`ropoductions_session`) against D1 inside `/play` and `/api/game/*` routes.
+- Validate all incoming session cookies (`ropoductions_session`) against D1 inside `/play`; `/api/game/*` and `/engine/*` validate through the bounded-TTL amortised memo (`engine-browser-compat.md` §4), so a cookie inside a live window is not re-read from D1 — that is the only permitted exception, and it stays fail-closed.
 
 ---
 

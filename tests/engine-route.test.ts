@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { GET, HEAD } from "../src/app/engine/[...path]/route";
 import { signValue } from "../src/lib/crypto";
+import { resetSessionValidationMemo } from "../src/lib/session-validation-memo";
 import type { SessionRecord } from "../src/types/database";
 
 const TEST_SECRET = "test-session-secret-at-least-32-chars-long!";
@@ -163,12 +164,45 @@ describe("engine shell route GET & HEAD /engine/*", () => {
   let validSignedCookie: string;
 
   beforeEach(async () => {
+    resetSessionValidationMemo();
     validSignedCookie = await signValue("session-uuid-1234", TEST_SECRET);
     globalThis.__D1_TEST_DB__ = createMockD1([createSessionFixture()]);
     // Bucket holds a published shell under the engine/ prefix.
     globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
       "engine/index.html": { data: SHELL_HTML, contentType: "text/html", etag: '"etag-shell-html"' },
     });
+  });
+
+  it("amortises a burst of shell requests into one session validation", async () => {
+    let d1Queries = 0;
+    const trackingDb = {
+      prepare(_sql: string) {
+        return {
+          bind() {
+            return {
+              async first() {
+                d1Queries++;
+                return createSessionFixture();
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    globalThis.__D1_TEST_DB__ = trackingDb;
+
+    for (let i = 0; i < 5; i++) {
+      const req = makeRequest("/engine/index.html", {
+        cookies: {
+          ropoductions_age_verified: "true",
+          ropoductions_session: validSignedCookie,
+        },
+      });
+      const res = await GET(req, { params: Promise.resolve({ path: ["index.html"] }) });
+      assert.equal(res.status, 200);
+    }
+
+    assert.equal(d1Queries, 1);
   });
 
   it("serves the open mock harness for /engine/index.html when no shell is published", async () => {

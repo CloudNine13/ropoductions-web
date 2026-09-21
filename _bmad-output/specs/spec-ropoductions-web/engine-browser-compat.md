@@ -34,7 +34,7 @@ The taxonomy is the classification contract: adding a class means adding its cop
 
 ## 4. Asset-path authentication cost
 
-- Session validation for `/api/game/*` and `/engine/*` MUST NOT scale with the number of requests in a boot burst. Burst-amortised validation (a bounded-TTL memoisation of a successfully validated session, keyed by session cookie, default TTL 60s) is the contract; D1 remains the authority and validation stays fail-closed (validation error ⇒ 5xx or 403, never implicit authorisation).
+- Session validation for `/api/game/*` and `/engine/*` MUST NOT scale with the number of requests in a boot burst. Burst-amortised validation (a bounded-TTL memoisation of a successfully validated session, keyed by a digest of the session cookie bound to the current signing secret, so a rotated secret misses every entry, default TTL 60s) is the contract; D1 remains the authority and validation stays fail-closed (validation error ⇒ 5xx or 403, never implicit authorisation).
 - Revocation and expiry MUST take effect within the amortisation window (worst case: TTL after the next request), and the window MUST NOT be extended by unauthenticated or failing requests.
 - Anonymous or unauthenticated requests MUST cost zero D1 reads.
 

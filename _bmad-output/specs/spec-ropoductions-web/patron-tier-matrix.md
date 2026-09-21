@@ -19,5 +19,5 @@ The portal integrates with Patreon API v2 to evaluate active memberships against
 * **Status Re-Verification:**
   * Active pledge validation is performed on navigation to restricted routes (e.g. entering `/play`).
   * If a user's pledge is cancelled or fails payment during an active gameplay session, the current in-browser session is **not** abruptly terminated.
-  * Re-verification triggers upon the next user route transition or restricted API call.
+  * Re-verification triggers upon the next user route transition or restricted API call; asset paths (`/api/game/*`, `/engine/*`) re-verify through the bounded-TTL amortised memo (`engine-browser-compat.md` §4), so revocation or expiry lands within that window rather than on every request.
   * If the verification check fails, the user is redirected to the home landing page with a clear modal/banner offering an immediate Patreon renewal or re-authorization flow.
