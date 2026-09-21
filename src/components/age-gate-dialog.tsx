@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useRouter } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { hasAgeVerifiedCookie, setAgeVerifiedCookie } from "@/lib/cookies";
+import { hasServerModalState } from "@/lib/paywall";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface AgeGateDialogProps {
@@ -18,13 +20,20 @@ export function AgeGateDialog({
 }: AgeGateDialogProps) {
   const [isOpen, setIsOpen] = useState(!isServerVerified);
   const t = useTranslations("ageGate");
+  const router = useRouter();
 
   useEffect(() => {
     // Client-side cookie check syncs the gate with persisted state after mount;
     // a lazy initializer would read `document` during SSR and mismatch markup.
+    const verified = hasAgeVerifiedCookie();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsOpen(!hasAgeVerifiedCookie());
-  }, []);
+    setIsOpen(!verified);
+    if (verified && !isServerVerified) {
+      // The cookie appeared between the server render and hydration (for example
+      // confirmation in another tab), so server-rendered chrome is stale.
+      router.refresh();
+    }
+  }, [isServerVerified, router]);
 
   const handleOpenChange = useCallback((open: boolean) => {
     // Mandatory gate: disallow unverified dismissal through external triggers
@@ -37,9 +46,16 @@ export function AgeGateDialog({
   const handleConfirm = useCallback(() => {
     setAgeVerifiedCookie();
     setIsOpen(false);
+    // Server-rendered chrome (admin entry) keys off the age cookie, so the server
+    // tree is re-rendered for confirmed visitors. Skipped while the URL carries
+    // server-derived modal state (?paywall / auth flags): re-rendering that state
+    // after the visitor dismissed the dialog would resurrect it.
+    if (!hasServerModalState(window.location.search)) {
+      router.refresh();
+    }
     // Defer so the gate unmounts before stacked-dialog effects run.
     setTimeout(() => window.dispatchEvent(new Event("ropoductions:age-verified")), 0);
-  }, []);
+  }, [router]);
 
   const handleExit = useCallback(() => {
     // Replace navigation history to avoid back-button loop into gated content

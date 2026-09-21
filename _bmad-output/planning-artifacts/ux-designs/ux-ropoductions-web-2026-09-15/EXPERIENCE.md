@@ -45,7 +45,7 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 | "Your saves have been exported to a .zip archive." | "Download complete: rmmz_save_dump.bin" |
 | "Your pledge is currently paused. Renew on Patreon to resume playing." | "Error: Session terminated. Invalid pledge status." |
 | "Restoring save slots from backup..." | "Injecting binary payload into IndexedDB..." |
-| Admin entry copy is a locale key — `header.navAdmin` (portal) / `game.adminPanel` (`/play`) — six-locale coverage, neutral functional register with the `Shield` icon. | "Secret Studio Controls", "God Mode", or a hardcoded English string in header components. |
+| Admin entry copy is a locale key — `header.navAdmin` (portal) / `game.adminPanel` (`/play`) — six-locale coverage, neutral functional register with the `Shield` icon. The single `/play` status badge uses `game.adminBadge` for a resolved admin (A-2026-09-21-02). | "Secret Studio Controls", "God Mode", or a hardcoded English string in header components. |
 | Non-admins reaching `/admin` get a silent HTTP 404 — no copy at all. | "Admins only — sign in for access" or any prompt that discloses the panel exists. |
 
 ---

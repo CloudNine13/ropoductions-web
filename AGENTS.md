@@ -50,7 +50,6 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - Use design tokens `#090A0F` background, `#121522` card, `#22C55E` Studio Emerald primary (with `#E11D48` crimson accents), `#FBBF24` tier gold; display type Chakra Petch (with Cinzel alias), body Geist Sans/Inter, mono for versions/timestamps; minimum 44x44px touch targets; Lucide SVGs only, no emojis as icons.
 
 ## Known pitfalls
-
 - Changing origin or serving the game from a subdomain partitions IndexedDB `rmmz_save` and hides saves; keep one stable origin across patches.
 - Never re-verify patron status by background polling that kills gameplay; check on navigation, `/play` entry, and asset requests, let the active session finish, redirect with renewal banner on next navigation.
 - MZ patch saves MUST resolve missing variables with fallback defaults; do not assume new-engine saves load cleanly without plugin guards.
@@ -58,6 +57,11 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - Asset auth MUST NOT add more than 300ms to initial bundle load; landing LCP target is under 1.8s, title interactive under 5s on 25Mbps.
 
 <!-- /bmad:context -->
+
+## Owner decisions (durable — kept outside the managed block so a context refresh cannot drop them)
+
+- `/admin` denial is an ordinary 404 and that IS the whole anti-enumeration contract (owner decision 2026-09-21): no redirect, no auth prompt, no distinct status for anonymous, forged, stale, or valid-non-admin callers. The response is deliberately NOT byte-identical to an unknown-path 404 — route-matched denials render Next's `__next_error__` document and name the route segments in the flight payload (measured: 7216 B vs 8476 B for a same-length unknown path). Do not re-file this as a leak, and do not add a differential test for it.
+- DELETE and MODIFY must never be applied to a founder admin's override row. Local dev/e2e D1 state is one shared file (`.wrangler/state/v3`) used by `npm run dev`, `npm test` and the e2e harness, so any cleanup that clears override rows by role (`tests/verify-d1-schema.ts:457` does `DELETE FROM patron_overrides WHERE role = 'admin'`) or by an id read from `CREATOR_ADMIN_PATREON_IDS` can destroy a developer's own bootstrapped founder row. Fixtures must use a dedicated disposable key (`E2E_FOUNDER_PATRON_ID`), never a real creator id.
 
 ## Comments
 

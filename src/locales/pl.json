@@ -14,6 +14,7 @@
     "navShowcase": "Projekty",
     "navCommunity": "Społeczność",
     "navPatreon": "Patreon",
+    "navAdmin": "Panel administratora",
     "playNow": "Zagraj teraz",
     "toggleMenu": "Przełącz menu nawigacji",
     "selectLanguage": "Wybierz język"
@@ -175,6 +176,8 @@
     "fullscreenEnter": "Pełny ekran",
     "fullscreenExit": "Wyjdź z pełnego ekranu",
     "returnToPortal": "Wróć do portalu studia",
+    "adminPanel": "Panel administratora",
+    "adminBadge": "Administrator studia",
     "title": "Final Orginity: Rozdział 1",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "Eksportuj (.zip)",

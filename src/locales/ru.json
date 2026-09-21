@@ -14,6 +14,7 @@
     "navShowcase": "Проекты",
     "navCommunity": "Сообщество",
     "navPatreon": "Patreon",
+    "navAdmin": "Панель администратора",
     "playNow": "Играть",
     "toggleMenu": "Переключить меню",
     "selectLanguage": "Выбрать язык"
@@ -175,6 +176,8 @@
     "fullscreenEnter": "Полноэкранный режим",
     "fullscreenExit": "Выйти из полноэкранного режима",
     "returnToPortal": "Вернуться на портал студии",
+    "adminPanel": "Панель администратора",
+    "adminBadge": "Администратор студии",
     "title": "Final Orginity: Глава 1",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "Экспорт (.zip)",

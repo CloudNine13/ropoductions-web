@@ -17,9 +17,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run start",
+    command: "npm run e2e:server",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
-    timeout: 120 * 1000,
+    // The server command builds the OpenNext worker before serving it.
+    timeout: 420 * 1000,
   },
 });

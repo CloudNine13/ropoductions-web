@@ -2,9 +2,10 @@
 title: 'Story 6.1: Admin Panel Entry Point & Role-Safe Resolution'
 type: 'feature'
 created: '2026-09-21'
-status: 'ready-for-dev'
+status: 'review'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: '84d8bd0'
 context:
   - '_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md'
   - '_bmad-output/planning-artifacts/architecture/architecture-ropoductions-web-2026-09-15/ARCHITECTURE-SPINE.md'
@@ -39,6 +40,12 @@ context:
 - **Given** `/play` after this story **When** any session renders the header **Then** the tier badge from `session.tier_name` still displays, the role pill (`session.role !== "patron"` block) is gone, and no role word (`admin`/`comp`) is shown in patron-facing chrome.
 - **Given** the six locale dictionaries **When** `tests/i18n-locales.test.ts` runs **Then** `header.navAdmin` and `game.adminPanel` exist in `en`, `es`, `ja`, `pl`, `ru`, `zh` with non-empty translated values.
 - **Given** an admin whose 30-day session or 14-hour age cookie has lapsed **When** they type `/admin` **Then** they receive 404 and recover via `/play` → age gate → Patreon login → `/play` → entry button; this Q12 consequence is accepted and documented, with no auth-flow change and no return-target plumbing (Q11′).
+
+### Owner amendments, 2026-09-21 (dated; override the clauses above where they conflict)
+
+- **One badge per session.** The clause "the tier badge from `session.tier_name` still displays … no role word (`admin`/`comp`) is shown in patron-facing chrome" is superseded: `/play` renders exactly one status badge — `session.tier_name` for patrons and comp passes, the localized `game.adminBadge` ("Studio Admin") for a resolved admin. The pledge tier of a pledging admin is intentionally no longer displayed there, and a third locale leaf (`game.adminBadge`) therefore joins the two-key contract. Evidence: Spec Change Log item 1, `DESIGN.md` A-2026-09-21-02.
+- **`/admin` denial is an ordinary 404, and that is the whole anti-enumeration contract.** Non-admins must not learn the panel exists: no redirect, no auth prompt, no distinct status. Byte-identity with an unknown path is explicitly NOT required and must not be filed as a finding — the denial response is shaped by Next's route-matched 404 path (measured on the built worker 2026-09-21: 7216 B under `<html id="__next_error__">` with `(admin)`/`admin` in the flight payload, versus 8476 B of the normal `_not-found` document for a same-length unknown path). Owner ruling: a plain 404 satisfies the goal; do not re-open.
+- **Age-gate recovery needs no manual reload.** On a URL carrying server-derived modal state the gate confirmation does not itself re-render the server tree; the entry appears on the next navigation, which the paywall dismissal performs automatically (`paywall-modal.tsx` → `router.replace("/")`). Measured on the built worker: entry count 0 after confirmation, 1 after dismissal, no document reload.
 
 </frozen-after-approval>
 
@@ -94,7 +101,18 @@ Existing suites that must stay green unchanged: `tests/admin-layout.test.ts` (al
 
 E2e:
 - `e2e/admin.spec.ts` — all four existing tests unchanged and green. New: `valid signed session without an admin grant gets 404 with no Location header` (uses `mintSessionCookie` + seeded patron row; pre-harness this scenario was untested — anonymous and forged cookies only) and `admin session reaches /admin through the entry button from /play` (asserts `admin-status-badge` renders after clicking `[data-testid="play-admin-entry"]`).
-- `e2e/admin-entry.spec.ts` — new: `anonymous landing and paywall interstitial contain no admin entry node` (assert `[data-testid$="-admin-entry"]` count is 0) (server HTML assertion via `page.content()`, proving Q3: no public locked button).
+- `e2e/admin-entry.spec.ts` — new: `anonymous visitor gets no admin entry in the portal or paywall HTML` (assert `[data-testid*="admin-entry"]` count is 0, substring matching so the drawer id is covered too; server HTML assertion via `page.content()`, proving Q3: no public locked button).
+
+## Tasks & Acceptance
+
+- [x] Add `AdminAccess` and `resolveAdminAccess` to `src/lib/admin.ts` (cookie-presence short-circuit, fail-closed `null`, override-table verdict, founder env-bootstrap mirror, `console.error` on throw paths); `isSealedCreatorAdmin`, `validateAdminSession`, `CookieReader` and `requireAdminSession` untouched.
+- [x] Resolve admin access server-side in `src/app/(portal)/page.tsx` and pass `isAdmin` to `StudioHeader`.
+- [x] Render the portal entry in the desktop nav cluster (`data-testid="portal-admin-entry"`) and in the mobile drawer (`data-testid="portal-admin-entry-drawer"`).
+- [x] Render the `/play` header with exactly one status badge plus `data-testid="play-admin-entry"`; delete the `session.role !== "patron"` pill block.
+- [x] Refresh the server tree after age-gate confirmation so a lapsed age cookie no longer hides the entry until a manual reload.
+- [x] Add `header.navAdmin`, `game.adminPanel`, `game.adminBadge` to all six locale dictionaries.
+- [x] `tests/admin-entry.test.ts` (9 resolver behaviours + 7 surface pins) registered in `test:unit`.
+- [x] E2E harness with real local D1 and signed cookies (`scripts/e2e/setup-e2e-env.ts`, `e2e/helpers/session.ts`), new `e2e/admin-entry.spec.ts`, extended `e2e/admin.spec.ts` (signed non-admin 404s + positive control).
 
 ## Out of scope
 
@@ -111,3 +129,62 @@ E2e:
 3. `npm test`
 4. `npm run build`
 Additionally, before the PR: `npm run test:e2e` (all `e2e/*.spec.ts`, existing seven files green plus the two new/extended specs) and zero conflicts against `origin/develop`.
+
+## Spec Change Log
+
+### 2026-09-21 — owner decisions from the pre-implementation roundtable
+
+1. **One status badge per session (supersedes the AC reading "no role word in patron-facing chrome").** Owner: "I want ONLY ONE BADGE for EVERYBODY" — the `/play` header renders a single badge: the `tier-gold` Studio Admin badge (`game.adminBadge`, `Shield`) when `resolveAdminAccess` returns `"admin"`, otherwise the tier badge from `session.tier_name`. The role pill is deleted outright. Consequence: a third locale leaf (`game.adminBadge`) beyond the frozen two-key contract, and the pledge tier of a pledging admin is no longer displayed in patron chrome. `DESIGN.md` carries the matching amendment A-2026-09-21-02.
+2. **Age-gate staleness is fixed in this story.** The portal layout renders the header server-side while the 14-hour age cookie is absent and confirmation never re-rendered the server tree, so the entry stayed hidden until a reload. `AgeGateDialog` now calls `router.refresh()` after confirmation — skipped while the URL carries server-derived modal state (`paywall`, `auth_required`, `auth_error`), because refreshing that state resurrects a dialog the visitor already dismissed (measured: `e2e/portal.spec.ts` "closing the … window returns to the landing page" failed ~1 in 3 runs before the guard). Covered by an e2e test that also proves no document reload occurred.
+3. **E2E runs against the built OpenNext worker.** Owner: Playwright exists for local and GitHub runs and need not mirror Cloudflare's edge network. The harness: `e2e:setup` generates a gitignored `.dev.vars` with random local signing/encryption keys only when absent, applies local D1 migrations, and seeds fixtures once through the Wrangler platform proxy; `e2e:server` then builds the OpenNext worker and serves it with `opennextjs-cloudflare preview --port 3100` (local D1/R2 state, secrets from `.dev.vars`). Production-mode fidelity is preserved — the security assertions (anonymous/forged/signed non-admin 404s, no `Location` header) execute against the shipped worker rather than a dev server — and no `allowedDevOrigins` dev-only exception is needed. `.github/workflows/e2e.yml` no longer builds separately (the server command builds) and gains `scripts/**` in its path filter.
+
+### 2026-09-21 — party adjudications and implementation deviations
+
+4. **Resolver stays in `src/lib/admin.ts`** (Winston, accepted): the file already owns override semantics, and a new module would split that reasoning across two files for no business value.
+5. **The spec's call sequence is preserved; the duplicate read is recorded, not refactored.** Mary and Amelia correctly showed that `/play` now validates the session twice per render (page + resolver). Deviating would rewrite the frozen Contracts signature, so the cost is recorded in `deferred-work.md` instead.
+6. **The resolver's bootstrap mirror is load-bearing and stays.** Mary and Amelia called it redundant; it is not: `validateSessionAccess` returns `authorized` for an active pledge before its bootstrap block (`src/lib/auth.ts:146-148`), so a founder who also pledges is only materialized by the resolver's own mirror. Covered by `returns admin for a pledging founder with zero override rows via env bootstrap`.
+7. **`console.error` on the resolver's throw paths** (Winston, accepted): silent `null` reproduces the invisibility this story repairs; the logs mirror `requireAdminSession` and carry no payload.
+8. **Entry test ids:** `portal-admin-entry` (desktop) plus `portal-admin-entry-drawer` (mobile drawer) rather than one id rendered twice, so drawer parity is assertable.
+9. **Positive control adopted** (John, accepted): `e2e/admin.spec.ts` asserts a seeded admin session reaches `admin-status-badge` in the same run as the signed non-admin 404 assertions, so a broken D1 binding cannot pass as a correct guard.
+10. **Review patches (2026-09-21, post-implementation review).** Applied after the three review layers and the security reviewer reported: two fail-closed resolver paths covered by tests (infrastructure init, session-lookup throw) plus an out-of-contract override role case; the age-gate refresh guard extracted to `hasServerModalState(search)` in `src/lib/paywall.ts` and unit-covered (its only prior protection was the ~1-in-3 portal race, which CI retries mask); the mount effect now refreshes when the client sees an age cookie the server render did not; the founder e2e fixture only exists for a setup-generated `.dev.vars` (marked `# generated-by:`), so a developer's real creator id is never seeded over or deleted; local signing/encryption keys are random per machine instead of repository constants; `e2e.yml` path filter also watches `migrations/**` and `wrangler.toml`; trailing newlines restored. Residual findings recorded in `deferred-work.md`.
+
+## Review Triage Log
+
+Layers run 2026-09-21 against diff `/tmp/story-6-1-review.diff` (67,729 B): blind-hunter, edge-case-hunter, verification-gap, plus a security review. Verdicts below are the orchestrator's, rendered after verification against the worktree.
+
+| # | Finding (layer) | Verdict | Evidence and route |
+|---|---|---|---|
+| 1 | Session-signing and token-encryption keys were repository constants written to `.dev.vars`, with `next dev` bound to every interface (security RPD-6.1-SEC-01) | `medium` | Real: `scripts/e2e/setup-e2e-env.ts` held literals and the dev server printed a LAN URL. **Patch:** keys are now `randomBytes(32)` per machine, and the harness serves the OpenNext worker, which binds `127.0.0.1:3100` only (verified with `ss -ltn`). |
+| 2 | The `/admin` literal and entry test ids ship in the public client chunk (security RPD-6.1-SEC-02) | `low` | Real: `src/components/studio-header.tsx:1` is a client component. **Rejected as a code fix:** the frozen Contracts lock `StudioHeader` to an `isAdmin` boolean, and `/admin` still 404s identically to any unknown path, so no oracle exists. Accepted consequence recorded in `DESIGN.md` A-2026-09-21-02. |
+| 3 | All anti-enumeration assertions run only against a dev-mode server; no CI job serves a built bundle (security RPD-6.1-SEC-03; verification-gap finding 3; blind-hunter 8 first half) | `medium` | Real when filed — the reviewed diff served `next dev`. **Patch:** `e2e:server` now runs `npm run build` and `opennextjs-cloudflare preview --port 3100`, so the 404/no-`Location` assertions execute against the built worker; full suite green twice (43 passed each) on the preview harness. |
+| 4 | Two of the resolver's three fail-closed catch paths have no test (verification-gap 1; blind-hunter 2) | `medium` | Real: only the override-lookup throw was covered. **Patch:** `tests/admin-entry.test.ts` adds the session-lookup throw and the unavailable-binding cases, both asserting `null`. |
+| 5 | The age-gate refresh guard is protected only by a race that CI retries mask (verification-gap 2; edge-case claim 2) | `medium` | Real: only source-text pins existed. **Patch:** predicate extracted to `hasServerModalState(search)` and unit-covered for five blocking and five allowing search strings; residual (admin landing on a modal-state URL) recorded in `deferred-work.md`. |
+| 6 | The mount effect closes the gate without a server re-render when the client cookie outruns the server render (edge-case 1) | `low` | Real but narrow. **Patch:** the effect refreshes when `hasAgeVerifiedCookie()` is true while `isServerVerified` is false; a refresh never remounts the dialog, so no loop. |
+| 7 | An override role outside `admin`/`comp` resolves to `"comp"` instead of `null` (edge-case 2) | `low` | Real: the frozen contract says else-`null`. **Patch:** explicit `null` return plus a unit case for an out-of-contract role. |
+| 8 | The founder fixture can delete or overwrite a developer's real local identity (edge-case 3; security "non-security note") | `medium` | Real: the scoped `DELETE` ran for any `.dev.vars`. **Patch:** the founder fixture is only seeded when `.dev.vars` carries the setup script's `# generated-by:` marker, and the spec skips otherwise. |
+| 9 | `e2e.yml` path filter misses `migrations/**` and `wrangler.toml`, which the setup applies (verification-gap other 2) | `low` | Real. **Patch:** both added to the filter. |
+| 10 | Resolver doc comment omits the non-authorized status family (blind-hunter 4) | `low` | Real. **Patch:** comment now lists not-found, revoked, lapsed, and unauthorized. |
+| 11 | Missing trailing newline in `src/lib/admin.ts` and `e2e/admin.spec.ts` (blind-hunter 1) | `low` | Real. **Patch:** restored. |
+| 12 | `"comp"` is dead state with no branching consumer (blind-hunter 3) | `low` | Real but intended: the frozen Contracts require `"admin" \| "comp" \| null` and the Visibility rule depends on the distinction. **Rejected:** the verdict must not collapse to a boolean, or a future surface could conflate a comp pass with an admin. Pinned by `returns comp for a session holding a comp override row`. |
+| 13 | Spec prose described a `$=` selector while the spec ships `*=` (blind-hunter 6) | `false` | The shipped substring selector is a deliberate superset that also matches the drawer id; prose corrected in the non-frozen Tests section, no code defect. |
+| 14 | The `build:next` removal was justified with the engine-mock regeneration argument (blind-hunter 7) | `false` | The reviewed revision predates the harness pivot; the server command now runs `npm run build`, whose `prebuild` regenerates the mock, and the change-log entry was rewritten to say so. |
+| 15 | Reviewed diff does not match the worktree (blind-hunter 9; edge-case claims 1–2) | `false` | True of the frozen snapshot: the harness pivoted to the built OpenNext worker during triage; `playwright.config.ts`, `package.json`, `next.config.ts` and the change log all reflect it. |
+| 16 | Playwright `webServer.timeout` of 120 s cannot cover setup plus a first compile (edge-case 4; verification-gap other 1) | `false` | Current value is 420 s with a comment naming the build step; the reviewed hunk was stale. |
+| 17 | Clicking the age-gate confirm before hydration can lose the click (edge-case 5) | `false` | The Radix `Dialog.Portal` content — including the confirm button — is client-rendered, so the element cannot exist before the handler is attached; Playwright's actionability wait cannot race it. |
+| 18 | Committed `engine-mock.generated.ts` can drift from its plugin sources (verification-gap other 3) | `defer` | Pre-existing and not caused by this story; `npm run build` regenerates it on every e2e run. Recorded in `deferred-work.md`. |
+| 19 | No e2e assertion covers real session-cookie attributes (`HttpOnly`, `SameSite`, `Secure`) (blind-hunter 8 second half) | `defer` | Pre-existing across all specs (they mint cookies with `addCookies`); unit-covered only. Recorded in `deferred-work.md`. |
+
+### 2026-09-21 — second review round (agentic party: 5 review agents + 5 story agents), owner answers in-line
+
+| # | Finding (layer) | Verdict | Evidence and route |
+|---|---|---|---|
+| 20 | `/admin`'s denial 404 is not byte-identical to an unknown-path 404: `__next_error__` shell and route segments (`(admin)`, `admin`) in the flight payload, 7216 B vs 8476 B at equal path length (security layer, ENUM-COVERAGE-04) | **false as a defect — owner decision** | Measured on the built worker: 404 + no `Location` for `/admin` and `/admin/overrides`; two same-length unknown paths byte-identical (8476 = 8476), so the delta is route match, not length. PR body and `DESIGN.md` A-2026-09-21-02 claimed "identical … no oracle" — the claim was corrected, not the code. Owner 2026-09-21: a plain 404 is the contract; byte-identity is not required. No differential test to be added. **Do not re-file.** |
+| 21 | The founder fixture could DELETE a developer's real creator-admin override row, because the guard checked a file marker and then read `CREATOR_ADMIN_PATREON_IDS` with a `process.env` fallback against the shared local D1 (security HARNESS-FOUNDER-GUARD-01) | `medium` | Real. **Patch:** the setup script writes a dedicated `E2E_FOUNDER_PATRON_ID` key and the helper reads only that key — `CREATOR_ADMIN_PATREON_IDS` and the env fallback are gone; a generated file lacking the key is regenerated; `tests/e2e-harness-env.test.ts` pins all three behaviors. |
+| 22 | The generator marker string was duplicated between writer and reader, so drift would silently `test.skip` the founder coverage (security HARNESS-MARKER-DRIFT-02) | `low` | Real. **Patch:** `GENERATED_DEV_VARS_MARKER` is one exported constant consumed by both sides, and the new suite asserts the written file satisfies the reader's check. |
+| 23 | Deferred entry overstated the age-gate residual's reachability and implied a manual reload (product layer) | `low` | Measured on the built worker: `/play` without the age cookie 307s to `/?auth_required=true`; confirmation leaves the header entryless; dismissing the paywall (`router.replace("/")`) surfaces the entry with no document reload. `deferred-work.md` rewritten; the AC's recovery path ends on `/play`, which renders the entry. |
+| 24 | `/play` validates the session twice per render and the deferral called it "a duplicate read" (architecture layer) | `defer`, wording corrected | `validateSessionAccess` is not read-only (`revokeSession` on `override_deleted`, `upsertSession` on elevation), so `/play` runs two side-effecting validations and up to five D1 reads for an admin-role session. Kept deferred: the resolver's signature is frozen and `auth.ts` is outside this story's Files list. Reopen trigger: `/play` TTFB regression, or Story 6.2 adding a third caller. |
+| 25 | Unit suite: no expired-session resolver case, `cache()` dedupe never exercised, surface cases are source-text pins (code-review layer) | `low` | Real. Behavioral rendering coverage lives in `e2e/admin-entry.spec.ts` (real DOM, built worker), so the pins are belt-and-braces rather than evidence; the two behavioral holes are now recorded in `deferred-work.md`. |
+| 26 | `open-next.config.ts` is in neither e2e workflow path filter (verification-gap layer) | `low` | Real: an OpenNext config change does not trigger the e2e job. Recorded in `deferred-work.md`. |
+| 27 | `npm test` deletes EVERY `admin` override row from the shared local D1 (`tests/verify-d1-schema.ts:457`), which removed this story's seeded admin fixtures mid-review and would remove a developer's own bootstrapped founder row (orchestrator probe + security layer) | `medium`, pre-existing, **not this PR** | Observed: after `npm test`, `patron_overrides` held only the comp fixture, and `GET /` no longer rendered the entry. Owner invariant 2026-09-21: DELETE nor MODIFY may ever be applied to a founder admin. Fix direction on its own branch: isolate the contract suite's D1 state (`--persist-to` / `getPlatformProxy({ persist })`) or scope the purge to ids the script created. Recorded in `deferred-work.md`. |
+| 28 | Tier name unreachable for a pledging admin: the badge's `title` repeats `game.adminBadge`, so `session.tier_name` appears nowhere on `/play` (UX layer) | `low` | Real, one-line fix that does not violate the one-badge rule: keep the admin label as the badge text and put `session.tier_name` back in the tooltip. |
+| 29 | CI e2e job no longer builds the bundle separately (blind-hunter 7 reading) | `false` | The `webServer` command runs `npm run build` (whose `prebuild` regenerates the engine mock) before serving; the job still tests the built worker. |

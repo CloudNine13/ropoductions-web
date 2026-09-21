@@ -14,6 +14,7 @@
     "navShowcase": "Showcase",
     "navCommunity": "Community",
     "navPatreon": "Patreon",
+    "navAdmin": "Admin Panel",
     "playNow": "Play Now",
     "toggleMenu": "Toggle navigation menu",
     "selectLanguage": "Select language"
@@ -175,6 +176,8 @@
     "fullscreenEnter": "Enter Fullscreen",
     "fullscreenExit": "Exit Fullscreen",
     "returnToPortal": "Return to Studio Portal",
+    "adminPanel": "Admin Panel",
+    "adminBadge": "Studio Admin",
     "title": "Final Orginity: Chapter 1",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "Export (.zip)",
