@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-19-2026 10:50
+last_updated: 09-21-2026 06:36
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -66,9 +66,15 @@ development_status:
   5-1-restricted-admin-layout-authentication-guard: done
   5-2-patron-override-directory-creation-interface: done
   5-3-override-revocation-self-lockout-prevention: done
-  5-4-override-integrity-hardening: in-progress
+  5-4-override-integrity-hardening: done
   5-5-grant-revoke-audit-trail: backlog
   epic-5-retrospective: done
+
+  epic-6: backlog
+  6-1-admin-panel-entry-point-role-safe-resolution: backlog
+  6-2-fullscreen-viewport-continuity: backlog
+  6-3-fullscreen-save-hud-collapsed-default: backlog
+  epic-6-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
     epic: 1
@@ -245,7 +251,7 @@ action_items:
       PRD stops at FR-19); adopt dated amendment note convention for post-merge criterion
       changes in epics.md"
     owner: "pm"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-5-retro-item-10-audit-trail-story"
     epic: 5
@@ -277,6 +283,11 @@ priorities:
   # them as dropped orphans plus new entries. Do NOT regenerate until reconciled;
   # transplant done statuses with --set <new-key>=done per generate-tracking.md.
   # Re-ranked by epic-5-retro-2026-09-19 (party + owner decisions 2026-09-19).
+  # Epic 6 added at P0 by the epic-6 planning pass 2026-09-21 (analytics decision record);
+  # 5-4 reconciled to done (PR #45 merged) in the same pass.
+  - rank: P0
+    item: "epic-6"
+    why: "Three owner-reported defects from manual testing of the deployed portal: D1 no entry point to /admin and the role pill never renders for a pledging admin, D2 fullscreen enter/exit remounts the engine iframe and restarts the game, D3 save dock chrome covers the fullscreen game by default (analytics-epic-6-2026-09-21.md)"
   - rank: P0
     item: "5-4-override-integrity-hardening"
     why: "Owner-gated before any new epic work: preserved-grantor attribution, caller-fresh upsert, founder-preservation regression + relaxed self-revoke, dead-code and validation fixes (retro items 1-8, 11)"

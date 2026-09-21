@@ -8,6 +8,12 @@
   * Responsive scaling to fill desktop viewports and mobile screens without letterboxing distortion.
   * Mobile support: touch input emulation mapped to MZ standard mouse/touch coordinates; full-screen toggle for distraction-free play.
 
+* **Fullscreen Continuity Invariant:**
+  * The full-screen toggle is a layout change only: windowed and fullscreen presentation render from a single stable DOM tree that differs only in class names, with the engine iframe at the same position in the tree in both modes.
+  * The engine iframe MUST NOT be remounted or relocated in the DOM when entering or leaving fullscreen; the same iframe element persists across every toggle.
+  * Live in-memory game state (current scene, unsaved progress) MUST survive both directions of the toggle; a fullscreen change MUST NEVER return the game to the title screen.
+  * The invariant is pinned end-to-end by asserting the engine iframe fires exactly one `load` event across a fullscreen enter→exit round trip, measured against the mock canvas harness of Section 6.
+
 ## 2. In-Browser Storage & Patch Invariant
 * **Storage Mechanism:** RPG Maker MZ stores save slots in client browser storage:
   * IndexedDB (`rmmz_save`) or LocalStorage (`rmmz_save_{index}`).
@@ -33,6 +39,14 @@ The web game wrapper must provide an accessible, responsive HUD outside or overl
   * If invalid or corrupt, displays an inline red error banner without mutating storage.
 * **Storage Diagnostics:**
   * Clear/Reset storage option with a destructive confirmation modal (for troubleshooting or starting fresh).
+
+* **Dock Visibility Contract (Fullscreen-Scoped):**
+  * On entering fullscreen the dock defaults to collapsed behind its persistent 44px affordance; the expanded dock MUST NEVER appear automatically on fullscreen entry, and exiting fullscreen restores only the windowed dim-only presentation defined below.
+  * Expansion occurs only by explicit user action on the affordance (pointer or keyboard); canvas activity, engine activity, and bridge messages MUST NEVER restore or expand dock chrome.
+  * The collapsed state returns on idle: a dock expanded by user action re-collapses behind the affordance after the same idle period that dims windowed chrome.
+  * While an export is in flight or a dock dialog (import or storage diagnostics) is open, the dock holds its expanded state until that operation completes or the dialog closes.
+  * The windowed dock is unchanged by this contract: always rendered below the canvas and visible, dim-only chrome after the 4-second idle timeout, never auto-collapsed.
+  * The collapse affordance remains keyboard-reachable and announced in both modes, so no save action becomes unreachable from the collapsed state.
 
 ## 4. In-Game Bridge Plugin (`Ropoductions_WebBridge.js`) Contract
 * **Plugin Location:** Sourced from `src/engine-plugins/Ropoductions_WebBridge.js` (registered in `plugins.js`); the ingestion runner injects it into the shell before the shell is synced to R2.

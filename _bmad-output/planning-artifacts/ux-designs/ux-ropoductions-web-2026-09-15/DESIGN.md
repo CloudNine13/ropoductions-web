@@ -142,6 +142,7 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 * **Layer 0 (Base Canvas):** Background `#090A0F` with a single overlay stack of at most two composited gradients — one legibility scrim plus one emerald aura clamped to `rgba(34, 197, 94, 0.15)` — over one eager banner image (`fetchpriority=high`, LCP budget under 1.8s). One legibility scrim means one div (flat tint + radial falloff composited in one `background` stack); separate top-blend `bg-gradient-to-b` divs are banned. No additional scrim divs. Pinned `deslop-ignore 06` as an intentional legibility exception.
 * **Layer 1 (Cards & Showcases):** Card surface `#121522` with 1px border `#23283E` and token shadow (`box-shadow: 0 10px 30px -10px rgba(0,0,0,0.8)`). No `shadow-2xl` ghost cards; no `backdrop-blur` on surfaces at 90% opacity or above. Sticky `studio-header` blur (`bg-background/90 backdrop-blur-md`) is the sole sanctioned header exception.
 * **Layer 2 (Floating Save HUD Dock):** Frosted glass (`rgba(9, 10, 15, 0.75)` with `backdrop-filter: blur(16px)`), elevated with 1px white/10 edge stroke. This dock is the sole sanctioned glass surface. After 4s idle dim chrome only — container to `bg-[#090A0F]/40 border-white/5` — labels, icons, and focus rings stay at 100% opacity and AA contrast; restore full chrome on hover/tap/`focus-within`. NEVER apply `opacity-*` to the toolbar element. Touch (`hover: none`) uses the same chrome-only dim, never whole-element opacity.
+  * **Fullscreen collapse default (amended 2026-09-21, A-2026-09-21-01):** In the fullscreen overlay the dock defaults collapsed behind its explicit 44px collapse FAB; entering fullscreen collapses, expansion is user-invoked only, and the dock re-collapses when idle (an export in flight or an open save dialog holds expansion). The chrome-only dim rule above governs the expanded dock's decay and is unchanged. The windowed dock never collapses: it stays visible as a static sibling below the canvas with dim-only decay.
 * **Layer 3 (Modals & Age Gate):** High elevation with dark vignette underlay (`bg-black/80 backdrop-blur-xl`), trapping focus completely. All overlay/content enter/exit collapses to 0ms under `prefers-reduced-motion` (see Motion Contract). Exit keeps `pointer-events:none` on `[data-state="closed"]`.
 * **Z-scale (never tie):** Game fullscreen/pseudo container `z-40`; header `z-40` (sibling context, viewport overlays it when fixed); all Dialog overlays/content, lightbox, and toasts `z-50`; destructive confirms `z-[60]`.
 
@@ -197,13 +198,14 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 * High-prominence *"Login with Patreon"* button (`rounded-md`) featuring official Patreon brand red (`#FF424D`).
 
 ### 3. Floating Save HUD Dock
-* Positioned bottom-center of the `/play` route, outside the canvas touch zone in standard layout (static sibling below canvas; fullscreen overlay only with safe-area offset and an explicit 44px collapse FAB). Never blocks gameplay controls. Fullscreen overlay defaults expanded; collapse is user-invoked only and resets on fullscreen exit.
+* Positioned bottom-center of the `/play` route, outside the canvas touch zone in standard layout (static sibling below canvas; fullscreen overlay only with safe-area offset and an explicit 44px collapse FAB). Never blocks gameplay controls. Fullscreen overlay defaults collapsed behind the 44px collapse FAB; entering fullscreen collapses, expansion is user-invoked via the FAB only, and the dock re-collapses when idle. The windowed dock keeps today's behaviour: always visible below the canvas, dim-only decay, never collapsing. (The earlier ruling — "Fullscreen overlay defaults expanded; collapse is user-invoked only and resets on fullscreen exit" — is SUPERSEDED by Amendment A-2026-09-21-01.)
 * Sole sanctioned pill + frosted-glass surface. Subtle icon + label layout using Lucide icons only:
   * **Export (.zip)**: `Download` primary action with download arrow. Label stays visible at all viewport sizes.
   * **Import**: `Upload` opens file picker dialog.
   * **Fullscreen**: `Maximize2` / `Minimize2` expands canvas to native device display.
   * **Reset**: `RotateCcw` small utility triggering wipe confirmation.
 * Auto-dimming: After 4s inactivity dim chrome only per Layer 2. Export label and focus ring never dim, never drop below AA (WCAG 1.4.3).
+* Collapse is fullscreen-only (A-2026-09-21-01): the collapsed toolbar leaves the tab order, so the 44px FAB is the sole keyboard route to Export/Import/Fullscreen/Reset in fullscreen. It MUST always be reachable, focus-visible, and announced; canvas or bridge activity NEVER restores chrome on its own.
 * Constraint: Never ship disabled toolbar actions. Every rendered dock button is enabled and wired (Export→FR-14, Import→FR-15, Reset→FR-16 destructive confirm, Fullscreen toggle). If a handler cannot be provided, omit the button — do not render disabled or `(Coming soon)` title tooltips.
 * Status dots are flat 8px `bg-primary` solids with no pulse or glow unless bound to a real live state. Exception: the `/play` game-loading state (EXPERIENCE State Patterns) is a real live state and may pulse the emblem behind a determinate progress bar.
 
@@ -222,10 +224,13 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 * **Pixel Asset Preservation:** True pixel raster assets MUST avoid bilinear smoothing by applying utility `.pixelated` (`image-rendering: pixelated; image-rendering: crisp-edges;`). Never apply `.pixelated` to photographic JPEGs or vectors, and never scale pixel art on hover.
 * **Media Gallery Card:** Card root is `<article>`; the expand affordance is an inner `<button>` covering the media region with `aria-label="Open full screenshot preview: {title}"`. Card title is a styled `<span>`, never a heading; caption is `<p>`. Never nest headings or paragraphs inside `<button>`.
 
-### 6. Admin Surfaces (Epic 5, internal only)
-* Restricted `(admin)` group; non-admin visits return HTTP 404 (anti-enumeration guard, no redirect that leaks existence).
+### 6. Admin Surfaces (Epics 5–6, internal only)
+* Restricted `(admin)` group; every non-admin visit returns HTTP 404 (anti-enumeration guard, no redirect that leaks existence): logged out, stale, forged, and valid-but-non-admin alike. Admin login *is* the play login — there is no separate admin auth path and no return-target plumbing.
 * Creator Admin: `tier-gold` Sealed lock badge; no edit/delete affordances rendered and mutation endpoints reject with 403. Panel Admin/Comp: `comp-blue` badge (internal-only token, never on public surfaces).
 * Revoke is destructive: explicit confirm dialog (`destructive`), plus sole-admin lockout guard — the last remaining admin cannot be revoked; attempting it surfaces an inline error.
+* Admin entry point (Epic 6, A-2026-09-21-01): one panel link in the portal header and one in the `/play` header, rendered server-side only for a confirmed admin resolved from the patron override table — never from `session.role`, which misreports an admin who also holds an active pledge. Every admin flavor (creator + panel-assigned) sees the entry; `comp` never does, since `comp` cannot reach `/admin`.
+* Entry treatment is neutral: `Shield` icon per the locked icon map (role / status / verification), `muted-foreground` label resting on the header surface, `foreground` on hover, standard focus-visible ring. NEVER `comp-blue` — `comp-blue` stays reserved for `/admin/*` surfaces per the Colors table; the entry is navigation chrome, not a tier or status signal, so `tier-gold` is equally out of bounds.
+* Patron-facing role pill removed (Epic 6, owner decision Q10b): the `/play` header no longer renders a role badge; the admin entry occupies that zone. Creator/panel-admin distinctions display only inside `/admin/*`; the sealed/two-tier admin panel treatment is unchanged.
 
 ### 7. Auth-Error Toast
 * Fixed `role="alert"` toast (bottom-right desktop, top inset mobile), `destructive` treatment, dismiss clears the `?auth_error` param via history replace. No auto-navigation.
@@ -251,3 +256,17 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 | Keep HUD labels, icons, and focus rings at 100% opacity; dim chrome only. | Don't apply `opacity-*` to the toolbar element or ship disabled `(Coming soon)` actions. |
 | Keep one kicker pill per section and two badges max on showcase titles. | Don't crown the $50 tier with full-width spans or differentiating perk copy in v1. |
 | Reserve `comp-blue` for `/admin/*` comp badges. | Don't use `comp-blue` on patron-facing surfaces. |
+| Keep the admin entry neutral — `Shield`, header text tokens, override-table resolution. | Don't style patron-facing admin chrome with `comp-blue` or gate the entry on `session.role`. |
+| Default the fullscreen dock to collapsed behind its 44px FAB. | Don't collapse the windowed dock or restore the fullscreen dock's expanded default. |
+
+---
+
+## Amendments
+
+### A-2026-09-21-01 — Fullscreen save dock defaults collapsed; admin entry point added (owner decisions Q13, Q10/Q10b — Epic 6)
+
+**Supersedes:** the §3 ruling "Fullscreen overlay defaults expanded; collapse is user-invoked only and resets on fullscreen exit" (and the prior handoff rejection of auto-collapse that cited FR-14 / WCAG 2.4.3). **Reason:** owner decision 2026-09-21 (Q13) — in fullscreen the game is unobstructed by default; chrome over gameplay. Evidence and full decision log: `_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md` (§4 defect D3, §5.2). The same amendment adds the §6 admin entry point (Q10/Q10b) and the collapsed fullscreen default in Layer 2 and §3.
+
+Scope limits: collapse applies to the fullscreen overlay only; the windowed dock keeps today's dim-only behaviour unchanged. The Layer 2 chrome-only dim rule (never whole-element `opacity-*`; labels, icons, and focus rings at 100% opacity and AA contrast) is preserved verbatim and governs the expanded dock in both layouts.
+
+**WCAG 2.4.3 consequence (accepted):** a collapsed toolbar leaves the tab order, so the 44px collapse FAB is the only keyboard route to Export/Import/Fullscreen/Reset in fullscreen. It MUST be reachable, focus-visible, and announced. Expansion is user-invoked only — canvas or bridge activity never restores chrome on its own — and an export in flight or an open save dialog holds the dock expanded, so no save action becomes unreachable mid-operation.

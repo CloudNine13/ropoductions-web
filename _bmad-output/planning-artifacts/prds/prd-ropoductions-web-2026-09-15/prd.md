@@ -2,7 +2,7 @@
 title: "PRD: Ropoductions Web Portal & Patron Game Client"
 status: final
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-09-21
 ---
 
 # PRD: Ropoductions Web Portal & Patron Game Client
@@ -212,7 +212,7 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
 * **Capability:** Provides a fullscreen toggle button in the Web Shell HUD that expands the game canvas to native device fullscreen mode via the HTML5 Fullscreen API.
 * **Consequences (testable):**
   - Tapping/clicking fullscreen expands the canvas to fill the entire physical display, hiding browser address bars on mobile devices.
-  - Pressing `Esc` or tapping the HUD exit button cleanly restores standard portal layout.
+  - Pressing `Esc` or tapping the HUD exit button exits fullscreen; clean restoration of the standard portal layout and preservation of live game state across the transition are specified by FR-23 (clarified 2026-09-21).
 
 ---
 
@@ -288,6 +288,7 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
   - Mutation attempts against sealed founder records are rejected server-side regardless of UI state.
   - `patron_overrides` rows created via the panel record `granted_by` as the acting admin, and updates preserve the original grantor.
   - *Back-filled 2026-09-19 from as-built scope (Story 5.1/5.2, PRs #41/#42) — previously cited by epics.md but absent from this PRD; see epic-5-retro-2026-09-19.md F10.*
+  - *Clarified 2026-09-21 (Epic 6, owner decision Q9): the admin entry point introduced by FR-22 is rendered only to confirmed administrators; anonymous and unauthorized `/admin` behaviour under the anti-enumeration clause above is unchanged — 404, never a redirect.*
 
 #### FR-21: Self-Lockout Safeguards & Override Audit Trail
 * **Actor:** Studio owner (founder).
@@ -297,6 +298,27 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
   - No panel action can delete or alter a sealed founder record.
   - After Story 5.5, every successful role mutation produces exactly one audit row (actor, target, action, before/after, timestamp).
   - *Back-filled 2026-09-19 from as-built scope (Story 5.3, PR #44) plus the epic-title audit-logs promise and its retro correction; see epic-5-retro-2026-09-19.md F9.*
+
+#### FR-22: Studio Admin Panel Entry Point
+* **Actor:** Studio administrator (founder or panel-assigned).
+* **Capability:** The Web Shell surfaces an admin-only entry point to the `/admin` panel in the `/play` header and in the portal (studio landing) header. Administrator identity for the entry is resolved from the override records (`patron_overrides` rows and the `CREATOR_ADMIN_PATREON_IDS` creator bootstrap), never from the session role claim. `/admin` itself remains a 404 for every non-admin — logged out, stale, forged, or valid-but-non-admin — and the authentication flow is unchanged: the admin login is the play login, with no return-target mechanism.
+* **Consequences (testable):**
+  - An administrator who also holds an active Patreon pledge (stored session role `patron` plus an `admin` override record) sees the entry in both headers.
+  - Ordinary patrons and `comp` pass holders never see the entry in either header.
+  - All existing anti-enumeration behaviour of FR-20 is preserved: every non-admin request to `/admin` still renders the standard 404 with no redirect and no existence leak.
+  - Activating the entry navigates an administrator session to `/admin` with no change to the OAuth or session-issuance flow.
+  - The entry label is localized in all supported locales per FR-19.
+  - *Added 2026-09-21 from Epic 6 scope; see analytics-epic-6-2026-09-21.md decisions Q9/Q10/Q10b.*
+
+#### FR-23: Fullscreen Continuity
+* **Actor:** Player.
+* **Capability:** Entering or leaving fullscreen (FR-12) is a pure layout change: the Web Shell must not reload, remount, or relocate the engine frame, and live in-game state must survive the transition. The Save HUD must not obstruct the game canvas by default while the player is in fullscreen.
+* **Consequences (testable):**
+  - The engine boots exactly once per `/play` session regardless of how many fullscreen enter→exit cycles the player performs (asserted end-to-end through the real viewport component).
+  - In-memory game progress made before entering or leaving fullscreen is intact immediately after the transition; no save-and-reload fallback is permitted.
+  - In fullscreen the Save HUD defaults to a collapsed state behind an explicit, keyboard-reachable affordance; expansion is user-invoked only and the dock re-collapses when idle.
+  - In windowed layout the dock keeps its existing always-visible dim-on-idle behaviour (this requirement changes fullscreen only).
+  - *Added 2026-09-21 from Epic 6 scope; see analytics-epic-6-2026-09-21.md decisions Q7/Q13 (defects D2/D3).*
 ---
 
 ## 5. Non-Goals (Explicit)
