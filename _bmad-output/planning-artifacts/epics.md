@@ -132,6 +132,12 @@ Patreon-authenticated studio admins reach the admin panel through a single entry
 **UX-DRs covered:** UX-DR4, UX-DR6
 **Architecture & NFRs:** ARCH-2, AD-10, AD-11, NFR-2, NFR-4
 
+### Epic 7: Cross-Browser Engine Delivery & Boot Reliability
+Players on every supported browser get the same engine boot: the shell is delivered version-addressed and immutably cached so a reload is cheap, session validation no longer scales with the boot's request burst, a single aborted request cannot cost a sprite or a cursor, and any genuine boot failure is classified into a localized, actionable recovery surface with the browser's own diagnostic detail rather than the engine's raw error screen.
+**FRs covered:** FR-10, FR-11, FR-17 (as-built: the engine container, asset streaming and shell delivery must hold in Firefox and Chromium alike under reload)
+**UX-DRs covered:** UX-DR6
+**Architecture & NFRs:** ARCH-2, ARCH-4, AD-2, AD-5, AD-9, NFR-1, NFR-4
+
 ## Epic 1: Studio Presence, Multilanguage Web Shell & 21+ Age Compliance
 
 Visitors can verify their age, select their preferred language, and explore studio branding, game showcases, media, and community links across desktop and mobile.
@@ -533,6 +539,110 @@ So that save chrome never covers gameplay until I deliberately summon it.
 **Then** the dock keeps today's behaviour exactly — always visible with chrome-only dimming after 4 seconds of idle (owner decision Q13: collapse is fullscreen-only)
 **And** the collapse affordance stays keyboard-reachable and screen-reader announced with 44x44px touch targets, so no save action becomes unreachable
 **And** e2e coverage asserts the dock is hidden on fullscreen entry, and the superseded DESIGN §3 fullscreen-dock clause is recorded by Amendment A-2026-09-21-01.
+
+---
+
+## Epic 7: Cross-Browser Engine Delivery & Boot Reliability
+
+Owner-reported Firefox defects on the deployed portal: after a reload, engine asset requests fail (the game's own image-guard alert fires, sprites and custom cursor go missing), the boot sometimes ends on MZ's `Your browser does not support WebGL.` or `Your browser does not allow to read local files.` screens, and nothing player-visible explains why. Evidence and measurements: `_bmad-output/planning-artifacts/briefs/brief-epic-7-2026-09-21/brief.md`; the contract this epic implements: `_bmad-output/specs/spec-ropoductions-web/engine-browser-compat.md`.
+
+**What the measurements already settled:** the iframe `sandbox` tokens, the `allow` list, the CSP/`X-Frame-Options`/CORP header set and the same-origin iframe do NOT block WebGL in real Firefox 156, and the shipped shell boots under exactly those conditions (seven variants, real shell, 40 concurrent contexts, eight reloads, six contexts per boot, zero refusals). The remaining failure surface is therefore delivery and burst behaviour — plus honest reporting when the browser genuinely refuses WebGL.
+
+**Sequencing:** 7.1 first (it makes the remaining triggers observable); 7.2 and 7.3 are independent of each other and of 7.1; 7.4 depends on 7.1's reporting surface but not on 7.2/7.3; 7.5 closes the epic and needs 7.1-7.4 merged to assert the fixed behaviour. Stories 7.3 and 7.2 each require an owner decision recorded in the brief (OD-1, OD-2) before implementation.
+
+### Story 7.1: Engine Boot Failure Classification & Localized Recovery Surface
+
+As a player,
+I want a boot failure explained in my language with something I can actually do about it,
+So that a browser-side block never leaves me staring at an engine error screen or a game-owned alert with no path forward.
+
+**Acceptance Criteria:**
+
+**Given** the engine document boots on `/play`
+**When** any failure class in `engine-browser-compat.md` §1 occurs
+**Then** the host renders its own localized recovery surface for that class, and MZ's raw error screen (`#errorPrinter`) is never the player-facing outcome
+**And** the parent runs a WebGL preflight before the engine document is mounted, so `webgl_unavailable` is reported without waiting for the engine to fail
+**And** for `webgl_unavailable` the surface carries the raw `webglcontextcreationerror` status message plus renderer/vendor strings captured by a probe installed before MZ's own check, and offers the remediation text and a retry
+**Given** a failure detected inside the engine document
+**Then** it reaches the host over the existing `ROPODUCTIONS_` postMessage channel with the same origin and `event.source` checks as the save bridge — no second channel, no relaxed origin rule
+**And** `boot_request_failed` names the URL whose request never completed, and that URL has already been retried once by the host before the surface appears
+**And** the diagnostics payload records the conditions that can differ per environment and are otherwise invisible in the repository: the document's injected-script inventory (an intermediary rewriting or deferring engine scripts, e.g. a CDN feature such as Rocket Loader or a bot-challenge injection), the effective WebGL probe result and disabled-feature prefs reported by the browser, the user agent and renderer strings, and the failing request's URL plus response status or network error — so a report from a player or the owner is actionable without console access
+**Given** the retry affordance
+**When** the player activates it
+**Then** the engine loads at most one additional time per activation, no second engine document is created while one is loading, and the recovery surface has a keyboard-reachable, screen-reader-announced trigger with a 44x44px target
+**And** every new string ships in all six locales (EN, ES, JA, PL, RU, ZH) with `labels` interface parity.
+
+### Story 7.2: Release-Addressed Immutable Engine Shell Delivery
+
+As a player,
+I want reloading the page to be cheap and reliable,
+So that a refresh never turns into a 65-request revalidation storm that can drop sprites and cursors.
+
+**Acceptance Criteria:**
+
+**Given** a published release and its `build-metadata.json`
+**When** the shell document is served
+**Then** every shell subresource URL it references carries the release identifier (`?v=<commitSha>`) and the `/play` iframe requests the same release-addressed shell URL
+**And** shell responses are `Cache-Control: private, immutable, max-age=31536000`, while a shell request without the current release identifier is refused rather than cached fill
+**Given** a reload of `/play`
+**Then** zero shell revalidation requests occur and at most one shell document request is issued — measured against the pre-fix profile captured in the Epic 7 brief (65+ gated requests per boot)
+**Given** a new release is synced
+**Then** every shell URL changes with the identifier and no stale shell entry is served for the new identifier; a release rollback cannot serve mixed shell versions
+**And** media (`img/`, `audio/`, `effects/`, `movies/`, `data/`) keeps its existing moderate private cache unchanged, because the upstream sync is additive and may reuse file names across releases.
+
+### Story 7.3: Burst-Safe Session Validation for Engine and Asset Requests
+
+As an architect,
+I want the engine boot's request burst to cost one session validation instead of sixty-five,
+So that asset delivery cannot fail because the session check scaled with request count.
+
+**Acceptance Criteria:**
+
+**Given** an authorized patron session
+**When** the boot burst (65+ `/engine/*` and `/api/game/*` requests) is served
+**Then** at most one D1 validation read occurs within the amortisation window (default TTL 60s) and every response in the burst is authorized consistently
+**And** validation remains fail-closed: a validation error, an expired/revoked/unknown session, or a cache miss that cannot validate returns `403`/`5xx`, never implicit authorisation, and a failing request never creates or extends a window entry
+**And** revocation and expiry end access no later than the TTL after the next request, with a contract test pinning that bound
+**And** anonymous requests cost zero D1 reads (the existing anonymous short-circuit is preserved)
+**And** the amortisation state is per-isolate, keyed by a hash of the session cookie only, holds no plaintext token, and is never shared across distinct sessions
+**And** OD-1 being approved, `AGENTS.md` and `save-and-runtime-contract.md` are amended to the amortised fail-closed semantics in the same cutover — no code path keeps the old per-request behaviour as a fallback.
+
+### Story 7.4: Engine Asset-Load Retry in the Injected Bridge Plugin
+
+As a player,
+I want one flaky request not to cost me a sprite or my cursor,
+So that a refresh on a slow or unstable connection still boots a complete game.
+
+**Acceptance Criteria:**
+
+**Given** a network-level failure (aborted request, connection reset, `5xx`) while the engine loads an image or data file
+**Then** the bridge plugin retries the same URL at most twice with jittered backoff and the sprite or cursor renders when a retry succeeds, without reloading the engine or creating a second engine document
+**Given** a `401` or `403` response
+**Then** no retry occurs at the asset layer and the host escalates to session revalidation and the paywall path instead
+**Given** retries are exhausted
+**Then** the URL is reported to the host for the Story 7.1 surface with its class, and the failure is never silent
+**Given** MZ's `Utils.canUseWebGL()` probe
+**Then** the plugin releases the probe context via `WEBGL_lose_context` after the capability check, and a single boot allocates no probe WebGL contexts beyond the renderer's own (measured pre-fix: six WebGL contexts per boot)
+**And** the plugin source stays byte-identical between `src/engine-plugins/Ropoductions_WebBridge.js` and its synced mirror, and the sync pipeline's identity assertion still passes.
+
+### Story 7.5: Firefox, Reload-Storm and Asset-Burst Verification
+
+As a maintainer,
+I want the browser behaviour this epic fixes to be asserted in Firefox, not just Chromium,
+So that a delivery or boot regression cannot ship unnoticed again.
+
+**Acceptance Criteria:**
+
+**Given** `playwright.config.ts`
+**Then** a Firefox desktop project runs the e2e suite alongside Chromium and CI executes both
+**Given** `/play` with the engine harness
+**Then** an engine-boot spec asserts the engine reaches its ready state with no recovery surface in both browsers
+**And** a reload-storm spec performs five consecutive reloads asserting no recovery surface, no missing-asset report, and no shell revalidation burst
+**And** an asset-burst spec replays the boot request profile against the routes and asserts every response is `200`/`304` with no more than one validation read
+**And** a WebGL-disabled browser profile drives the honest-failure path and asserts the classified panel and the raw status message in the active locale
+**Given** the harness that produced the Epic 7 evidence table
+**Then** a repository script boots the real shell from the private bucket with the production header set in Firefox and Chromium and prints the boot profile, per-boot WebGL context count and per-request statuses, so the table is reproducible on demand
+**And** new test files are registered in the suite manifests, and superseded source-text assertions are deleted rather than re-pinned to the new text.
 
 ---
 
