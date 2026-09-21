@@ -2,7 +2,7 @@
 title: 'Story 6.1: Admin Panel Entry Point & Role-Safe Resolution'
 type: 'feature'
 created: '2026-09-21'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '84d8bd0'
