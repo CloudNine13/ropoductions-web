@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { GET, HEAD } from "../src/app/api/game/[[...asset]]/route";
 import { signValue } from "../src/lib/crypto";
+import { resetSessionValidationMemo } from "../src/lib/session-validation-memo";
 import type { SessionRecord } from "../src/types/database";
 
 const TEST_SECRET = "test-session-secret-at-least-32-chars-long!";
@@ -154,6 +155,7 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
   let validSignedCookie: string;
 
   beforeEach(async () => {
+    resetSessionValidationMemo();
     validSignedCookie = await signValue("session-uuid-1234", TEST_SECRET);
     globalThis.__D1_TEST_DB__ = createMockD1([createSessionFixture()]);
     globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
@@ -453,7 +455,7 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
     assert.equal(text, "");
   });
 
-  it("validates the session against D1 on every asset request", async () => {
+  it("amortises a burst of asset requests into one session validation", async () => {
     let d1Queries = 0;
     const trackingDb = {
       prepare(_sql: string) {
@@ -484,7 +486,7 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
       assert.equal(res.status, 200);
     }
 
-    assert.equal(d1Queries, 5);
+    assert.equal(d1Queries, 1);
   });
 
   it("rejects revoked sessions immediately without a stale window", async () => {

@@ -4,7 +4,7 @@ import {
   SESSION_COOKIE_NAME,
   unquoteCookieValue,
 } from "@/lib/cookies";
-import { validateSessionAccess } from "@/lib/auth";
+import { resolveSessionValidation } from "@/lib/session-validation-memo";
 import { getAuthEnv, getDatabase, getGameAssetsBucket } from "@/lib/cloudflare";
 import {
   resolveContentType,
@@ -72,7 +72,7 @@ async function handleAssetRequest(
   }
 
   try {
-    const validation = await validateSessionAccess({
+    const validation = await resolveSessionValidation({
       db,
       sessionCookie,
       sessionSecret: authEnv.sessionSecret,
