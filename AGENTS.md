@@ -51,6 +51,8 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 ## Known pitfalls
 
+- `/admin` denial is an ordinary 404 and that is the whole anti-enumeration contract (owner decision 2026-09-21): no redirect, no auth prompt, no distinct status for anonymous, forged, stale, or valid-non-admin callers. The response is deliberately NOT byte-identical to an unknown-path 404 (route-matched denials render Next's `__next_error__` document and name the route segments in the flight payload). Do not re-file this as a leak, and do not add a differential test for it — the owner has ruled twice.
+- DELETE and MODIFY must never be applied to a founder admin's override row. Local dev/e2e D1 state is one shared file (`.wrangler/state/v3`): any cleanup step that clears override rows by role or by an id read from `CREATOR_ADMIN_PATREON_IDS` can destroy a developer's own bootstrapped founder row. Fixtures must use a dedicated disposable key (see `E2E_FOUNDER_PATRON_ID`).
 - Changing origin or serving the game from a subdomain partitions IndexedDB `rmmz_save` and hides saves; keep one stable origin across patches.
 - Never re-verify patron status by background polling that kills gameplay; check on navigation, `/play` entry, and asset requests, let the active session finish, redirect with renewal banner on next navigation.
 - MZ patch saves MUST resolve missing variables with fallback defaults; do not assume new-engine saves load cleanly without plugin guards.
