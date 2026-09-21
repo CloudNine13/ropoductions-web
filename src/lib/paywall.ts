@@ -64,6 +64,18 @@ export function sessionClearHref(type: PaywallType): string {
   return `${SESSION_CLEAR_HREF}?paywall=${type}`;
 }
 
+const SERVER_MODAL_STATE_PARAMS = ["paywall", "auth_required", "auth_error"] as const;
+
+/**
+ * True when a URL search string carries server-derived modal state. A client-side
+ * server re-render (router.refresh) would re-apply that state and resurrect a
+ * dialog the visitor already dismissed, so callers must skip refreshing then.
+ */
+export function hasServerModalState(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return SERVER_MODAL_STATE_PARAMS.some((key) => params.has(key));
+}
+
 export function getPaywallBannerMessageKey(
   type: PaywallType
 ): "bannerRevoked" | "bannerLapsed" | "bannerAuthRequired" {

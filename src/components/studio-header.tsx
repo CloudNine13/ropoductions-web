@@ -3,12 +3,16 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Play, Menu, X, ExternalLink } from "lucide-react";
+import { Play, Menu, X, ExternalLink, Shield } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { saveLandingScrollPosition } from "@/lib/paywall";
 
-export function StudioHeader() {
+interface StudioHeaderProps {
+  isAdmin?: boolean;
+}
+
+export function StudioHeader({ isAdmin = false }: StudioHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const t = useTranslations("header");
 
@@ -58,6 +62,16 @@ export function StudioHeader() {
             <span>{t("navPatreon")}</span>
             <ExternalLink className="h-3.5 w-3.5 opacity-70" />
           </a>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              data-testid="portal-admin-entry"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <Shield className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
+              <span>{t("navAdmin")}</span>
+            </Link>
+          )}
         </nav>
 
         {/* Action Button & Language Switcher & Mobile Toggle */}
@@ -115,6 +129,17 @@ export function StudioHeader() {
               <span>{t("navPatreon")}</span>
               <ExternalLink className="h-4 w-4" />
             </a>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                data-testid="portal-admin-entry-drawer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Shield className="h-4 w-4" aria-hidden="true" />
+                <span>{t("navAdmin")}</span>
+              </Link>
+            )}
             <div className="pt-2 border-t border-border/60">
               <Link
                 href="/play"

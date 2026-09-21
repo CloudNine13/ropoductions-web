@@ -137,3 +137,83 @@ export const requireAdminSession = cache(
     return session;
   }
 );
+
+export type AdminAccess = "admin" | "comp" | null;
+
+/**
+ * Resolves the caller's override-table access for header chrome rendering.
+ * Verdict comes from `patron_overrides` (plus founder env bootstrap) only:
+ * a pledging admin keeps `role: "patron"` on the session record, so
+ * `session.role` would hide the panel from exactly the people who run it.
+ * Every failure path — missing cookies, unreachable bindings, invalid signature,
+ * any non-authorized session status (not found, revoked, lapsed, unauthorized),
+ * and a missing override row — returns null so no surface ever renders an entry
+ * it cannot back.
+ */
+export const resolveAdminAccess = cache(
+  async (customCookieStore?: CookieReader): Promise<AdminAccess> => {
+    const cookieStore = customCookieStore ?? (await cookies());
+    const ageCookie = unquoteCookieValue(cookieStore.get(AGE_VERIFIED_COOKIE_NAME)?.value);
+    const sessionCookie = unquoteCookieValue(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+
+    // Anonymous and unverified visitors never touch D1.
+    if (!sessionCookie || ageCookie !== "true") {
+      return null;
+    }
+
+    let db: D1Database;
+    let authEnv;
+    try {
+      db = await getDatabase();
+      authEnv = await getAuthEnv();
+    } catch (err) {
+      console.error("[resolveAdminAccess] Infrastructure initialization failed:", err);
+      return null;
+    }
+
+    let result;
+    try {
+      result = await validateSessionAccess({
+        db,
+        sessionCookie,
+        sessionSecret: authEnv.sessionSecret,
+        initialAdminIds: authEnv.initialAdminPatreonIds,
+      });
+    } catch (err) {
+      console.error("[resolveAdminAccess] Session validation failed:", err);
+      return null;
+    }
+
+    if (result.status !== "authorized") {
+      return null;
+    }
+
+    try {
+      let override = await getPatronOverride(db, result.session.patron_id);
+      if (!override && authEnv.initialAdminPatreonIds) {
+        // The authorized-pledge path returns before session validation reaches
+        // its bootstrap, so founders who also pledge need this materialization.
+        const bootstrapped = await bootstrapInitialAdminIfEligible(
+          db,
+          result.session.patron_id,
+          authEnv.initialAdminPatreonIds
+        );
+        if (bootstrapped) {
+          override = await getPatronOverride(db, result.session.patron_id);
+        }
+      }
+
+      if (!override) {
+        return null;
+      }
+
+      if (override.role === "admin") {
+        return "admin";
+      }
+      return override.role === "comp" ? "comp" : null;
+    } catch (err) {
+      console.error("[resolveAdminAccess] Override resolution failed:", err);
+      return null;
+    }
+  }
+);

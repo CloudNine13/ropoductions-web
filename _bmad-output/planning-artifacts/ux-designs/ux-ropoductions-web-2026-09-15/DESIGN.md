@@ -231,6 +231,7 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 * Admin entry point (Epic 6, A-2026-09-21-01): one panel link in the portal header and one in the `/play` header, rendered server-side only for a confirmed admin resolved from the patron override table — never from `session.role`, which misreports an admin who also holds an active pledge. Every admin flavor (creator + panel-assigned) sees the entry; `comp` never does, since `comp` cannot reach `/admin`.
 * Entry treatment is neutral: `Shield` icon per the locked icon map (role / status / verification), `muted-foreground` label resting on the header surface, `foreground` on hover, standard focus-visible ring. NEVER `comp-blue` — `comp-blue` stays reserved for `/admin/*` surfaces per the Colors table; the entry is navigation chrome, not a tier or status signal, so `tier-gold` is equally out of bounds.
 * Patron-facing role pill removed (Epic 6, owner decision Q10b): the `/play` header no longer renders a role badge; the admin entry occupies that zone. Creator/panel-admin distinctions display only inside `/admin/*`; the sealed/two-tier admin panel treatment is unchanged.
+* Exactly one status badge per session on `/play` (Epic 6, A-2026-09-21-02): the `tier-gold` badge shows the tier from `session.tier_name` for patrons and comp passes, and the localized `game.adminBadge` Studio Admin label with the `Shield` icon when the override resolver returns `"admin"`. Never two badges, never a second role pill.
 
 ### 7. Auth-Error Toast
 * Fixed `role="alert"` toast (bottom-right desktop, top inset mobile), `destructive` treatment, dismiss clears the `?auth_error` param via history replace. No auto-navigation.
@@ -262,6 +263,12 @@ The aesthetic balances retro doujin gaming soul with high-usability web executio
 ---
 
 ## Amendments
+
+### A-2026-09-21-02 — `/play` header carries exactly one status badge (owner decision, Epic 6 / Story 6.1)
+
+**Supersedes:** the §6 clause "the `/play` header no longer renders a role badge" when read as *no badge at all*. Owner decision 2026-09-21, during the Story 6.1 pre-implementation roundtable: the header renders **one** status badge for every session, never two. For patrons and comp passes it is the existing `tier-gold` badge from `session.tier_name`; for a session the override resolver returns `"admin"` for, it is the same badge carrying the localized `game.adminBadge` label ("Studio Admin") with the `Shield` icon. The duplicate role pill is gone; the single badge is the session's identity and is resolved from `patron_overrides`, never from `session.role`. The panel entry remains separate navigation chrome beside it (neutral `muted-foreground`, `Shield`, focus-visible ring). Evidence: `_bmad-output/implementation-artifacts/spec-6-1-admin-panel-entry-point-role-safe-resolution.md` (Spec Change Log, item 1).
+
+**Accepted consequence (2026-09-21, security review RPD-6.1-SEC-02):** the portal header is a client component that receives only the resolved boolean, so the `/admin` literal and the entry's test ids exist in the public client chunk even though the node renders only for admins. Route existence stays non-observable in practice — `/admin` returns the same silent 404 as any unknown path for anonymous, forged, stale, and valid-non-admin requests — so this is recorded rather than fixed; making the entry a server-rendered node would contradict the frozen boolean-prop contract.
 
 ### A-2026-09-21-01 — Fullscreen save dock defaults collapsed; admin entry point added (owner decisions Q13, Q10/Q10b — Epic 6)
 

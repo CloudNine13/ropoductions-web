@@ -5,6 +5,7 @@ import { ArrowLeft, Shield, Lock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { GameViewport } from "@/components/game-viewport";
 import { getAuthEnv, getDatabase } from "@/lib/cloudflare";
+import { resolveAdminAccess } from "@/lib/admin";
 import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME, unquoteCookieValue } from "@/lib/cookies";
 import { validateSessionAccess } from "@/lib/auth";
 import { mapSessionStatusToPaywall, sessionClearHref } from "@/lib/paywall";
@@ -51,6 +52,7 @@ export default async function PlayPage() {
   }
 
   const { session } = result;
+  const isAdminSession = (await resolveAdminAccess()) === "admin";
   const t = await getTranslations("game");
 
   return (
@@ -64,15 +66,27 @@ export default async function PlayPage() {
           <span>{t("returnToPortal")}</span>
         </Link>
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-tier-gold/40 bg-tier-gold/10 px-3 py-1 text-xs font-mono text-tier-gold max-w-[38vw]" title={session.tier_name}>
-            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span className="truncate">{session.tier_name}</span>
+          <div
+            data-testid="play-status-badge"
+            className="inline-flex items-center gap-1.5 rounded-full border border-tier-gold/40 bg-tier-gold/10 px-3 py-1 text-xs font-mono text-tier-gold max-w-[38vw]"
+            title={isAdminSession ? t("adminBadge") : session.tier_name}
+          >
+            {isAdminSession ? (
+              <Shield className="h-3 w-3 shrink-0" aria-hidden="true" />
+            ) : (
+              <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+            )}
+            <span className="truncate">{isAdminSession ? t("adminBadge") : session.tier_name}</span>
           </div>
-          {session.role !== "patron" && (
-            <div className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-mono text-primary">
-              <Shield className="h-3 w-3" aria-hidden="true" />
-              <span className="capitalize">{session.role}</span>
-            </div>
+          {isAdminSession && (
+            <Link
+              href="/admin"
+              data-testid="play-admin-entry"
+              className="inline-flex items-center gap-1.5 px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Shield className="h-4 w-4" aria-hidden="true" />
+              <span>{t("adminPanel")}</span>
+            </Link>
           )}
         </div>
       </header>

@@ -5,6 +5,7 @@ import { SocialHub } from "@/components/social-hub";
 import { StudioFooter } from "@/components/studio-footer";
 import { PaywallModal } from "@/components/paywall-modal";
 import { AuthErrorToast } from "@/components/auth-error-toast";
+import { resolveAdminAccess } from "@/lib/admin";
 import { resolvePaywallType } from "@/lib/paywall";
 
 interface PortalPageProps {
@@ -18,10 +19,11 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
   const resolvedParams = searchParams ? await searchParams : {};
   const paywallType = resolvePaywallType(resolvedParams);
   const authErrorCode = !paywallType && resolvedParams.auth_error ? resolvedParams.auth_error : null;
+  const isAdmin = (await resolveAdminAccess()) === "admin";
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground overflow-x-clip">
       {/* Sticky Studio Brand Header */}
-      <StudioHeader />
+      <StudioHeader isAdmin={isAdmin} />
       {paywallType && <PaywallModal />}
       {authErrorCode && <AuthErrorToast errorCode={authErrorCode} />}
 

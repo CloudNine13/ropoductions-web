@@ -14,6 +14,7 @@
     "navShowcase": "作品紹介",
     "navCommunity": "コミュニティ",
     "navPatreon": "Patreon",
+    "navAdmin": "管理パネル",
     "playNow": "今すぐプレイ",
     "toggleMenu": "メニュー切替",
     "selectLanguage": "言語を選択"
@@ -175,6 +176,8 @@
     "fullscreenEnter": "全画面表示",
     "fullscreenExit": "全画面表示を終了",
     "returnToPortal": "スタジオポータルに戻る",
+    "adminPanel": "管理パネル",
+    "adminBadge": "スタジオ管理者",
     "title": "Final Orginity: 第1章",
     "iframeTitle": "Final Orginity",
     "saveHudExport": "エクスポート (.zip)",
