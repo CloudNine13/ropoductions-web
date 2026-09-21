@@ -7,7 +7,7 @@ paradigm: Edge-BFF with Sandboxed Engine Shell
 scope: Ropoductions Web Portal & Patron Game Client (v1)
 status: final
 created: '2026-09-15'
-updated: '2026-09-15'
+updated: '2026-09-21'
 binds:
   - CAP-1
   - CAP-2
@@ -18,6 +18,9 @@ binds:
   - CAP-7
   - CAP-8
   - CAP-9
+  - CAP-10
+  - CAP-11
+  - CAP-12
 sources:
   - ../../planning-artifacts/prds/prd-ropoductions-web-2026-09-15/prd.md
   - ../../specs/spec-ropoductions-web/SPEC.md
@@ -158,6 +161,14 @@ sequenceDiagram
      - Stored with `granted_by = session.patron_id`.
      - Can be updated or revoked by other authorized administrators, protected by sole-admin lockout prevention (at least one active administrator must remain at all times).
   - **Local Development Seeding:** The CLI command `npm run db:seed:admins` reads `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`) from `.dev.vars`, `.env.local`, `process.env`, or CLI arguments and ensures all creator admin passes are seeded into local D1 SQLite.
+- **Addendum (2026-09-21, Epic 6 — admin entry point):** The CAP-11 / FR-22 admin-only entry controls (the `/play` header and the portal header) resolve administrator identity server-side from this AD's own override sources — `patron_overrides` rows and the `CREATOR_ADMIN_PATREON_IDS` creator bootstrap — never from the session `role` column: the authorized-pledge path returns the raw patron session before the override table is consulted, so an admin holding an active pledge keeps role `patron` and would be invisible to role-based gating. A shared resolver returning `"admin" | "comp" | null` renders the entry only for `"admin"`. Redirect-based admin walls were considered and rejected by owner decision (Q9): `/admin` continues to return 404 for every non-admin request, the authentication flow is unchanged, and the sealing and two-tier immutability rules above are untouched by this addendum. The edge proxy route matcher (`src/proxy.ts`) must never gain an `/admin` entry — a middleware redirect on `/admin` would itself disclose the route's existence.
+
+### AD-11 — Single-Tree Viewport and Engine-Frame Lifecycle Invariant [ADOPTED]
+
+- **Binds:** CAP-5, CAP-12, FR-10, FR-12, FR-14, FR-23
+- **Prevents:** Engine iframe remount and reload on fullscreen toggle (RPG Maker MZ returning to the title screen and losing in-memory progress), dock-chrome recreation resetting idle-dim timers and in-flight export state, and save-and-reload fallbacks that mask a remount defect instead of removing it.
+- **Rule:** The `/play` game viewport must render exactly one invariant DOM tree in both windowed and fullscreen presentation. A fullscreen toggle may change only class names on that tree. The engine `<iframe>` element must never be unmounted, recreated, relocated in the DOM, or subjected to a remount-inducing key change. Conditional JSX branches that return structurally different trees for windowed versus fullscreen state are prohibited. There is no save-and-reload fallback: state continuity is achieved solely by never disturbing the frame.
+- **Testable properties (added 2026-09-21, Epic 6):** The engine boot count — the number of `load` events observed on the engine iframe — must remain exactly 1 across any sequence of fullscreen enter→exit transitions, and the iframe DOM node identity must be preserved across each toggle (zero mutations on the iframe node). The pre-fix two-branch implementation measured `load` events 1→2→3 per enter→exit with two DOM moves per toggle; a control experiment confirmed that promoting an ancestor into the browser top layer does not reload a child iframe, so the invariant is host-side and enforceable by end-to-end assertion.
 ---
 
 ## Consistency Conventions

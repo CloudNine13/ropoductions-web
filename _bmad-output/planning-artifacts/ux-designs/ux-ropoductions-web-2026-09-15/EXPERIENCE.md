@@ -4,7 +4,7 @@ status: final
 sources:
   - ../../planning-artifacts/prds/prd-ropoductions-web-2026-09-15/prd.md
   - DESIGN.md
-updated: 2026-09-15
+updated: 2026-09-21
 ---
 
 # Ropoductions Studio — Experience Spine
@@ -28,6 +28,7 @@ The application serves two distinct modes:
 | **Patreon OAuth Gateway** | `/api/auth/patreon` | Public (21+ Verified) | Initiates Patreon OAuth 2.0 PKCE redirect to `patreon.com`. |
 | **OAuth Callback Handler** | `/api/auth/callback` | System / Redirect | Exchanges auth code for session tokens, writes to Cloudflare D1, sets secure session cookie. |
 | **Web Player** | `/play` | Restricted (Patrons $5+) | Aspect-ratio locked RPG Maker MZ canvas + floating frosted-glass Save HUD dock. |
+| **Studio Admin Panel** | `/admin` | Restricted (valid admin session only; 404 otherwise) | Internal studio dashboard: patron tier overrides, admin grants, audit trail. Logged-out, stale, forged, and valid-but-non-admin visits all receive HTTP 404 (anti-enumeration). The entry link is server-rendered in the portal and `/play` headers for confirmed admins only. |
 | **Paywall Interstitial** | `/play` (Fallback) | Public / Unpledged | Rendered when an unpledged or lapsed user navigates to `/play`. Explains tier access with direct pledge link. |
 | **Language Switcher** | Header & Footer | Public | Accessible locale picker dynamically translating microcopy and persisting `ropoductions_lang` cookie. |
 
@@ -44,6 +45,8 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 | "Your saves have been exported to a .zip archive." | "Download complete: rmmz_save_dump.bin" |
 | "Your pledge is currently paused. Renew on Patreon to resume playing." | "Error: Session terminated. Invalid pledge status." |
 | "Restoring save slots from backup..." | "Injecting binary payload into IndexedDB..." |
+| Admin entry copy is a locale key — `header.navAdmin` (portal) / `game.adminPanel` (`/play`) — six-locale coverage, neutral functional register with the `Shield` icon. | "Secret Studio Controls", "God Mode", or a hardcoded English string in header components. |
+| Non-admins reaching `/admin` get a silent HTTP 404 — no copy at all. | "Admins only — sign in for access" or any prompt that discloses the panel exists. |
 
 ---
 
@@ -56,14 +59,20 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 * **Decline Action:** Clicking *"Exit"* immediately redirects the browser window to `https://google.com`.
 
 ### 2. Save HUD Dock (Bottom Floating Bar)
-* **Docking Position:** Centered at the bottom of the `/play` route, floating 24px above the bottom viewport edge.
+* **Docking Position:** Centered at the bottom of the `/play` route, floating 24px above the bottom viewport edge. Windowed, the dock is a static sibling below the canvas; in fullscreen it is an overlay with safe-area offset and an explicit 44px collapse FAB (DESIGN.md §3).
+* **States (amended 2026-09-21 — Epic 6, owner decision Q13):**
+  * **Windowed:** always visible below the canvas; decay is dim-only per DESIGN.md Layer 2; the windowed dock never collapses.
+  * **Fullscreen:** collapsed by default behind the 44px affordance (accessible name `game.saveHudToggleControls`); entering fullscreen collapses. Expansion is user-invoked via the affordance only, and the dock re-collapses when idle. Canvas or bridge activity NEVER restores chrome; an export in flight or an open save dialog holds the dock expanded.
+  * **Reveal/decay (expanded fullscreen dock):** hover, tap, or `focus-within` restores full chrome instantly; after 4s idle the chrome dims per DESIGN.md Layer 2; continued idle collapses the dock back behind the affordance.
+  * **Keyboard / screen reader (WCAG 2.4.3):** the collapsed toolbar leaves the tab order, so the affordance is the sole keyboard route to Export/Import/Fullscreen/Reset — it MUST stay reachable, focus-visible, and announced.
 * **Auto-Dimming Invariant:**
+  * FLAGGED (2026-09-21): the two bullets below predate the DESIGN.md Layer 2 chrome-only dim ruling and conflict with it. Whole-element `opacity` dimming of the toolbar is prohibited — labels, icons, and focus rings stay at 100% opacity and AA contrast; only the container dims (`bg-[#090A0F]/40 border-white/5`). Retained verbatim as the historical description; authoritative behaviour is the States rule above. Pending copy-audit rewrite.
   * During active gameplay (mouse/keyboard/touch events inside the game canvas), the HUD dock smoothly fades to `opacity: 0.25` after 4 seconds of idle time.
   * Hovering or tapping anywhere near the bottom dock restores `opacity: 1.0` instantly.
 * **Actions:**
   * **Export:** Immediately sends `POST_MESSAGE` to the game iframe, triggers `jszip` compression across all active save slots, and launches a file download (`ropoductions_saves_{date}.zip`).
   * **Import:** Opens a clean Radix Dialog allowing drag-and-drop or browsing for `.zip` or `.rpgsave` files. Shows a progress spinner during injection, then reloads the game canvas.
-  * **Fullscreen:** Triggers browser `requestFullscreen()` on the outer game container. Icon toggles to an "Exit Fullscreen" symbol.
+  * **Fullscreen:** Triggers browser `requestFullscreen()` on the outer game container. Icon toggles to an "Exit Fullscreen" symbol. The toggle must never reload the game: the viewport is a single stable DOM tree with only class names switching (engine-iframe lifecycle invariant, Epic 6 Story 6.2).
   * **Reset Storage:** Prompts a destructive confirmation dialog requiring the user to type "RESET" or click an explicit red confirmation button to purge local storage.
 
 ### 3. Patreon Paywall Card
@@ -99,7 +108,7 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 
 * **Aspect-Ratio Lock:** The game canvas container enforces a strict `16:9` ratio using CSS `aspect-ratio: 16 / 9` constrained by `max-height: 100dvh` and `max-width: 100dvw`.
 * **Mobile Touch Parity:** On touch devices, taps on the canvas pass through directly to RPG Maker MZ touch coordinate listeners without double-tap zoom delay (`touch-action: manipulation`).
-* **Keyboard Navigation:** `Tab` moves between age gate buttons and Save HUD controls with a high-visibility `{colors.ring}` outline.
+* **Keyboard Navigation:** `Tab` moves between age gate buttons and Save HUD controls with a high-visibility `{colors.ring}` outline. In fullscreen the collapse affordance is the tab entry point to the save controls (WCAG 2.4.3; see Component 2).
 
 ---
 
@@ -132,7 +141,7 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 
 ### Flow 2: Player Exports Save Backup
 1. After completing Chapter 1, player moves cursor to the bottom HUD dock.
-2. Dock illuminates to full opacity.
+2. Dock illuminates to full opacity. *(FLAGGED 2026-09-21: historical wording — per DESIGN.md Layer 2 the chrome-only rule, reveal restores container chrome, not whole-element opacity; see the Component 2 flag.)*
 3. Player clicks *"Export Saves (.zip)"*.
 4. Web Shell gathers all populated slots from browser storage and downloads `ropoductions_saves_2026-09-15.zip`.
 5. HUD shows a brief green confirmation checkmark.
@@ -142,3 +151,9 @@ Microcopy guidelines. Atmospheric, dignified, respectful, and direct. Avoid juve
 2. Player reopens `/play` on the same browser.
 3. Game loads under the identical origin.
 4. Player clicks *"Continue"*; all Chapter 1 save slots appear intact with timestamps and party levels.
+
+### Flow 4: Admin Reaches the Panel (portal and `/play` entry)
+1. The admin follows the ordinary play path: portal → age gate → *"Login with Patreon"* → authenticated `/play`. There is no separate admin login and no return-target plumbing.
+2. Admin identity is resolved from the patron override table, never the session role — so an admin who also holds an active pledge still sees the entry. Labels come from the locale keys `header.navAdmin` (portal header) and `game.adminPanel` (`/play` header), rendered with the `Shield` icon and neutral treatment (DESIGN.md §6).
+3. The admin clicks the entry and lands on `/admin`.
+4. `comp` holders and every other non-admin see no entry anywhere; anyone typing `/admin` without a valid admin session — including an admin whose session or age cookie lapsed — receives HTTP 404 with no redirect, and recovers via the step-1 path.

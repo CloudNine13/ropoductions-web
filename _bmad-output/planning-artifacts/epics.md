@@ -39,6 +39,8 @@ This document provides the complete epic and story breakdown for ropoductions-we
 - **FR-19:** Multilanguage Web Shell & Language Selector providing an accessible language switcher supporting multiple locales (English default, plus e.g. Japanese, Spanish, Russian, Chinese, Polish) persisting locale selection in a 365-day cookie.
 - **FR-20:** Restricted Studio Admin Shell & Anti-Enumeration Guard providing an isolated `(admin)` layout restricted to `session.role === 'admin'` returning HTTP 404 for unauthorized visitors.
 - **FR-21:** Studio Patron Override Management & Lockout Protection providing an internal dashboard to register, list, and revoke Patreon ID access passes with sole-admin lockout prevention and audit metadata.
+- **FR-22:** Admin Panel Entry Point rendering a single admin-panel link in the `/play` header and the studio portal headers, resolved server-side from the persistent `patron_overrides` table (never from the raw session role), invisible to patrons, `comp` passes, and anonymous visitors, and leaving the FR-20 anti-enumeration 404 semantics unchanged.
+- **FR-23:** Fullscreen State Continuity guaranteeing that entering and leaving fullscreen is a purely host-side layout transition that never remounts, moves, or reloads the embedded engine iframe, preserving in-progress play and save-HUD timers, with the save HUD chrome collapsed by default in fullscreen.
 
 ### NonFunctional Requirements
 
@@ -90,6 +92,8 @@ This document provides the complete epic and story breakdown for ropoductions-we
 * **FR-19:** Epic 1 — Multilanguage Web Shell & Language Selector
 * **FR-20:** Epic 5 — Restricted Studio Admin Shell & Anti-Enumeration Guard
 * **FR-21:** Epic 5 — Studio Patron Override Management & Lockout Protection
+* **FR-22:** Epic 6 — Admin Panel Entry Point (override-table role resolution)
+* **FR-23:** Epic 6 — Fullscreen State Continuity (engine iframe lifecycle; fullscreen HUD default)
 
 ## Epic List
 
@@ -121,6 +125,12 @@ Players can play with confidence knowing their saves persist across game patches
 Studio creators and administrators can manage persistent role overrides (admin/comp passes) via an internal, anti-enumerated dashboard with self-lockout safeguards and audit logs.
 **FRs covered:** FR-20, FR-21
 **Architecture & NFRs:** ARCH-5, AD-8, NFR-2, NFR-4
+
+### Epic 6: Studio Admin Access Surface & Play Continuity
+Patreon-authenticated studio admins reach the admin panel through a single entry point rendered only for override-confirmed admins in the portal and `/play` chrome, fullscreen transitions preserve live gameplay, and the save HUD stays out of the way of the fullscreen game until explicitly summoned.
+**FRs covered:** FR-22, FR-23 (as-built extension of Epic 5's admin surface under FR-20/FR-21 — admin authority is the `patron_overrides` table, not the raw session role — and a refinement of FR-12's fullscreen consequence)
+**UX-DRs covered:** UX-DR4, UX-DR6
+**Architecture & NFRs:** ARCH-2, AD-10, AD-11, NFR-2, NFR-4
 
 ## Epic 1: Studio Presence, Multilanguage Web Shell & 21+ Age Compliance
 
@@ -459,8 +469,83 @@ So that founder promises are kept, admin-tier self-amplification is observable, 
 
 ---
 
+## Epic 6: Studio Admin Access Surface & Play Continuity
+
+Patreon-authenticated studio admins reach the admin panel through a single entry point rendered only for override-confirmed admins in the portal and `/play` chrome, fullscreen transitions preserve live gameplay, and the save HUD stays out of the way of the fullscreen game until explicitly summoned.
+
+**Sequencing:** Stories 6.1 and 6.2 are independent of each other and of Epic 5. Story 6.3 is stacked on 6.2 — it extends 6.2's single tree (constant children slots, the collapse affordance as a sibling of the toolbar) and appends to the `e2e/fullscreen-continuity.spec.ts` file 6.2 creates, so 6.2 merges first.
+
+### Story 6.1: Admin Panel Entry Point & Role-Safe Admin Resolution
+
+As a studio administrator,
+I want a single admin-panel entry rendered in the `/play` header and the studio portal headers from a shared resolver that consults the persistent patron-override table,
+So that I can reach `/admin` without typing a URL while patrons, comp passes, and anonymous visitors never learn the panel exists.
+
+**Acceptance Criteria:**
+
+**Given** any request that renders portal or `/play` chrome
+**When** admin entry visibility is resolved
+**Then** one shared resolver (`resolveAdminAccess`) consults the `patron_overrides` table and returns `"admin"`, `"comp"`, or `null`, and it NEVER gates on `session.role` — a pledging admin holds a `patron`-role session because the authorized-pledge path returns before override resolution (`src/lib/auth.ts:146-148`)
+**And** the entry renders only for `"admin"` (Creator Admins and Panel-Admins alike); `"comp"`, `"patron"`, and anonymous sessions see no trace of it, and anonymous visitors cost zero D1 reads (no session means no override lookup at all)
+**And** a pledging admin session (cookie role `patron` + `admin` override row) renders the entry — the defect that made the old role pill invisible to the owner
+**Given** the `/play` page header
+**When** the resolver returns `"admin"`
+**Then** the admin entry button occupies the zone of the deleted patron-facing role pill (`session.role !== "patron"` block, `src/app/(game)/play/page.tsx:70-77`), removed outright with no alias or hidden remnant
+**Given** the public portal pages
+**When** the layout resolves admin access server-side
+**Then** the header receives the same entry through a server-resolved prop; no client-side code re-derives admin identity
+**Given** `/admin` and any `/admin/*` subroute
+**When** the visitor is logged out, stale, forged, or holds a valid non-admin (patron or `comp`) session
+**Then** the behaviour is unchanged from Epic 5 as-built: HTTP 404 with no `Location` header (owner decision Q9 — admin login *is* the play login; no auth-flow change, no redirect, no return-target plumbing)
+**And** all four existing `e2e/admin.spec.ts` tests stay green, with new e2e coverage for a valid non-admin session getting 404 with no `Location` and for a pledging admin session reaching the panel
+**And** new UI strings ship across all six locales (EN, ES, JA, PL, RU, ZH) with `labels` interface parity, the entry affordance meets the 44x44px touch-target rule, and the admin panel's sealed/Creator-Admin two-tier display is untouched.
+
+### Story 6.2: Fullscreen Viewport Continuity
+
+As a player,
+I want entering and leaving fullscreen to be a pure layout change,
+So that toggling display modes never restarts my in-progress game or throws me back to the title screen.
+
+**Acceptance Criteria:**
+
+**Given** an active game on `/play`
+**When** the fullscreen toggle fires in either direction
+**Then** `GameViewport` renders a single invariant DOM tree in which the fullscreen and windowed states differ only in class names on stable elements — the two structurally different return branches (`activeFullscreen` early return vs windowed return in `src/components/game-viewport.tsx`) are eliminated
+**And** the engine `<iframe>` element is never unmounted, remounted, or relocated in the DOM (measured pre-fix behaviour: node identity changed on every toggle with two DOM moves per toggle, reloading the engine to its title screen)
+**And** the engine fires exactly one `load` event across a full fullscreen enter→exit cycle, asserted end-to-end through the real `GameViewport` on `/play` with the mock harness; the same assertion observes extra loads against the old two-branch structure (measured 1→2→3)
+**And** the save HUD dock wrapper survives the toggle, so the dock's idle-dim timer and any in-flight export state are not reset by the viewport
+**And** the HTML5 Fullscreen API request itself (FR-12) is unchanged — only host-side React reconciliation is corrected, and the old branch-structure unit assertions are replaced by single-tree structure assertions.
+
+### Story 6.3: Fullscreen Save HUD Collapsed By Default
+
+As a player,
+I want the fullscreen game surface unobstructed the moment I enter fullscreen,
+So that save chrome never covers gameplay until I deliberately summon it.
+
+**Acceptance Criteria:**
+
+**Given** a player entering fullscreen
+**When** the fullscreen overlay mounts
+**Then** the Save HUD dock is collapsed by default behind the existing 44px expansion affordance
+**And** the dock expands only on explicit user action via that affordance; canvas interaction, bridge activity, and engine focus never restore chrome
+**And** an expanded dock re-collapses automatically after the idle timeout, while an in-flight export or an open save dialog holds it expanded until resolved
+**Given** windowed (non-fullscreen) play
+**Then** the dock keeps today's behaviour exactly — always visible with chrome-only dimming after 4 seconds of idle (owner decision Q13: collapse is fullscreen-only)
+**And** the collapse affordance stays keyboard-reachable and screen-reader announced with 44x44px touch targets, so no save action becomes unreachable
+**And** e2e coverage asserts the dock is hidden on fullscreen entry, and the superseded DESIGN §3 fullscreen-dock clause is recorded by Amendment A-2026-09-21-01.
+
+---
+
 ## Amendments
 
 ### A-2026-09-19-01 — Story 5.3 sole-admin clause reinterpreted (owner decision)
 
 `epics.md` Story 5.3 ("Cannot revoke the sole remaining administrator", line 421) protected the wrong invariant for this studio. Owner decision 2026-09-19, evidence `_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md` (findings F2/F5, Team Discussion sign-off + owner correction): the protected invariant is **founder access**, which is guaranteed by `CREATOR_ADMIN_PATREON_IDS` env bootstrap independent of `patron_overrides` row state. Consequences: (a) sealed founder rows counting toward "admin exists" is no longer a live question; (b) the last added admin MAY revoke or self-demote — added-admin stranding is an accepted outcome; (c) Story 5.4 relaxes the shipped DELETE-path guard and adds founder-preservation regression coverage instead of guarding the upsert path. The 2026-09-15 text stands above as originally approved; this note is the dated amendment of record.
+
+### A-2026-09-21-01 — DESIGN §3 fullscreen dock default reversed (owner decision Q13)
+
+The UX design's fullscreen overlay clause ("Fullscreen overlay defaults expanded; collapse is user-invoked only and resets on fullscreen exit", `DESIGN.md` §3) and the prior handoff's explicit rejection of auto-collapse are reversed for fullscreen by owner decision Q13, 2026-09-21, evidence `_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md` (§4 defect D3, §5.2): in fullscreen the overlay defaults collapsed behind the 44px affordance, expands only on explicit user action, and re-collapses on idle (Story 6.3). The reversal is scoped narrowly: the windowed dock keeps its dim-only behaviour, so the Story 4.2 text above stands as originally approved. `DESIGN.md` §3 carries the matching dated amendment in the same Epic 6 docs pass; this note is the dated amendment of record for the story criteria.
+
+### A-2026-09-21-02 — Admin entry: wall alternatives rejected; FR-20 404 semantics confirmed (owner decision Q9)
+
+Story 6.1's admin entry considered and rejected three alternatives that would surface a sign-in wall to `/admin` visitors — evidence `_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md` §5.2/§5.3; owner decision Q9, 2026-09-21. (D1) A root-level `not-found.tsx` interstitial keyed on visitor state: it renders outside the portal layout, so it either skips the age gate or re-implements it; it changes the 404 body of every unmatched URL; and a session check inside a streamed shell degrades to a 200 soft-404 that would make enumeration assertions false-pass. (D2) A segment-scoped `(admin)/not-found.tsx` interstitial: not implementable — `notFound()` thrown from a segment's own `layout.tsx` falls through to the nearest parent boundary, so realising it would move the guard into every page, regressing the epic-5 layout-authority decision. (D3) A layout redirect to the landing auth wall with a credential-presence ladder and a return target carried in the signed OAuth verifier cookie: rejected on owner grounds — it redirects a logged-out visitor instead of returning 404, contradicting the ruling that a non-admin at `/admin` gets a 404 — and it opens new return-target surface against the locked Story 2.2 `Location: /play` contract. FR-20's anti-enumeration behaviour therefore stands as built by Story 5.1: `/admin` returns 404 for everyone except a valid admin session — logged out, stale, forged, and valid-but-non-admin alike — with zero auth-flow, redirect, or return-target changes in Epic 6 scope. Two as-builts of FR-20/FR-21 are recorded alongside: (a) the panel's admin authority is the `patron_overrides` table per FR-21, not the raw session role — FR-20's `session.role === 'admin'` wording describes the resulting session, and entry chrome gated on it would provably never render for a pledging admin (analytics §2, secondary defect); (b) an accepted consequence: an admin whose session or age cookie has lapsed and who types `/admin` receives a 404 and recovers via the normal `/play` path (Q9/Q12 cost, analytics §6.1).

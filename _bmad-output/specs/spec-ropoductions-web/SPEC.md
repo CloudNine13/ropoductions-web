@@ -6,6 +6,7 @@ companions:
   - tech-candidates.md
 sources:
   - ../../planning-artifacts/briefs/brief-ropoductions-web-2026-09-15/brief.md
+  - ../../planning-artifacts/briefs/brief-epic-6-2026-09-21/brief.md
 ---
 
 > **Canonical contract.** This SPEC and the files in `companions:` are the complete, preservation-validated contract for what to build, test, and validate. Source documents listed in frontmatter are for traceability — consult them only if you need narrative rationale or prose color this contract intentionally omits.
@@ -57,6 +58,13 @@ Ropoductions adult game studio currently distributes titles through manual archi
 - **CAP-10**
   - **intent:** Studio creators and administrators manage role overrides and game playtest passes with anti-enumeration protection and sealed Creator Admin immutability.
   - **success:** The application enforces a Two-Tier Admin Model: Creator Admins configured via `CREATOR_ADMIN_PATREON_IDS` (or `INITIAL_ADMIN_PATREON_IDS`) in `.env.local` / `.dev.vars` are sealed inside the application and CANNOT be modified, updated, or deleted by any user or admin panel action. Panel Admins assigned through the dashboard can be created, updated, and revoked by authorized staff with sole-admin lockout protection.
+
+- **CAP-11**
+  - **intent:** Studio administrators can reach the admin panel from product chrome instead of a typed URL, with the entry visible only to confirmed admins and admin identity resolved server-side from the override table rather than the session role.
+  - **success:** The `/play` header and the portal header render an admin-panel entry only when a shared override-table resolver returns admin status — covering Creator Admins and Panel Admins alike, including an admin who also holds an active pledge and whose authenticated session therefore still reports role `patron` — while `comp` pass holders and all other visitors see no trace of the entry, and gating never reads the session role. `/admin` itself is unchanged: it still returns 404 for logged-out, stale, forged, and valid-but-non-admin requests alike, with no auth-flow, redirect, or return-target mechanism introduced. This capability is additive chrome derived from the identities CAP-10 already seals — it does NOT amend CAP-10's anti-enumeration contract, which remains in force verbatim.
+- **CAP-12**
+  - **intent:** Fullscreen mode is a pure layout change of the game viewport: the engine iframe is never remounted or relocated in the DOM when entering or leaving fullscreen, and live in-memory game state survives both directions of the toggle.
+  - **success:** Windowed and fullscreen presentation render from a single stable DOM tree that differs only in class names; the engine iframe element is identical across a fullscreen enter→exit round trip and fires exactly one `load` event over it; a game in progress resumes in its current scene on both transitions instead of reloading to the title screen, asserted end-to-end against the mock canvas harness.
 ## Constraints
 
 - Embedded game engine is RPG Maker MZ HTML5 export with an initial payload footprint of 5–30MB.

@@ -28,3 +28,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md`
   summary: "Date Added" renders UTC (`overrides-table.tsx:72`); label the column or render viewer-timezone once Story 5.4 touches the table.
   evidence: Edge-case lens finding 3.
+- source_spec: `_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md`
+  summary: Reconcile the stale `public/engine/**` byte-identical mirror contract for the engine plugin (named in `AGENTS.md` and still enforced by the epic-4 retro item-4 wording): the directory does not exist on `develop` — only stale, gitignored copies linger inside `.worktrees/*` — consistent with PR #47 moving MZ shell delivery to the R2 `engine/` prefix streamed via `/engine/[...path]`. Update the repository-rule text (and anything checksumming the mirror) to the R2-served reality. Explicitly NOT Epic 6 scope per the epic-6 brief's out-of-scope list. Reopen trigger: next engine-plugin touch requires a live mirror rule or its removal.
+  evidence: Epic 6 analysis §6.3 (known consequences); verified 2026-09-21 that `public/engine` is absent at the `develop` tip while `AGENTS.md` shell-delivery rules describe the R2 `engine/` prefix sync.
+- source_spec: `_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md`
+  summary: Branded 404 page. Owner may want a studio-branded 404 later; explicitly not Epic 6 scope. Under owner decision Q9 (no wall) every non-admin request for `/admin` returns the stock Next.js 404, so any custom 404 body must preserve the status-code-only semantics pinned by `e2e/admin.spec.ts`: HTTP 404, no `Location` header, no visitor-state differentiation that would create an enumeration oracle.
+  evidence: Epic 6 brief out-of-scope list; rejected alternatives D1/D2 (analytics §5.3) showed a shared 404 body changes the response of every unmatched URL and a check inside a streamed shell degrades to a 200 soft-404.
