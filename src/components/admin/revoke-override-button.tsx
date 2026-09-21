@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, Ban, Loader2, ShieldOff, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { revokeOverrideAction } from "@/app/(admin)/admin/overrides/actions";
+import { ErrorReactionIcon } from "@/components/error-reaction-icon";
 import type { OverrideRole } from "@/types/database";
 
 export interface RevokeOverrideButtonProps {
@@ -109,9 +110,9 @@ export function RevokeOverrideButton({
                 <div
                   role="alert"
                   data-testid="override-revoke-error"
-                  className="flex items-start gap-2.5 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 p-3 text-xs text-[#E11D48] sm:text-sm"
+                  className="flex items-center gap-3 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 p-3 text-xs text-[#E11D48] sm:text-sm"
                 >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <ErrorReactionIcon />
                   <span>{error}</span>
                 </div>
               )}

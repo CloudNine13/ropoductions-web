@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Upload, X, AlertCircle, Check, Loader2, FileArchive } from "lucide-react";
+import { Upload, X, Check, Loader2, FileArchive } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ErrorReactionIcon } from "@/components/error-reaction-icon";
 import { importSaves, INVALID_SAVE_FORMAT_ERROR, type ImportSavesResult } from "@/lib/save-import";
 import { SAVE_DIALOG_DISMISS_MS } from "@/types/save";
 
@@ -247,9 +248,9 @@ export function SaveImportDialog({
               <div
                 data-testid="save-import-error-banner"
                 role="alert"
-                className="flex items-start gap-3 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 p-3.5 text-xs sm:text-sm text-[#E11D48]"
+                className="flex items-center gap-3 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 p-3.5 text-xs sm:text-sm text-[#E11D48]"
               >
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
+                <ErrorReactionIcon />
                 <span className="leading-snug">{errorMessage}</span>
               </div>
             )}
