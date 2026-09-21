@@ -37,8 +37,16 @@ interface FakeXhr {
   onreadystatechange: ((event: unknown) => void) | null;
   status: number;
   responseType: string;
+  withCredentials?: boolean;
+  timeout?: number;
   open: (method: string, url: string) => void;
   send: (body?: unknown) => void;
+  setRequestHeader?: (name: string, value: string) => void;
+  overrideMimeType?: (mime: string) => void;
+  addEventListener?: (type: string, listener: (event: unknown) => void) => void;
+  removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
+  requestHeaders?: Array<[string, string]>;
+  mimeType?: string;
 }
 
 const ORIGIN = "https://ropoductions.com";
@@ -72,7 +80,7 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
   let queueXhrOutcomes: (steps: Array<{ kind: "error" | "response"; status: number }>) => void;
   let xhrRequestUrls: () => string[];
 
-  function setupEnvironment(options: { mzRuntime?: boolean; readyState?: string } = {}) {
+  function setupEnvironment(options: { mzRuntime?: boolean; readyState?: string; sceneManager?: boolean } = {}) {
     postedMessages = [];
     timers = [];
     resourceEntries = {};
@@ -127,22 +135,52 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
       onreadystatechange: ((event: unknown) => void) | null = null;
       status = 0;
       responseType = "";
+      withCredentials = false;
+      timeout = 0;
       method = "";
       url = "";
+      requestHeaders: Array<[string, string]> = [];
+      headerCalls: Array<[string, string]> = [];
+      mimeType = "";
+      mimeCalls: string[] = [];
+      responseTypesAtSend: string[] = [];
+      listeners: Record<string, Array<(event: unknown) => void>> = {};
 
       open(method: string, url: string) {
         this.method = method;
         this.url = url;
+        this.requestHeaders = [];
         requests.push(url);
       }
 
+      setRequestHeader(name: string, value: string) {
+        this.requestHeaders.push([name, value]);
+        this.headerCalls.push([name, value]);
+      }
+
+      overrideMimeType(mime: string) {
+        this.mimeType = mime;
+        this.mimeCalls.push(mime);
+      }
+
+      addEventListener(type: string, listener: (event: unknown) => void) {
+        (this.listeners[type] ??= []).push(listener);
+      }
+
+      removeEventListener(type: string, listener: (event: unknown) => void) {
+        this.listeners[type] = (this.listeners[type] ?? []).filter((entry) => entry !== listener);
+      }
+
       send() {
+        this.responseTypesAtSend.push(this.responseType);
         const step = xhrOutcomes.shift() ?? { kind: "response", status: 200 };
         this.status = step.kind === "error" ? 0 : step.status;
         if (step.kind === "error") {
           if (typeof this.onerror === "function") this.onerror({ type: "error" });
-        } else if (typeof this.onload === "function") {
-          this.onload({ type: "load" });
+          for (const listener of this.listeners["error"] ?? []) listener({ type: "error" });
+        } else {
+          if (typeof this.onload === "function") this.onload({ type: "load" });
+          for (const listener of this.listeners["load"] ?? []) listener({ type: "load" });
         }
       }
     }
@@ -224,6 +262,10 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
 
     if (options.mzRuntime !== false) {
       sandbox.Graphics = { printError: () => {} };
+    }
+
+    if (options.sceneManager) {
+      sandbox.SceneManager = { goto: () => {} };
     }
   }
 
@@ -488,5 +530,157 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
 
     assert.equal(postedMessages.length, 1, "the resource-error hook does not duplicate the report");
     assert.equal(postedMessages[0].message.diagnostics?.retries, 2);
+  });
+
+  it("detects an entitlement answer through the absolute resource-timing entry for a relative bitmap URL", () => {
+    failBitmapLoads(10);
+    resourceEntries[`${ORIGIN}/engine/img/pictures/hero.png`] = { responseStatus: 403 };
+    loadPlugin();
+
+    startBitmap("/engine/img/pictures/hero.png");
+
+    assert.equal(timers.length, 0, "an entitlement answer is not retried");
+    assert.equal(postedMessages.length, 1);
+    const report = postedMessages[0].message;
+    assert.equal(report.diagnostics?.sessionRejected, true);
+    assert.equal(report.diagnostics?.status, 403);
+  });
+
+  it("shares one retry budget between MZ's relative and absolute names for one image", () => {
+    failBitmapLoads(10);
+    loadPlugin();
+
+    const first = startBitmap("/engine/img/pictures/hero.png");
+    runTimers();
+    assert.equal(first._loadingState, "error");
+    assert.equal(postedMessages.length, 1);
+
+    const second = startBitmap(`${ORIGIN}/engine/img/pictures/hero.png`);
+
+    assert.equal(timers.length, 0, "the shared budget is already spent");
+    assert.equal(second._loadingState, "error");
+    assert.equal(postedMessages.length, 1, "the reported outcome is not duplicated");
+  });
+
+  it("clears the retry budget once the image loads", () => {
+    failBitmapLoads(1);
+    loadPlugin();
+
+    const bitmap = startBitmap("/engine/img/pictures/hero.png");
+    runTimers();
+    assert.equal(bitmap._loadingState, "loaded");
+
+    failBitmapLoads(10);
+    const again = startBitmap("/engine/img/pictures/hero.png");
+
+    assert.equal(timers.length, 1, "a recovered asset earns a fresh budget");
+    runTimers();
+    assert.equal(again._loadingState, "error");
+  });
+
+  it("reports a data request answered 404 without retrying it", () => {
+    queueXhrOutcomes([{ kind: "response", status: 404 }]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: number[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {
+      outcomes.push(xhr.status);
+    };
+    xhr.send();
+
+    assert.equal(timers.length, 0, "a missing file is not a network failure");
+    assert.deepEqual(outcomes, [404], "the engine still sees the response it would have seen");
+    assert.equal(postedMessages.length, 1);
+    const report = postedMessages[0].message;
+    assert.equal(report.diagnostics?.status, 404);
+    assert.equal(report.diagnostics?.sessionRejected, undefined);
+    assert.equal(report.diagnostics?.retries, undefined);
+  });
+
+  it("replays headers, mime type and response type when a data request is retried", () => {
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    xhr.open("GET", "data/System.json");
+    xhr.setRequestHeader?.("Authorization", "Bearer session");
+    xhr.overrideMimeType?.("application/json");
+    xhr.responseType = "json";
+    xhr.onload = function () {};
+    xhr.send();
+    runTimers();
+
+    const raw = xhr as unknown as {
+      headerCalls: Array<[string, string]>;
+      mimeCalls: string[];
+      responseTypesAtSend: string[];
+    };
+    assert.deepEqual(xhrRequestUrls(), ["data/System.json", "data/System.json"]);
+    assert.deepEqual(raw.headerCalls, [
+      ["Authorization", "Bearer session"],
+      ["Authorization", "Bearer session"],
+    ]);
+    assert.deepEqual(raw.mimeCalls, ["application/json", "application/json"]);
+    assert.deepEqual(raw.responseTypesAtSend, ["json", "json"]);
+  });
+
+  it("retries a data request whose engine listens through addEventListener", () => {
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.addEventListener?.("load", () => {
+      outcomes.push(`load:${xhr.status}`);
+    });
+    xhr.addEventListener?.("error", () => {
+      outcomes.push("error");
+    });
+    xhr.send();
+
+    assert.equal(timers.length, 1);
+    runTimers();
+
+    assert.deepEqual(outcomes, ["load:200"], "the engine sees only the final outcome");
+    assert.deepEqual(xhrRequestUrls(), ["data/System.json", "data/System.json"]);
+    assert.equal(postedMessages.length, 0);
+  });
+
+  it("hands a pending data failure to the running game when the boot window closes first", () => {
+    setupEnvironment({ sceneManager: true });
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {
+      outcomes.push("load");
+    };
+    xhr.onerror = function () {
+      outcomes.push("error");
+    };
+    xhr.send();
+    assert.equal(timers.length, 1);
+
+    const sceneManager = sandbox.SceneManager as { goto: (scene: unknown) => void };
+    sceneManager.goto({ name: "Scene_Boot" });
+    sceneManager.goto({ name: "Scene_Title" });
+    runTimers();
+
+    assert.deepEqual(xhrRequestUrls(), ["data/System.json"], "no request leaves after readiness");
+    assert.deepEqual(outcomes, ["error"], "the running game owns the failure");
   });
 });

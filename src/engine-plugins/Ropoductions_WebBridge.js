@@ -387,6 +387,20 @@
     }
   }
 
+  function ownImageElement(element) {
+    if (!element || (typeof element !== "object" && typeof element !== "function")) return;
+    try {
+      if (retryOwnedImages) retryOwnedImages.add(element);
+    } catch (error) {
+      // Best effort: the resource-error hook falls back to the expando below.
+    }
+    try {
+      element.__ropoductionsRetryOwned = true;
+    } catch (error) {
+      // Frozen element: the WeakSet registration above is enough.
+    }
+  }
+
   /**
    * A failed image element carries no status, so the browser's own Resource
    * Timing entry is the only evidence of what answered. No entry at all means the
@@ -394,12 +408,22 @@
    */
   function assetFailureKind(url) {
     let status;
+    const candidates = [];
+    try {
+      candidates.push(absoluteUrl(url));
+    } catch (error) {
+      // Fall back to the raw URL below.
+    }
+    if (url) candidates.push(url);
     try {
       if (typeof performance !== "undefined" && typeof performance.getEntriesByName === "function") {
-        const entries = performance.getEntriesByName(url, "resource");
-        const last = entries && entries.length ? entries[entries.length - 1] : null;
-        if (last && typeof last.responseStatus === "number" && last.responseStatus > 0) {
-          status = last.responseStatus;
+        for (let i = 0; i < candidates.length; i++) {
+          const entries = performance.getEntriesByName(candidates[i], "resource");
+          const last = entries && entries.length ? entries[entries.length - 1] : null;
+          if (last && typeof last.responseStatus === "number" && last.responseStatus > 0) {
+            status = last.responseStatus;
+            break;
+          }
         }
       }
     } catch (error) {
@@ -469,9 +493,14 @@
         : failureClass;
     const carriesRetryOutcome =
       merged.retries !== undefined || merged.sessionRejected === true;
+    const outcomeSignature = merged.sessionRejected === true
+      ? "rejected"
+      : merged.retries !== undefined
+        ? "retries:" + merged.retries
+        : "";
     const previous = reportedFailureKeys[key];
-    if (previous && (!carriesRetryOutcome || previous === "retried")) return;
-    reportedFailureKeys[key] = carriesRetryOutcome ? "retried" : "reported";
+    if (previous && (!carriesRetryOutcome || previous === outcomeSignature)) return;
+    reportedFailureKeys[key] = carriesRetryOutcome ? outcomeSignature : "reported";
 
     const payload = { type: BOOT_FAILURE_MESSAGE_TYPE, failureClass: failureClass };
     if (typeof raw === "string" && raw) {
@@ -593,19 +622,23 @@
     if (typeof Bitmap === "undefined" || !Bitmap.prototype) {
       return;
     }
-    if (typeof Bitmap.prototype._startLoading === "function" && retryOwnedImages) {
+    if (typeof Bitmap.prototype._startLoading === "function") {
       const originalStartLoading = Bitmap.prototype._startLoading;
       Bitmap.prototype._startLoading = function () {
         const result = originalStartLoading.apply(this, arguments);
-        try {
-          if (this._image) {
-            retryOwnedImages.add(this._image);
-          }
-        } catch (error) {
-          // Best effort: an unregistered element is only reported by the generic
-          // resource-error hook instead of by this retry path.
-        }
+        ownImageElement(this._image);
         return result;
+      };
+    }
+    if (typeof Bitmap.prototype._onLoad === "function") {
+      const originalOnLoad = Bitmap.prototype._onLoad;
+      Bitmap.prototype._onLoad = function () {
+        try {
+          if (this && typeof this._url === "string") delete assetRetryCounts[absoluteUrl(this._url)];
+        } catch (error) {
+          // A spent budget is harmless: the boot window bounds every retry.
+        }
+        return originalOnLoad.apply(this, arguments);
       };
     }
     if (typeof Bitmap.prototype._onError !== "function") {
@@ -620,7 +653,9 @@
       if (bootReady || !url || !isEngineAssetUrl(url) || typeof bitmap._startLoading !== "function") {
         return originalOnError.apply(this, arguments);
       }
+      ownImageElement(bitmap._image);
 
+      const key = absoluteUrl(url);
       const kind = assetFailureKind(url);
       if (!kind.retryable) {
         finishBitmapFailure(bitmap, url, {
@@ -630,8 +665,8 @@
         return;
       }
 
-      const attempts = (assetRetryCounts[url] || 0) + 1;
-      assetRetryCounts[url] = attempts;
+      const attempts = (assetRetryCounts[key] || 0) + 1;
+      assetRetryCounts[key] = attempts;
       if (attempts > RETRY_MAX_ATTEMPTS) {
         finishBitmapFailure(bitmap, url, {
           retries: RETRY_MAX_ATTEMPTS,
@@ -665,8 +700,99 @@
     }
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;
+    const originalSetRequestHeader =
+      typeof XMLHttpRequest.prototype.setRequestHeader === "function"
+        ? XMLHttpRequest.prototype.setRequestHeader
+        : null;
+    const originalOverrideMimeType =
+      typeof XMLHttpRequest.prototype.overrideMimeType === "function"
+        ? XMLHttpRequest.prototype.overrideMimeType
+        : null;
+    const originalAddEventListener =
+      typeof XMLHttpRequest.prototype.addEventListener === "function"
+        ? XMLHttpRequest.prototype.addEventListener
+        : null;
+    const originalRemoveEventListener =
+      typeof XMLHttpRequest.prototype.removeEventListener === "function"
+        ? XMLHttpRequest.prototype.removeEventListener
+        : null;
     const OPEN_KEY = "__ropoductionsAssetOpen";
     const RETRY_KEY = "__ropoductionsAssetRetry";
+    const HEADERS_KEY = "__ropoductionsAssetHeaders";
+    const MIME_KEY = "__ropoductionsAssetMime";
+    const LISTENERS_KEY = "__ropoductionsAssetListeners";
+
+    function trackedListeners(xhr) {
+      try {
+        if (!xhr[LISTENERS_KEY]) {
+          xhr[LISTENERS_KEY] = { load: [], error: [], readystatechange: false };
+        }
+        return xhr[LISTENERS_KEY];
+      } catch (error) {
+        return null;
+      }
+    }
+
+    if (originalSetRequestHeader) {
+      XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+        const headers = this[HEADERS_KEY] || (this[HEADERS_KEY] = []);
+        try {
+          headers.push([name, value]);
+        } catch (error) {
+          // The retry replays what the engine set; an unrecorded header stays native-only.
+        }
+        return originalSetRequestHeader.apply(this, arguments);
+      };
+    }
+
+    if (originalOverrideMimeType) {
+      XMLHttpRequest.prototype.overrideMimeType = function (mime) {
+        try {
+          this[MIME_KEY] = mime;
+        } catch (error) {
+          // Unrecorded mime stays native-only on the first attempt.
+        }
+        return originalOverrideMimeType.apply(this, arguments);
+      };
+    }
+
+    if (originalAddEventListener) {
+      XMLHttpRequest.prototype.addEventListener = function (type, listener) {
+        if (
+          (type === "load" || type === "error" || type === "readystatechange") &&
+          typeof listener === "function"
+        ) {
+          const tracked = trackedListeners(this);
+          if (tracked) {
+            if (type === "readystatechange") {
+              tracked.readystatechange = true;
+            } else {
+              tracked[type].push(listener);
+              const pending = this[RETRY_KEY];
+              if (pending && pending.deferred) {
+                return undefined;
+              }
+            }
+          }
+        }
+        return originalAddEventListener.apply(this, arguments);
+      };
+      if (originalRemoveEventListener) {
+        XMLHttpRequest.prototype.removeEventListener = function (type, listener) {
+          try {
+            const tracked = this[LISTENERS_KEY];
+            if (tracked && (type === "load" || type === "error") && typeof listener === "function") {
+              tracked[type] = tracked[type].filter(function (entry) {
+                return entry !== listener;
+              });
+            }
+          } catch (error) {
+            // Native removal below still applies.
+          }
+          return originalRemoveEventListener.apply(this, arguments);
+        };
+      }
+    }
 
     XMLHttpRequest.prototype.open = function (method, url) {
       try {
@@ -674,6 +800,8 @@
           method: typeof method === "string" ? method.toUpperCase() : "GET",
           url: typeof url === "string" ? url : String(url)
         };
+        this[HEADERS_KEY] = [];
+        this[MIME_KEY] = undefined;
       } catch (error) {
         // Unbookkeeped request: the send hook passes it through untouched.
       }
@@ -694,20 +822,56 @@
       if (typeof xhr.onreadystatechange === "function") {
         return originalSend.apply(xhr, arguments);
       }
+      const tracked = xhr[LISTENERS_KEY];
+      if (tracked && tracked.readystatechange) {
+        return originalSend.apply(xhr, arguments);
+      }
       const savedOnLoad = xhr.onload;
       const savedOnError = xhr.onerror;
-      if (typeof savedOnLoad !== "function" && typeof savedOnError !== "function") {
+      const hasListenerPath =
+        !!tracked && (tracked.load.length > 0 || tracked.error.length > 0);
+      if (
+        typeof savedOnLoad !== "function" &&
+        typeof savedOnError !== "function" &&
+        !hasListenerPath
+      ) {
+        return originalSend.apply(xhr, arguments);
+      }
+      if (hasListenerPath && !originalRemoveEventListener) {
         return originalSend.apply(xhr, arguments);
       }
 
       const request = {
         url: absoluteUrl(openState.url),
         responseType: xhr.responseType,
-        retries: 0
+        withCredentials: xhr.withCredentials,
+        timeout: xhr.timeout,
+        retries: 0,
+        deferred: hasListenerPath,
+        onLoad: null,
+        onError: null
       };
       xhr[RETRY_KEY] = request;
 
+      if (hasListenerPath && tracked) {
+        for (let i = 0; i < tracked.load.length; i++) {
+          try {
+            originalRemoveEventListener.call(xhr, "load", tracked.load[i]);
+          } catch (error) {
+            // The listener stays native; finish() still replays the outcome to it.
+          }
+        }
+        for (let i = 0; i < tracked.error.length; i++) {
+          try {
+            originalRemoveEventListener.call(xhr, "error", tracked.error[i]);
+          } catch (error) {
+            // Same as above.
+          }
+        }
+      }
+
       function finish(status, event) {
+        const live = xhr[LISTENERS_KEY];
         try {
           delete xhr[RETRY_KEY];
         } catch (error) {
@@ -717,21 +881,86 @@
         // status; a request that never completed drives onerror.
         if (status > 0) {
           if (typeof savedOnLoad === "function") savedOnLoad.call(xhr, event);
-        } else if (typeof savedOnError === "function") {
-          savedOnError.call(xhr, event);
+          if (live) {
+            for (let i = 0; i < live.load.length; i++) {
+              try {
+                live.load[i].call(xhr, event);
+              } catch (error) {
+                // One listener must not silence the rest.
+              }
+            }
+          }
+        } else {
+          if (typeof savedOnError === "function") savedOnError.call(xhr, event);
+          if (live) {
+            for (let i = 0; i < live.error.length; i++) {
+              try {
+                live.error[i].call(xhr, event);
+              } catch (error) {
+                // One listener must not silence the rest.
+              }
+            }
+          }
         }
       }
 
-      function retry() {
+      function retry(pending) {
         try {
           originalOpen.call(xhr, openState.method, openState.url);
-          if (request.responseType) {
-            xhr.responseType = request.responseType;
-          }
-          originalSend.call(xhr, body);
         } catch (error) {
-          finish(0, null);
+          return false;
         }
+        try {
+          xhr.onload = request.onLoad;
+          xhr.onerror = request.onError;
+          if (originalSetRequestHeader && xhr[HEADERS_KEY]) {
+            for (let i = 0; i < xhr[HEADERS_KEY].length; i++) {
+              originalSetRequestHeader.call(xhr, xhr[HEADERS_KEY][i][0], xhr[HEADERS_KEY][i][1]);
+            }
+          }
+          if (originalOverrideMimeType && xhr[MIME_KEY] !== undefined) {
+            originalOverrideMimeType.call(xhr, xhr[MIME_KEY]);
+          }
+          if (request.responseType !== undefined) {
+            try {
+              xhr.responseType = request.responseType;
+            } catch (error) {
+              // A response type the retry cannot restore stays engine-default.
+            }
+          }
+          if (request.withCredentials !== undefined) {
+            try {
+              xhr.withCredentials = request.withCredentials;
+            } catch (error) {
+              // Same as above.
+            }
+          }
+          if (request.timeout) {
+            try {
+              xhr.timeout = request.timeout;
+            } catch (error) {
+              // Same as above.
+            }
+          }
+        } catch (error) {
+          // Restoration is best effort; the re-issued request still runs.
+        }
+        try {
+          originalSend.call(xhr, pending.body);
+        } catch (error) {
+          return false;
+        }
+        return true;
+      }
+
+      function reportExhausted(status) {
+        const detail = { url: request.url, retries: request.retries };
+        if (status > 0) {
+          detail.status = status;
+        } else {
+          detail.networkError = "request did not complete";
+        }
+        reportBootFailure("asset_load_failed", "Failed to load " + request.url, detail);
       }
 
       function retryOrReport(status, event) {
@@ -744,33 +973,49 @@
           finish(status, event);
           return;
         }
+        if (status > 0 && status < 500) {
+          reportBootFailure("asset_load_failed", "Failed to load " + request.url, {
+            url: request.url,
+            status: status
+          });
+          finish(status, event);
+          return;
+        }
         if (request.retries < RETRY_MAX_ATTEMPTS) {
           request.retries += 1;
-          if (scheduleRetry(retry, request.retries)) {
+          const pending = { status: status, event: event, body: body };
+          if (
+            scheduleRetry(function () {
+              if (bootReady) {
+                finish(pending.status, pending.event);
+                return;
+              }
+              if (!retry(pending)) {
+                reportExhausted(pending.status);
+                finish(pending.status, pending.event);
+              }
+            }, request.retries)
+          ) {
             return;
           }
         }
-        const detail = { url: request.url, retries: request.retries };
-        if (status > 0) {
-          detail.status = status;
-        } else {
-          detail.networkError = "request did not complete";
-        }
-        reportBootFailure("asset_load_failed", "Failed to load " + request.url, detail);
+        reportExhausted(status);
         finish(status, event);
       }
 
-      xhr.onload = function (event) {
+      request.onLoad = function (event) {
         const status = xhr.status;
-        if (status === 401 || status === 403 || status >= 500 || status === 0) {
+        if (status === 0 || status >= 400) {
           retryOrReport(status, event);
           return;
         }
         finish(status, event);
       };
-      xhr.onerror = function (event) {
+      request.onError = function (event) {
         retryOrReport(0, event);
       };
+      xhr.onload = request.onLoad;
+      xhr.onerror = request.onError;
 
       return originalSend.apply(xhr, arguments);
     };
@@ -901,7 +1146,11 @@
         if (!target || target === window || !target.tagName) return;
         const tagName = String(target.tagName).toLowerCase();
         if (tagName !== "script" && tagName !== "img") return;
-        if (tagName === "img" && retryOwnedImages && retryOwnedImages.has(target)) {
+        if (
+          tagName === "img" &&
+          ((retryOwnedImages && retryOwnedImages.has(target)) ||
+            (target && target.__ropoductionsRetryOwned === true))
+        ) {
           // A MZ bitmap owns this element: the retry hook reports its outcome with
           // the retry count instead of reporting the failure twice.
           return;
