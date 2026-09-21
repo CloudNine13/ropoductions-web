@@ -27,6 +27,9 @@ export default defineConfig([
     "cloudflare-env.d.ts",
     // OpenNext Cloudflare build output
     ".open-next/**",
+    // Wrangler working state: the e2e harness runs `wrangler`/`opennextjs-cloudflare`
+    // preview, which leaves bundled worker output under .wrangler/tmp
+    ".wrangler/**",
     // The in-engine bridge plugin and mock harness run in a foreign RPG Maker
     // MZ runtime (MZ globals), not the Next.js app
     "src/engine-plugins/**",

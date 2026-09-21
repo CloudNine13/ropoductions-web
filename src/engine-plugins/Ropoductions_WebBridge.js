@@ -286,6 +286,249 @@
   }
   window.addEventListener("message", onMessage);
 
+  // ---------------------------------------------------------------------------
+  // Engine boot failure reporting
+  //
+  // Every player-visible boot failure is classified and reported to the host so
+  // the raw MZ screen never becomes the outcome. The report vocabulary and
+  // taxonomy are duplicated from src/types/engine-boot.ts and
+  // src/lib/engine-boot-failure.ts across the runtime boundary, the same way
+  // getByteLength above mirrors src/lib/save-import.ts.
+  //
+  // Reporting is scoped to the boot window: once readiness is posted, a later
+  // error inside a running game stays the engine's own problem and never
+  // replaces the game with a boot recovery panel.
+  // ---------------------------------------------------------------------------
+
+  const BOOT_FAILURE_MESSAGE_TYPE = "ROPODUCTIONS_ENGINE_BOOT_FAILURE";
+  const ENGINE_READY_MESSAGE_TYPE = "ROPODUCTIONS_ENGINE_READY";
+
+  const RAW_SENTENCE_CLASSES = [
+    ["Your browser does not support WebGL.", "webgl_unavailable"],
+    ["Your browser does not support Web Audio API.", "browser_capability"],
+    ["Your browser does not support CSS Font Loading.", "browser_capability"],
+    ["Your browser does not support IndexedDB.", "browser_capability"],
+    ["Your browser does not allow to read local files.", "boot_request_failed"],
+    ["Failed to initialize graphics.", "renderer_init_failed"]
+  ];
+  const ASSET_LOAD_MARKERS = ["Failed to load", "has failed to load"];
+
+  function classifyBootFailure(raw) {
+    if (typeof raw !== "string" || raw.trim() === "") {
+      return "boot_request_failed";
+    }
+    for (let i = 0; i < RAW_SENTENCE_CLASSES.length; i++) {
+      if (raw.indexOf(RAW_SENTENCE_CLASSES[i][0]) !== -1) {
+        return RAW_SENTENCE_CLASSES[i][1];
+      }
+    }
+    for (let i = 0; i < ASSET_LOAD_MARKERS.length; i++) {
+      if (raw.indexOf(ASSET_LOAD_MARKERS[i]) !== -1) {
+        return "asset_load_failed";
+      }
+    }
+    return "boot_request_failed";
+  }
+
+  let bootReady = false;
+  let webglProbeDetail = null;
+  const reportedFailureKeys = {};
+
+  function postToHost(message) {
+    try {
+      if (window.parent && window.parent !== window && typeof window.parent.postMessage === "function") {
+        window.parent.postMessage(message, window.location.origin);
+      }
+    } catch {
+      // Fallback if window.parent access is restricted
+    }
+  }
+
+  function hideErrorPrinter() {
+    try {
+      const printer = document.getElementById("errorPrinter");
+      if (printer && printer.style) {
+        printer.style.display = "none";
+      }
+    } catch {
+      // Document unavailable: nothing to hide
+    }
+  }
+
+  function postEngineReady() {
+    if (bootReady) return;
+    bootReady = true;
+    postToHost({ type: ENGINE_READY_MESSAGE_TYPE });
+  }
+
+  function reportBootFailure(failureClass, raw, diagnostics) {
+    if (bootReady) return;
+    // One report per failure class per boot; asset failures are keyed by URL so a
+    // second missing resource is still named.
+    const key =
+      failureClass === "asset_load_failed"
+        ? failureClass + "\u0000" + ((diagnostics && diagnostics.url) || raw || "")
+        : failureClass;
+    if (reportedFailureKeys[key]) return;
+    reportedFailureKeys[key] = true;
+
+    const payload = { type: BOOT_FAILURE_MESSAGE_TYPE, failureClass: failureClass };
+    if (typeof raw === "string" && raw) {
+      payload.raw = raw;
+    }
+
+    const merged = {};
+    if (diagnostics) {
+      const keys = Object.keys(diagnostics);
+      for (let i = 0; i < keys.length; i++) {
+        const value = diagnostics[keys[i]];
+        if (value !== undefined && value !== null) {
+          merged[keys[i]] = value;
+        }
+      }
+    }
+    if (webglProbeDetail && webglProbeDetail.statusMessage && !merged.statusMessage) {
+      merged.statusMessage = webglProbeDetail.statusMessage;
+    }
+    if (Object.keys(merged).length > 0) {
+      payload.diagnostics = merged;
+    }
+
+    postToHost(payload);
+    hideErrorPrinter();
+  }
+
+  // MZ's own probe only answers yes/no; when it says no, re-run it to capture the
+  // browser's webglcontextcreationerror.statusMessage for the report.
+  function captureWebglFailureDetail() {
+    try {
+      const canvas = document.createElement("canvas");
+      let statusMessage = null;
+      const onCreationError = (event) => {
+        if (event && typeof event.statusMessage === "string" && event.statusMessage) {
+          statusMessage = event.statusMessage;
+        }
+      };
+      canvas.addEventListener("webglcontextcreationerror", onCreationError);
+      let context = null;
+      try {
+        context = canvas.getContext("webgl");
+      } catch (error) {
+        context = null;
+      }
+      canvas.removeEventListener("webglcontextcreationerror", onCreationError);
+      if (context && typeof context.getExtension === "function") {
+        try {
+          const loseContext = context.getExtension("WEBGL_lose_context");
+          if (loseContext) loseContext.loseContext();
+        } catch (error) {
+          // Probe context release is best effort
+        }
+      }
+      return { statusMessage: statusMessage, probeSupported: Boolean(context) };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function installWebglProbeHook() {
+    if (typeof Utils === "undefined" || typeof Utils.canUseWebGL !== "function") {
+      return;
+    }
+    const originalCanUseWebGL = Utils.canUseWebGL;
+    Utils.canUseWebGL = function () {
+      const supported = originalCanUseWebGL.apply(this, arguments);
+      if (!supported && !webglProbeDetail) {
+        webglProbeDetail = captureWebglFailureDetail();
+      }
+      return supported;
+    };
+  }
+
+  function installCapabilityHook() {
+    if (typeof SceneManager === "undefined" || typeof SceneManager.checkBrowser !== "function") {
+      return false;
+    }
+    const originalCheckBrowser = SceneManager.checkBrowser;
+    SceneManager.checkBrowser = function () {
+      try {
+        const result = originalCheckBrowser.apply(this, arguments);
+        postEngineReady();
+        return result;
+      } catch (error) {
+        const raw = error && error.message ? String(error.message) : String(error);
+        reportBootFailure(classifyBootFailure(raw), raw, webglProbeDetail);
+        throw error;
+      }
+    };
+    return true;
+  }
+
+  function installPrintErrorHook() {
+    if (typeof Graphics === "undefined" || typeof Graphics.printError !== "function") {
+      return;
+    }
+    const originalPrintError = Graphics.printError;
+    Graphics.printError = function (name, message) {
+      const parts = [name, message]
+        .map(function (part) {
+          if (typeof part === "string") return part;
+          if (part && typeof part.message === "string") return part.message;
+          return "";
+        })
+        .filter(function (part) {
+          return part !== "";
+        });
+      const raw = parts.join(": ");
+      const failureClass = classifyBootFailure(raw);
+      const diagnostics = {};
+      if (failureClass === "asset_load_failed" && typeof message === "string" && message) {
+        diagnostics.url = message;
+      }
+      if (webglProbeDetail && webglProbeDetail.probeSupported === false) {
+        diagnostics.probeSupported = false;
+      }
+      reportBootFailure(failureClass, raw, diagnostics);
+      hideErrorPrinter();
+      const result = originalPrintError.apply(this, arguments);
+      hideErrorPrinter();
+      return result;
+    };
+  }
+
+  function installResourceErrorHook() {
+    window.addEventListener(
+      "error",
+      function (event) {
+        const target = event && event.target;
+        if (!target || target === window || !target.tagName) return;
+        const tagName = String(target.tagName).toLowerCase();
+        if (tagName !== "script" && tagName !== "img") return;
+        const url = target.currentSrc || target.src || "";
+        if (!url) return;
+        reportBootFailure("asset_load_failed", "Failed to load " + url, { url: url });
+      },
+      true
+    );
+  }
+
+  const hasMzRuntime = typeof SceneManager !== "undefined" || typeof Graphics !== "undefined";
+
+  installWebglProbeHook();
+  installCapabilityHook();
+  installPrintErrorHook();
+  installResourceErrorHook();
+
+  if (!hasMzRuntime) {
+    // The website-owned mock harness has no MZ runtime to gate on, so the document
+    // load is the boot.
+    if (document.readyState === "complete") {
+      postEngineReady();
+    } else {
+      window.addEventListener("load", postEngineReady, { once: true });
+    }
+  }
+
   let lastActivityPostTime = 0;
   function notifyParentActivity() {
     const now = Date.now();
