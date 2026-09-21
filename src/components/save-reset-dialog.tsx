@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, RotateCcw, X, Loader2, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ErrorReactionIcon } from "@/components/error-reaction-icon";
 import { resetSaves } from "@/lib/save-bridge";
 import { SAVE_DIALOG_DISMISS_MS } from "@/types/save";
 
@@ -137,9 +138,9 @@ export function SaveResetDialog({
             {status === "error" && errorMessage && (
               <div
                 role="alert"
-                className="flex items-start gap-2.5 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 p-3 text-xs sm:text-sm text-[#E11D48]"
+                className="flex items-center gap-3 rounded-lg border border-[#E11D48]/40 bg-[#E11D48]/10 p-3 text-xs sm:text-sm text-[#E11D48]"
               >
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+                <ErrorReactionIcon />
                 <span>{errorMessage}</span>
               </div>
             )}

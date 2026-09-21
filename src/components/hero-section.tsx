@@ -7,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { saveLandingScrollPosition } from "@/lib/paywall";
 
 const HERO_BANNER_SRC = "/branding/studio-banner.jpeg";
+const HERO_EMBLEM_ANIMATED_SRC = "/branding/studio-logo-animated.gif";
+const HERO_EMBLEM_STATIC_SRC = "/branding/studio-logo.webp";
+const HERO_EMBLEM_CLASS = "pixelated";
 
 export function HeroSection() {
   const t = useTranslations("hero");
@@ -35,14 +38,24 @@ export function HeroSection() {
       <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
         <div className="flex flex-col items-center justify-center gap-3">
           <div className="flex items-center justify-center gap-3">
+            {/* Looping emblem is swapped for the static mark under reduced-motion, where the media query wins before first paint */}
             <Image
-              src="/branding/studio-logo.webp"
+              src={HERO_EMBLEM_ANIMATED_SRC}
               alt="Ropoductions Studio Emblem"
               width={56}
               height={56}
               unoptimized
-              className="pixelated drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]"
               priority
+              className={`${HERO_EMBLEM_CLASS} motion-reduce:hidden`}
+            />
+            <Image
+              src={HERO_EMBLEM_STATIC_SRC}
+              alt="Ropoductions Studio Emblem"
+              width={56}
+              height={56}
+              unoptimized
+              loading="lazy"
+              className={`hidden ${HERO_EMBLEM_CLASS} motion-reduce:block`}
             />
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-wider text-foreground drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)] break-words max-w-full leading-[1.1]">
               ROPODUCTIONS

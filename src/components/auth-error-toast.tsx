@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ErrorReactionIcon } from "@/components/error-reaction-icon";
 
 interface AuthErrorToastProps {
   errorCode: string;
@@ -59,9 +60,7 @@ export function AuthErrorToast({ errorCode }: AuthErrorToastProps) {
       }`}
     >
       <div className="pointer-events-auto flex items-start gap-3 rounded-xl border border-destructive/50 bg-card/95 p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] text-foreground">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 border border-destructive/30 text-destructive">
-          <AlertCircle className="h-5 w-5" aria-hidden="true" />
-        </div>
+        <ErrorReactionIcon key={errorCode} />
         <div className="flex-1 min-w-0 pr-1">
           <h3 className="font-display font-semibold text-sm sm:text-base text-destructive">
             {title}

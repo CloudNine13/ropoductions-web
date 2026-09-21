@@ -22,7 +22,7 @@ export function StudioFooter() {
               width={32}
               height={32}
               unoptimized
-              className="pixelated drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+              className="pixelated"
             />
             <div>
               <span className="font-display text-lg font-bold tracking-wider text-foreground">

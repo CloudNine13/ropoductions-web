@@ -27,7 +27,7 @@ export function StudioHeader() {
             width={36}
             height={36}
             unoptimized
-            className="pixelated drop-shadow-[0_0_12px_rgba(34,197,94,0.7)]"
+            className="pixelated"
             priority
           />
           <span className="font-display text-xl sm:text-2xl font-bold tracking-wider text-foreground">
