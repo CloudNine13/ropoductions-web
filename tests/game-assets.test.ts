@@ -634,4 +634,65 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-length"), "1000");
   });
+
+  it("answers a validation failure with 500 never implicit authorization", async () => {
+    globalThis.__D1_TEST_DB__ = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first(): Promise<never> {
+                throw new Error("d1 unavailable");
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const req = makeRequest("/api/game/data/System.json", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, { params: Promise.resolve({ asset: ["data", "System.json"] }) });
+
+    assert.equal(res.status, 500);
+    const json = (await res.json()) as { error: { code: string } };
+    assert.equal(json.error.code, "INTERNAL_ERROR");
+  });
+
+  it("costs no D1 read for anonymous and unverified requests", async () => {
+    let d1Queries = 0;
+    globalThis.__D1_TEST_DB__ = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                d1Queries++;
+                return createSessionFixture();
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const anonymous = await GET(makeRequest("/api/game/data/System.json"), {
+      params: Promise.resolve({ asset: ["data", "System.json"] }),
+    });
+    assert.equal(anonymous.status, 403);
+
+    const withoutAgeGate = await GET(
+      makeRequest("/api/game/data/System.json", {
+        cookies: { ropoductions_session: validSignedCookie },
+      }),
+      { params: Promise.resolve({ asset: ["data", "System.json"] }) }
+    );
+    assert.equal(withoutAgeGate.status, 403);
+
+    assert.equal(d1Queries, 0);
+  });
 });
