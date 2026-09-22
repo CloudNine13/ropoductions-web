@@ -331,6 +331,27 @@
       "confirm": "Revocar acceso",
       "error": "No se pudo revocar el pase de acceso.",
       "errorRetry": "No se pudo revocar el pase de acceso. Inténtalo de nuevo."
+    },
+    "audit": {
+      "title": "Registro de auditoría",
+      "subtitle": "Registro de solo añadido de cada concesión, cambio y revocación de pase de acceso.",
+      "appendOnly": "Las entradas se escriben junto con la mutación y nunca se pueden editar ni eliminar.",
+      "emptyTitle": "Sin entradas de auditoría",
+      "emptyDesc": "Todavía no se ha concedido, cambiado ni revocado ningún pase de acceso.",
+      "caption": "Registro de auditoría de pases de acceso",
+      "time": "Hora (UTC)",
+      "actor": "Autor",
+      "target": "Destino",
+      "action": "Acción",
+      "before": "Antes",
+      "after": "Después",
+      "actionGrant": "Concesión",
+      "actionUpdate": "Actualización",
+      "actionRevoke": "Revocación",
+      "none": "—",
+      "pagerPrev": "Anterior",
+      "pagerNext": "Siguiente",
+      "pagerPage": "Página {page}"
     }
   }
 }

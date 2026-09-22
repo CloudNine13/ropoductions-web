@@ -331,6 +331,27 @@
       "confirm": "Revoke Access",
       "error": "Failed to revoke the access pass.",
       "errorRetry": "Failed to revoke the access pass. Please try again."
+    },
+    "audit": {
+      "title": "Audit Trail",
+      "subtitle": "Append-only record of every access pass grant, change, and revocation.",
+      "appendOnly": "Entries are written with the mutation and can never be edited or deleted.",
+      "emptyTitle": "No Audit Entries",
+      "emptyDesc": "No access pass has been granted, changed, or revoked yet.",
+      "caption": "Access pass audit trail",
+      "time": "Time (UTC)",
+      "actor": "Actor",
+      "target": "Target",
+      "action": "Action",
+      "before": "Before",
+      "after": "After",
+      "actionGrant": "Grant",
+      "actionUpdate": "Update",
+      "actionRevoke": "Revoke",
+      "none": "—",
+      "pagerPrev": "Previous",
+      "pagerNext": "Next",
+      "pagerPage": "Page {page}"
     }
   }
 }
