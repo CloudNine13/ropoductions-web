@@ -2,9 +2,9 @@
 title: 'Story 6.2: Fullscreen Viewport Continuity (Single-Tree GameViewport)'
 type: 'bugfix'
 created: '2026-09-21'
-status: 'ready-for-dev'
+status: 'review'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 context:
   - '_bmad-output/planning-artifacts/analytics/analytics-epic-6-2026-09-21.md'
   - '_bmad-output/planning-artifacts/architecture/architecture-ropoductions-web-2026-09-15/ARCHITECTURE-SPINE.md'
@@ -87,3 +87,26 @@ E2e `e2e/fullscreen-continuity.spec.ts` (requires the 6.1 session helper + authe
 3. `npm test`
 4. `npm run build`
 Plus, before the PR: `npm run test:e2e` — the new `e2e/fullscreen-continuity.spec.ts` passes, and the pre-fix control run (same spec against the base commit without the merge) demonstrates the 2-boot failure; all existing e2e specs stay green; zero conflicts against `origin/develop`.
+
+## Review Triage Log
+
+Layers run 2026-09-22 against the branch diff (`fix/6-2-fullscreen-viewport-continuity`, cut from `origin/develop` @ 1e6d4bd): a remount-mechanism audit, a layout-equivalence analysis, a diff-correctness review, and a verification-gap review. Verdicts are the orchestrator's, checked against the branch before acceptance.
+
+| # | Finding (layer) | Verdict | Evidence and route |
+|---|---|---|---|
+| 1 | Divergent returns are the only mechanism that unmounts/recreates the frame; every other candidate (frameSrc writes, retry/error chains, dock conditional, Radix portals, `portalElement` transitions, keys) is either not toggle-reachable or swaps only slots positioned after the frame (remount audit) | `confirmed` | React 19 reconciles the reused root div by child index: fullscreen `container > stage > iframe` vs windowed `container > card > inner > iframe` put `IFRAME` against `DIV` → type mismatch. Post-fix measured: load events 1 (was 1 → 3), 0 frame mutations (was 4). |
+| 2 | Sibling index shuffle also remounted the dock and FAB and cross-remounted the two dialogs on every toggle (remount audit, second-order defect) | `fixed` | The constant slot array removes the index shuffle; the e2e identity test asserts the `save-hud-dock` node survives the toggle, so the dock's idle-dim timer and in-flight export state are no longer reset. |
+| 3 | Windowed mode in width-clamped (portrait/tall) viewports: merging today's outer card and inner 16:9 wrapper into one element means the iframe element box stops being a true-16:9 letterbox; the game is then letterboxed by the engine's own `object-fit: contain` instead of by the host (layout analysis) | `accepted, measured` | Pre/post painted game rects measured on the built worker at 390x844 — windowed 371.6x209 at y=312.4 (pre) vs 372x209 at y=311.4 (post): the painted game area is preserved within 1px. The delta is which box owns the black letterbox band, not what the player sees. Unavoidable for a single stage element; the spec's `[stage, dockArea, fabSlot, importDialog, resetDialog]` contract forbids the extra wrapper that would remove it. |
+| 4 | The premise that merging would newly clip the iframe corners is wrong: `rounded-xl` and `overflow-hidden` already sit on the same element in the windowed card, so corners are already clipped (layout analysis) | `false premise, corrected` | `git show origin/develop:src/components/game-viewport.tsx` windowed card carries both tokens on one element; the merge introduces no clipping change. |
+| 5 | New e2e helpers carried WHAT-only comments, against the strict WHY-only comment rule (diff review) | `fixed` | All three rewritten as rationale (why a capture listener, why positional reconciliation shows up as add/remove, why the path is recorded). |
+| 6 | `{engineFrame}`/`<iframe` count and the `activeFullscreen` presence assertions passed on the base revision, so they were not red-first (diff review) | `fixed` | Replaced by a single discriminating assertion — `{engineFrame}` must be placed exactly once (base: 2, head: 1). The non-discriminating `activeFullscreen` presence check was dropped. |
+| 7 | The dock-placement assertions passed on the base revision because both class strings already existed in the two separate returns (diff review) | `fixed` | Rewritten to scope both class strings to the single `const dockArea` declaration (base: no such declaration; head: present, both strings inside it), which also proves one slot carries both modes. |
+| 8 | A fixed 250 ms settle cannot prove "no later remount": a delayed remount or reload after the reads escapes all three tests (verification-gap review) | `fixed, residual accepted` | The sleep is gone. The engine document is pulsed with real input after the toggle (a real round-trip that also proves the document still answers input), the load counter was added to the state test and asserted last, and the mutation observer runs continuously. Residual: any "never happened" assertion is bounded by its observation window; the counters are continuous, only the final read is bounded. |
+| 9 | `performance.getEntriesByType("navigation").length` resets to 1 across a reload, so the assertion was tautological (verification-gap review) | `fixed` | Deleted; the in-document runtime marker, `performance.timeOrigin` and the load count carry the reload signal. |
+| 10 | Spec defects: the Problem and Files sections cite line numbers from a pre-Epic-7 revision (`:301`/`:358`/`:176-178`/`:244-257`/`:48-89`; actual `:686`/`:745`/`:572-574`/`:640-654`/`:378-411`), and Approach 3 plus the Contracts require `key={engineKey}` — no such binding exists anywhere in the repository | `corrected, not implemented` | `grep` for `engineKey` finds nothing (only an unrelated `key={locKey}` in `language-switcher.tsx`). Adding a key would be a remount-inducing key change, which AD-11 forbids. The single-tree requirement is met without it; `handleRetryLoad` keeps its existing imperative retry semantics. |
+
+## Deviations from the frozen spec
+
+1. **`key={engineKey}` not added** (triage #10): the frozen Contracts clause describes a binding that does not exist in the codebase; the invariant it protects (no remount-inducing key on the frame path) is satisfied by having no key at all.
+2. **The windowed stage merges two pre-existing elements** into one: the frozen contract's `[stage, dockArea, fabSlot, importDialog, resetDialog]` slot array permits exactly one stage element, so today's outer card and inner 16:9 wrapper become one mode-switched element. This is the source of the accepted portrait delta in triage #3.
+3. **Painted-area measurement added to the verification** beyond the frozen list: the AC "no styling regression" is proven on the built worker by comparing the painted game rect before and after, because the iframe element box legitimately changes in the portrait case.

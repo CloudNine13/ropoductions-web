@@ -72,6 +72,51 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("touch-manipulation"), "Container must declare touch-manipulation");
   });
 
+  it("renders a single tree in both modes so the engine frame is never re-parented", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.ok(
+      !src.includes("if (activeFullscreen) {"),
+      "GameViewport must not branch into a second returned tree for fullscreen"
+    );
+    assert.equal(
+      (src.match(/data-testid="game-viewport-container"/g) ?? []).length,
+      1,
+      "Exactly one viewport container may exist in the component source"
+    );
+    assert.equal(
+      (src.match(/\{engineFrame\}/g) ?? []).length,
+      1,
+      "The engine frame must be placed exactly once, in one shared stage slot"
+    );
+  });
+
+  it("keeps the container children slots constant and mode-switched by class names only", () => {
+    const src = readSource(gameViewportPath);
+    const slots = ["{stage}", "{dockArea}", "{fabSlot}", "{importDialog}", "{resetDialog}"];
+    const positions = slots.map((slot) => src.indexOf(slot));
+
+    assert.ok(
+      positions.every((position) => position >= 0),
+      `Every container slot must exist as a named element: ${slots.join(", ")}`
+    );
+    assert.deepEqual(
+      positions,
+      [...positions].sort((left, right) => left - right),
+      "Container children must keep the constant order [stage, dockArea, fabSlot, importDialog, resetDialog]"
+    );
+  });
+
+  it("sets the dialog portal container once against a stable viewport node", () => {
+    const src = readSource(gameViewportPath);
+
+    assert.match(
+      src,
+      /setPortalElement\(containerRef\.current\);\s*\},\s*\[\]\);/,
+      "The portal element effect must run once with empty dependencies"
+    );
+  });
+
   it("manages fullscreen state with WebKit prefix fallbacks and delegates toggle to SaveHudDock", () => {
     const src = readSource(gameViewportPath);
 
@@ -140,9 +185,23 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("aria-expanded={!isHudCollapsed}"), "FAB must expose aria-expanded");
     assert.ok(src.includes("aria-controls={hudId}"), "FAB must expose aria-controls pointing at the dock");
     assert.ok(src.includes("h-11 w-11"), "FAB must meet the 44px touch target floor");
+
+    const dockSlotStart = src.indexOf("const dockArea = (");
+    const dockSlotEnd = src.indexOf("const fabSlot =", dockSlotStart);
     assert.ok(
-      src.includes("pointer-events-none"),
-      "Fullscreen overlay dock wrapper must stay click-through outside the pill"
+      dockSlotStart >= 0 && dockSlotEnd > dockSlotStart,
+      "The dock must be declared once as its own container slot"
+    );
+    const dockSlot = src.slice(dockSlotStart, dockSlotEnd);
+    assert.ok(
+      dockSlot.includes("flex w-full shrink-0 items-center justify-center"),
+      "The single dock slot must carry the windowed static sibling classes"
+    );
+    assert.ok(
+      dockSlot.includes(
+        "absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+      ),
+      "The same dock slot must carry the fullscreen click-through overlay classes"
     );
     assert.ok(
       src.includes('[role="dialog"][data-state="open"]'),

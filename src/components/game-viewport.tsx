@@ -571,7 +571,7 @@ export function GameViewport({
 
   useEffect(() => {
     setPortalElement(containerRef.current);
-  }, [isFullscreen, isPseudoFullscreen]);
+  }, []);
 
   const toggleFullscreen = useCallback(async () => {
     const doc = document as unknown as {
@@ -683,78 +683,29 @@ export function GameViewport({
     <EngineBootRecovery report={bootFailure} onRetry={handleRetryLoad} />
   );
 
-  if (activeFullscreen) {
-    return (
-      <div
-        ref={containerRef}
-        data-testid="game-viewport-container"
-        data-fullscreen={activeFullscreen ? "true" : "false"}
-        className="fixed inset-0 z-40 w-screen h-dvh max-w-none max-h-none rounded-none border-0 bg-black flex flex-col items-center justify-center select-none touch-manipulation overflow-hidden"
-      >
-        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-black">
-          {engineFrame}
-          {loadingOverlay}
-          {bootRecovery}
-        </div>
-        {!isHudCollapsed && (
-          <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-            <SaveHudDock
-              id={hudId}
-              onExport={handleExport}
-              onImport={handleImportClick}
-              onReset={handleResetClick}
-              onToggleFullscreen={toggleFullscreen}
-              isFullscreen={activeFullscreen}
-            />
-          </div>
-        )}
-        <button
-          type="button"
-          data-testid="save-hud-collapse-fab"
-          onClick={() => setIsHudCollapsed((current) => !current)}
-          aria-expanded={!isHudCollapsed}
-          aria-controls={hudId}
-          aria-label={t("saveHudToggleControls")}
-          title={t("saveHudToggleControls")}
-          className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#090A0F]/75 text-white/90 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
-        >
-          {isHudCollapsed ? (
-            <ChevronUp className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <ChevronDown className="h-5 w-5" aria-hidden="true" />
-          )}
-        </button>
-        <SaveImportDialog
-          open={isImportOpen}
-          onOpenChange={setIsImportOpen}
-          getTargetWindow={getEngineWindow}
-          container={portalElement}
-        />
-        <SaveResetDialog
-          open={isResetOpen}
-          onOpenChange={setIsResetOpen}
-          getTargetWindow={getEngineWindow}
-          container={portalElement}
-        />
-      </div>
-    );
-  }
-
-  return (
+  const stage = (
     <div
-      ref={containerRef}
-      data-testid="game-viewport-container"
-      data-fullscreen={activeFullscreen ? "true" : "false"}
-      className={`relative w-auto h-full max-h-full max-w-full flex flex-col items-center justify-center gap-2 select-none touch-manipulation overflow-hidden ${className}`}
+      className={
+        activeFullscreen
+          ? "relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-black"
+          : "relative w-auto h-full max-h-full max-w-full aspect-[16/9] rounded-xl border border-border/80 bg-black shadow-2xl flex items-center justify-center select-none touch-manipulation overflow-hidden"
+      }
     >
-      <div className="relative w-auto h-full max-h-full max-w-full aspect-[16/9] rounded-xl border border-border/80 bg-black shadow-2xl flex items-center justify-center select-none touch-manipulation overflow-hidden">
-        <div className="relative w-full max-w-full max-h-full aspect-[16/9] flex items-center justify-center overflow-hidden bg-black">
-          {engineFrame}
-          {loadingOverlay}
-          {bootRecovery}
-        </div>
-      </div>
-      <div className="flex w-full shrink-0 items-center justify-center">
+      {engineFrame}
+      {loadingOverlay}
+      {bootRecovery}
+    </div>
+  );
+
+  const dockArea = (
+    <div
+      className={
+        activeFullscreen
+          ? "absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+          : "flex w-full shrink-0 items-center justify-center"
+      }
+    >
+      {!isHudCollapsed && (
         <SaveHudDock
           id={hudId}
           onExport={handleExport}
@@ -763,19 +714,65 @@ export function GameViewport({
           onToggleFullscreen={toggleFullscreen}
           isFullscreen={activeFullscreen}
         />
-      </div>
-      <SaveImportDialog
-        open={isImportOpen}
-        onOpenChange={setIsImportOpen}
-        getTargetWindow={getEngineWindow}
-        container={portalElement}
-      />
-      <SaveResetDialog
-        open={isResetOpen}
-        onOpenChange={setIsResetOpen}
-        getTargetWindow={getEngineWindow}
-        container={portalElement}
-      />
+      )}
+    </div>
+  );
+
+  const fabSlot = activeFullscreen ? (
+    <button
+      type="button"
+      data-testid="save-hud-collapse-fab"
+      onClick={() => setIsHudCollapsed((current) => !current)}
+      aria-expanded={!isHudCollapsed}
+      aria-controls={hudId}
+      aria-label={t("saveHudToggleControls")}
+      title={t("saveHudToggleControls")}
+      className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#090A0F]/75 text-white/90 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+    >
+      {isHudCollapsed ? (
+        <ChevronUp className="h-5 w-5" aria-hidden="true" />
+      ) : (
+        <ChevronDown className="h-5 w-5" aria-hidden="true" />
+      )}
+    </button>
+  ) : null;
+
+  const importDialog = (
+    <SaveImportDialog
+      open={isImportOpen}
+      onOpenChange={setIsImportOpen}
+      getTargetWindow={getEngineWindow}
+      container={portalElement}
+    />
+  );
+
+  const resetDialog = (
+    <SaveResetDialog
+      open={isResetOpen}
+      onOpenChange={setIsResetOpen}
+      getTargetWindow={getEngineWindow}
+      container={portalElement}
+    />
+  );
+
+  // One invariant tree in both modes: the engine frame's position never changes,
+  // so a fullscreen toggle cannot unmount or reload the running game.
+  return (
+    <div
+      ref={containerRef}
+      data-testid="game-viewport-container"
+      data-fullscreen={activeFullscreen ? "true" : "false"}
+      className={
+        activeFullscreen
+          ? "fixed inset-0 z-40 w-screen h-dvh max-w-none max-h-none rounded-none border-0 bg-black flex flex-col items-center justify-center select-none touch-manipulation overflow-hidden"
+          : `relative w-auto h-full max-h-full max-w-full flex flex-col items-center justify-center gap-2 select-none touch-manipulation overflow-hidden ${className}`
+      }
+    >
+      {stage}
+      {dockArea}
+      {fabSlot}
+      {importDialog}
+      {resetDialog}
     </div>
   );
 }
