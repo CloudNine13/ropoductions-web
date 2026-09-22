@@ -13,7 +13,10 @@ import { E2E_FIXTURES, sessionCookies } from "../e2e/helpers/session";
 /**
  * Boots `/play` in Chromium and Firefox against a target and prints the Epic 7
  * evidence table: boot profile, per-boot WebGL context count and per-request
- * statuses (`_bmad-output/specs/spec-ropoductions-web/engine-browser-compat.md` §6).
+ * statuses, per load — the cold load plus `--reloads` consecutive reloads, so the
+ * brief's reload measurements (one document request, no shell subresource re-fetch)
+ * are reproducible on demand (`_bmad-output/specs/spec-ropoductions-web/engine-browser-compat.md`
+ * §6).
  *
  * The target must serve the real engine shell for the table to describe production
  * delivery: the private R2 bucket is only reachable through the worker, so point
@@ -88,9 +91,14 @@ const READY_INIT = `
 
 interface Options {
   target: string;
+  /** Page measured under reload; `/play` is the engine entry point. */
+  url: string;
   browsers: string[];
   headed: boolean;
   allowMock: boolean;
+  reloads: number;
+  /** Budget for the engine's ready report; a shell fixture never reports one. */
+  readyTimeoutMs: number;
   outDir: string;
 }
 
@@ -107,9 +115,16 @@ interface ShellProvenance {
   documentBytes: number;
 }
 
-interface BootProfile {
-  browser: string;
-  provenance: ShellProvenance;
+interface FrameState {
+  contexts: number;
+  losses: number;
+  readyAtMs: number | null;
+  failure: string | null;
+  resources: Map<string, number>;
+}
+
+interface LoadRecord {
+  kind: "cold" | "reload";
   bootMs: number | null;
   failure: string | null;
   contextsCreated: number;
@@ -117,12 +132,21 @@ interface BootProfile {
   requests: RequestRecord[];
 }
 
+interface BootProfile {
+  browser: string;
+  provenance: ShellProvenance;
+  loads: LoadRecord[];
+}
+
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     target: "http://127.0.0.1:3100",
     browsers: ["chromium", "firefox"],
+    url: "/play",
     headed: false,
     allowMock: false,
+    reloads: 1,
+    readyTimeoutMs: BOOT_READY_TIMEOUT_MS,
     outDir: "tmp/profile-boot",
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -149,6 +173,30 @@ function parseArgs(argv: string[]): Options {
       case "--allow-mock":
         options.allowMock = true;
         break;
+      case "--url": {
+        const url = take();
+        if (!url.startsWith("/")) {
+          throw new Error("--url expects a path on the target origin, e.g. /play");
+        }
+        options.url = url;
+        break;
+      }
+      case "--ready-timeout": {
+        const timeout = Number(take());
+        if (!Number.isFinite(timeout) || timeout <= 0) {
+          throw new Error("--ready-timeout expects milliseconds");
+        }
+        options.readyTimeoutMs = timeout;
+        break;
+      }
+      case "--reloads": {
+        const reloads = Number(take());
+        if (!Number.isInteger(reloads) || reloads < 0) {
+          throw new Error("--reloads expects a non-negative integer");
+        }
+        options.reloads = reloads;
+        break;
+      }
       case "--out":
         options.outDir = take();
         break;
@@ -206,6 +254,9 @@ async function collectFrameState(page: Page): Promise<{
   const resources = new Map<string, number>();
 
   for (const frame of page.frames()) {
+    if (frame.isDetached()) {
+      continue;
+    }
     try {
       const state = await frame.evaluate(() => {
         const profile = (window as unknown as {
@@ -232,13 +283,24 @@ async function collectFrameState(page: Page): Promise<{
       readyAtMs = readyAtMs ?? state.readyAtMs;
       failure = failure ?? state.failure;
       for (const entry of state.resources) {
-        resources.set(entry.name, entry.transferSize);
+        const url = new URL(entry.name);
+        resources.set(`${url.pathname}${url.search}`, entry.transferSize);
       }
     } catch {
       // A frame that navigated away mid-read contributes nothing.
     }
   }
   return { contexts, losses, readyAtMs, failure, resources };
+}
+
+/** Waits for the engine's own ready report, bounded by the host's own boot budget. */
+async function waitForBoot(page: Page, startedAt: number, timeoutMs: number): Promise<FrameState> {
+  let state = await collectFrameState(page);
+  while (state.readyAtMs === null && !state.failure && Date.now() - startedAt < timeoutMs) {
+    await page.waitForTimeout(250);
+    state = await collectFrameState(page);
+  }
+  return state;
 }
 
 async function profileBrowser(
@@ -248,71 +310,73 @@ async function profileBrowser(
   cookies: Cookie[]
 ): Promise<BootProfile> {
   const browser = await browserType.launch({ headless: !options.headed });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  await context.addCookies(cookies);
-  await context.addInitScript({ content: PROBE_INIT });
-  await context.addInitScript({ content: READY_INIT });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await context.addCookies(cookies);
+    await context.addInitScript({ content: PROBE_INIT });
+    await context.addInitScript({ content: READY_INIT });
 
-  const requests: RequestRecord[] = [];
-  const page = await context.newPage();
-
-  const shellResponse = await context.request.get(`${options.target}/engine/index.html`);
-  const provenance: ShellProvenance = { shell: "mock", headers: {}, documentBytes: 0 };
-  await inspectShell(provenance, shellResponse.headers(), await shellResponse.text());
-
-  page.on("response", (response) => {
-    const url = new URL(response.url());
-    if (!ENGINE_REQUEST.test(url.pathname)) return;
-    requests.push({
-      url: `${url.pathname}${url.search}`,
-      status: response.status(),
-      cacheControl: response.headers()["cache-control"] ?? "",
-      cacheServed: false,
+    const page = await context.newPage();
+    let requests: RequestRecord[] = [];
+    page.on("response", (response) => {
+      const url = new URL(response.url());
+      if (!ENGINE_REQUEST.test(url.pathname)) return;
+      requests.push({
+        url: `${url.pathname}${url.search}`,
+        status: response.status(),
+        cacheControl: response.headers()["cache-control"] ?? "",
+        cacheServed: false,
+      });
     });
-  });
 
-  const startedAt = Date.now();
-  await page.goto(`${options.target}/play`, { waitUntil: "load" });
-  let state = await collectFrameState(page);
-  while (state.readyAtMs === null && !state.failure && Date.now() - startedAt < BOOT_READY_TIMEOUT_MS) {
-    await page.waitForTimeout(250);
-    state = await collectFrameState(page);
-  }
+    const shellResponse = await context.request.get(`${options.target}/engine/index.html`);
+    const provenance: ShellProvenance = { shell: "mock", headers: {}, documentBytes: 0 };
+    await inspectShell(provenance, shellResponse.headers(), await shellResponse.text());
 
-  const finalState = await collectFrameState(page);
-  for (const request of requests) {
-    for (const [entryUrl, transferSize] of finalState.resources) {
-      if (new URL(entryUrl).pathname === request.url) {
-        request.cacheServed = transferSize === 0;
+    const loads: LoadRecord[] = [];
+    for (let index = 0; index <= options.reloads; index += 1) {
+      requests = [];
+      const startedAt = Date.now();
+      if (index === 0) {
+        await page.goto(`${options.target}${options.url}`, { waitUntil: "load" });
+      } else {
+        await page.reload({ waitUntil: "load" });
       }
+      const state = await waitForBoot(page, startedAt, options.readyTimeoutMs);
+      for (const request of requests) {
+        request.cacheServed = state.resources.get(request.url) === 0;
+      }
+      loads.push({
+        kind: index === 0 ? "cold" : "reload",
+        bootMs: state.readyAtMs === null ? null : Math.round(Date.now() - startedAt),
+        failure: state.failure,
+        contextsCreated: state.contexts,
+        contextsLost: state.losses,
+        requests,
+      });
     }
-  }
 
-  await browser.close();
-  return {
-    browser: name,
-    provenance,
-    bootMs: finalState.readyAtMs === null ? null : Math.round(Date.now() - startedAt),
-    failure: finalState.failure,
-    contextsCreated: finalState.contexts,
-    contextsLost: finalState.losses,
-    requests,
-  };
+    return { browser: name, provenance, loads };
+  } finally {
+    // A failure mid-run must not leave a browser process holding the event loop open.
+    await browser.close();
+  }
 }
 
 function printReport(profiles: BootProfile[], options: Options): void {
   for (const profile of profiles) {
-    const shell = profile.requests.filter((request) => request.url.startsWith("/engine/"));
+    const allRequests = profile.loads.flatMap((load) => load.requests);
+    const shell = allRequests.filter((request) => request.url.startsWith("/engine/"));
     const addressed = shell.filter((request) =>
       isAddressedShellRequest(new URLSearchParams(request.url.split("?")[1] ?? ""))
     ).length;
-    const media = profile.requests.filter((request) => request.url.startsWith("/api/game/")).length;
-    const failures = profile.requests.filter((request) => ![200, 304].includes(request.status));
-    const cached = profile.requests.filter((request) => request.cacheServed).length;
+    const media = allRequests.filter((request) => request.url.startsWith("/api/game/")).length;
+    const failures = allRequests.filter((request) => ![200, 304].includes(request.status));
+    const cached = allRequests.filter((request) => request.cacheServed).length;
 
     console.log("");
     console.log(`=== ${profile.browser} ===`);
-    console.log(`target                ${options.target}`);
+    console.log(`target                ${options.target}${options.url}`);
     console.log(
       `shell source          ${profile.provenance.shell}${profile.provenance.shell === "mock" ? " (website mock harness, not the published shell)" : ""}`
     );
@@ -322,16 +386,25 @@ function printReport(profiles: BootProfile[], options: Options): void {
         .map(([key, value]) => `${key}=${value.slice(0, 40)}`)
         .join(" | ")}`
     );
-    console.log(`boot to ready         ${profile.bootMs === null ? "no ready report" : `${profile.bootMs} ms`}`);
-    console.log(`boot failure          ${profile.failure ?? "none"}`);
-    console.log(`webgl contexts        created ${profile.contextsCreated}, released ${profile.contextsLost}`);
     console.log(
       `requests              shell ${shell.length} (addressed ${addressed}), media ${media}, cache-served ${cached}, non-200/304 ${failures.length}`
     );
-    for (const request of profile.requests) {
+    console.log(`loads                 ${profile.loads.length} (cold + ${profile.loads.length - 1} reload(s))`);
+    for (const [index, load] of profile.loads.entries()) {
+      const loadShell = load.requests.filter((request) => request.url.startsWith("/engine/"));
+      const loadMedia = load.requests.filter((request) => request.url.startsWith("/api/game/"));
+      const loadCached = load.requests.filter((request) => request.cacheServed).length;
+      const loadFailures = load.requests.filter((request) => ![200, 304].includes(request.status)).length;
       console.log(
-        `  ${String(request.status).padEnd(4)}${request.cacheServed ? "cache" : "net  "}  ${request.url}`
+        `  load ${String(index + 1).padEnd(2)}${load.kind.padEnd(7)}ready ${
+          load.bootMs === null ? "none" : `${load.bootMs} ms`
+        }, webgl ${load.contextsCreated}/${load.contextsLost}, shell ${loadShell.length}, media ${loadMedia.length}, cache-served ${loadCached}, non-200/304 ${loadFailures}, failure ${load.failure ?? "none"}`
       );
+      for (const request of load.requests) {
+        console.log(
+          `      ${String(request.status).padEnd(4)}${request.cacheServed ? "cache" : "net  "}  ${request.url}`
+        );
+      }
     }
   }
 }

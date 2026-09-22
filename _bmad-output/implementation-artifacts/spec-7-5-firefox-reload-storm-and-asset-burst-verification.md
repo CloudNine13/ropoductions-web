@@ -60,7 +60,7 @@ context:
 - `e2e/asset-burst.spec.ts` — replays the profile through the live routes, asserting 200 then 304 and the cache policy per class.
 - `e2e/webgl-unavailable.spec.ts` — the honest-failure path under `webgl.disabled=true`, active locale `ru`.
 - `tests/asset-burst.test.ts` — the profile through both real handlers with a counting D1: one session read, zero override reads, zero writes; anonymous burst costs nothing.
-- `scripts/engine-boot-profile.ts` + `npm run profile:boot` — the evidence-table harness (WebGL contexts created/released, request statuses, provenance, JSON sidecar).
+- `scripts/engine-boot-profile.ts` + `npm run profile:boot` — the evidence-table harness: provenance, production-header proof, per-load rows (cold + `--reloads`), WebGL contexts created/released, per-request statuses with the cache column, JSON sidecar. `--url` and `--ready-timeout` let it measure any page on the target (a shell fixture never emits a ready report).
 - `scripts/e2e/setup-e2e-env.ts` — seeds the fixture shell and profile objects into local R2.
 - `.github/workflows/e2e.yml` — installs Firefox and runs both browsers.
 - `e2e/engine-boot-recovery.spec.ts` — the superseded Chromium-only boot case deleted (replaced by `e2e/engine-boot.spec.ts`); `e2e/save-hud.spec.ts` — the "in Chromium" title dropped; `_bmad-output/implementation-artifacts/handoff-story-7-1.md`, `AGENTS.md`, `sprint-status.yaml` — same-cutover documentation.
@@ -95,7 +95,8 @@ Baseline: `origin/develop` @ `a0266bc`; every command below ran in the story wor
 | `npx tsc --noEmit` | clean |
 | `npm run lint` | 0 errors, 4 pre-existing warnings (`src/components/error-reaction-icon.tsx`, `src/lib/engine-addressing.ts`, `tests/admin-layout.test.ts` x2); none in this story's files |
 | `npm run test:e2e` (worker built by the suite's `webServer`) | 99 passed in 1.2m — 49 chromium, 49 firefox, 1 `firefox-webgl-disabled` |
-| `npm run profile:boot -- --allow-mock` | chromium: ready in 490 ms, WebGL contexts created 1 / released 1, shell 2, media 0, non-200/304 0; firefox: 1134 ms, 1 / 1, same request shape; report sidecar written |
+| `npm run profile:boot -- --allow-mock --reloads 3` | per-load rows in both browsers: cold load ready 733 ms (chromium) / 673 ms (firefox), 1 WebGL context created and released per load, 2 shell requests per load, no failure |
+| `npm run profile:boot -- --allow-mock --url /engine/js/ropoductions-e2e-fixture/shell.html --ready-timeout 2500 --reloads 3` | cold load 60 shell requests / 0 cache-served; each reload 60 shell requests / **59 cache-served**, non-200/304 0 — the `§6` reload profile reproduced by the script itself |
 
 **Reload-storm ground truth (server side, both browsers).** The spec was driven against a debug-logged preview (`--log-level debug`, throwaway config in gitignored `tmp/`) so the metric could be read off the server rather than the client:
 
@@ -106,6 +107,8 @@ This settles the contradiction with the 7.2 record's claim that Playwright-drive
 
 **WebGL-disabled non-vacuity.** Before the spec was written, the profile was probed directly: Playwright Firefox 155 with `webgl.disabled=true` returns `null` from `getContext("webgl")` and dispatches `webglcontextcreationerror` with `statusMessage = "WebGL is currently disabled."`; the same probe without the preference returns a context. The spec asserts the classified panel in `ru`, the untranslated status message, the localized "context refused" row, no engine document request and no iframe.
 
+**Cache-signal control (no-store is not cached).** The reload metric depends on `transferSize === 0` meaning "served from the browser cache", so the discriminator was calibrated against a `no-store` control as well: with one `private, immutable, max-age=31536000` and one `no-store` subresource on a local server, load 2 reports `transferSize` 0 for the immutable file (one server hit in total) and 316 bytes for the `no-store` file (two server hits), in Chromium and Firefox alike; the `no-store` document is fetched twice. `nextHopProtocol` stayed `http/1.1` on the cache hit in both engines, so it is *not* a usable cache signal in these builds — `transferSize` is. The mock harness's own responses are `no-store`, which is why its reload rows read `net` in the profile harness, while the addressed shell fixture reads `cache`.
+
 **Deleted rather than re-pinned.** The Chromium-only `/play` boot case in `e2e/engine-boot-recovery.spec.ts` (superseded by `e2e/engine-boot.spec.ts`, which also asserts the ready report and an empty failure-report stream); the "`... in Chromium`" title in `e2e/save-hud.spec.ts`; and the Chromium-only prose in `handoff-story-7-1.md`.
 
 **Honest limits.**
@@ -114,3 +117,7 @@ This settles the contradiction with the 7.2 record's claim that Playwright-drive
 - The per-boot WebGL context count cannot be produced in CI: the mock harness allocates none, so the number recorded above is the host's own preflight probe (created 1, released 1). The engine's real count needs the real shell.
 - The upstream file names of the 65+ profile live only in the bucket; the pinned profile preserves the measured shape and count with fixture paths and a `represents` column naming the upstream path each stands in for.
 - Sprint tracking was corrected in the same cutover: 7.1-7.4 are merged in `develop` and were still marked `review`.
+
+## Commit Identity (checked, deliberately unchanged)
+
+The repository-local `.git/config` carries `user.name = github-actions[bot]` / `user.email = 41898282+github-actions[bot]@users.noreply.github.com`, but **no commit in `develop`'s history uses it**: 7.1 (`da1b1bc`), 7.2 (`22d4359`), 7.3 (`8c0be72`) and 7.4 (`0a6603d`) are all authored by `Igor Dzichkovskii <49725913+CloudNine13@users.noreply.github.com>`, the public project owner handle named in this repository. This branch's five commits use the same identity, set per-commit with `-c user.name`/`-c user.email` so the stale repository-local value is never inherited; history was not rewritten, because rewriting *to* the bot identity would have made this the only branch in the repository authored by a bot. The repository-local anomaly is reported to the owner rather than changed here.
