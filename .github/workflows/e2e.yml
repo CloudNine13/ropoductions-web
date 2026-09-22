@@ -44,11 +44,11 @@ jobs:
               - ".github/workflows/e2e.yml"
 
   e2e:
-    name: Chromium portal flows
+    name: Chromium and Firefox portal flows
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -71,8 +71,12 @@ jobs:
       - name: Install Chromium shell
         run: npx playwright install --only-shell chromium
 
-      - name: Run Chromium E2E suite
-        run: npm run test:e2e
+      - name: Install Firefox
+        run: npx playwright install firefox
+
+      - name: Run Chromium and Firefox E2E suites
+        # Headed Firefox needs a display for its WebGL path; xvfb provides it.
+        run: xvfb-run -a npm run test:e2e
         env:
           CI: true
 

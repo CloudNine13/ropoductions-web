@@ -32,6 +32,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 
 - TODO (no code or package manager files exist yet; verify on first refresh after Story 1.1 scaffold): expected `npm run build` for OpenNext Cloudflare build, `wrangler dev` for local edge run, `wrangler d1 migrations apply DB` for session schema.
 - Do not state build, lint, or test commands as fact until their manifest or script is read; read `package.json`, `wrangler.toml`, and CI config first.
+- `npm run test:e2e` runs the Playwright suite on the built worker in Chromium and Firefox, plus a `firefox-webgl-disabled` project for the honest-failure spec; CI installs both browsers. `npm run profile:boot -- --target <url>` prints the boot-profile table (per-boot WebGL contexts, per-request statuses); a target serving a published shell needs `PROFILE_SESSION_COOKIE`, and a mock-harness target is refused unless `--allow-mock`.
 - Required versions (from architecture spine): Node >=20.18.0 / 24.x, Next.js 16.3.5, React 19.2.8, @opennextjs/cloudflare 1.20.6, Wrangler 4.131.2, TypeScript 5.8.0, Tailwind 4.0.0, next-intl 4.14.5, JSZip 3.10.1.
 
 ## Conventions that differ from defaults

@@ -20,6 +20,24 @@ test.describe("portal landing", () => {
 });
 
 test.describe("paywall interstitial", () => {
+  // The landing enables smooth scrolling, so an animated scrollTo may still be
+  // settling when the modal opens; Firefox and Chromium disagree by a few
+  // pixels. Scroll instantly and assert preservation within a tolerance.
+  const SCROLL_TOLERANCE_PX = 5;
+
+  async function scrollLandingTo(
+    page: import("@playwright/test").Page,
+    y: number
+  ): Promise<void> {
+    await page.evaluate((target) => {
+      document.documentElement.classList.remove("scroll-smooth");
+      window.scrollTo({ top: target, behavior: "instant" as ScrollBehavior });
+    }, y);
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY), { timeout: 5000 })
+      .toBe(y);
+  }
+
   test("shows no paywall window on the plain landing page", async ({ page }) => {
     await page.goto("/");
 
@@ -76,20 +94,19 @@ test.describe("paywall interstitial", () => {
   }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
-    await page.evaluate(() => window.scrollTo(0, 400));
-    await page.waitForTimeout(200);
+    await scrollLandingTo(page, 400);
 
     const headerPlayLink = page.locator("header").getByRole("link", { name: "Play" });
     await headerPlayLink.click();
 
     await expect(page.locator("#paywall-section")).toBeVisible();
     const scrollYDuringModal = await page.evaluate(() => window.scrollY);
-    expect(scrollYDuringModal).toBe(400);
+    expect(Math.abs(scrollYDuringModal - 400)).toBeLessThanOrEqual(SCROLL_TOLERANCE_PX);
 
     await page.keyboard.press("Escape");
     await expect(page.locator("#paywall-section")).toHaveCount(0);
     const scrollYAfterClose = await page.evaluate(() => window.scrollY);
-    expect(scrollYAfterClose).toBe(400);
+    expect(Math.abs(scrollYAfterClose - 400)).toBeLessThanOrEqual(SCROLL_TOLERANCE_PX);
   });
 
   test("closing the modal via the dismiss button returns to landing page", async ({
@@ -108,19 +125,18 @@ test.describe("paywall interstitial", () => {
   }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "I AM 21 OR OLDER - ENTER" }).click();
-    await page.evaluate(() => window.scrollTo(0, 1000));
-    await page.waitForTimeout(200);
+    await scrollLandingTo(page, 1000);
 
     const showcasePlay = page.getByRole("link", { name: "Play in Browser" });
     await showcasePlay.click();
 
     await expect(page.locator("#paywall-section")).toBeVisible();
     const scrollYDuringModal = await page.evaluate(() => window.scrollY);
-    expect(scrollYDuringModal).toBe(1000);
+    expect(Math.abs(scrollYDuringModal - 1000)).toBeLessThanOrEqual(SCROLL_TOLERANCE_PX);
 
     await page.getByLabel("Dismiss notification").click();
     await expect(page.locator("#paywall-section")).toHaveCount(0);
     const scrollYAfterClose = await page.evaluate(() => window.scrollY);
-    expect(scrollYAfterClose).toBe(1000);
+    expect(Math.abs(scrollYAfterClose - 1000)).toBeLessThanOrEqual(SCROLL_TOLERANCE_PX);
   });
 });

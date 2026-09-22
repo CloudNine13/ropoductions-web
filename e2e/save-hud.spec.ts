@@ -59,7 +59,7 @@ test.describe("save persistence and engine web bridge (Epic 4)", () => {
     expect(typeof bridgeResult.slots).toBe("object");
   });
 
-  test("engine bridge executes ROPODUCTIONS_SET_SAVES and ROPODUCTIONS_RESET_SAVES in Chromium", async ({ page }) => {
+  test("engine bridge executes ROPODUCTIONS_SET_SAVES and ROPODUCTIONS_RESET_SAVES", async ({ page }) => {
     await page.goto("/engine/index.html");
     // 1. Test ROPODUCTIONS_SET_SAVES
     const setResult = await page.evaluate(async () => {

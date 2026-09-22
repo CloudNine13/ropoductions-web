@@ -14,14 +14,15 @@
     "test": "npx tsx tests/verify-d1-schema.ts && npx tsx tests/verify-patreon-oauth.ts",
     "test:d1": "npx tsx tests/verify-d1-schema.ts",
     "test:oauth": "npx tsx tests/verify-patreon-oauth.ts",
-    "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/proxy.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/auth.test.ts tests/paywall.test.ts tests/portal-guardrails.test.ts tests/suite-manifest.test.ts tests/game-viewport.test.ts tests/game-assets.test.ts tests/engine-bridge.test.ts tests/engine-addressing.test.ts tests/engine-asset-retry.test.ts tests/session-validation-memo.test.ts tests/game-sync.test.ts tests/workflow-manifest.test.ts tests/admin-bootstrap.test.ts tests/save-bridge.test.ts tests/save-hud-dock.test.ts tests/design-motion-fixes.test.ts tests/engine-boot-failure.test.ts tests/save-export.test.ts tests/save-import.test.ts tests/save-dialogs.test.ts tests/admin-layout.test.ts tests/admin-entry.test.ts tests/e2e-harness-env.test.ts tests/admin-overrides.test.ts tests/admin-revocation.test.ts tests/admin-action-wrappers.test.ts tests/engine-route.test.ts tests/branding-assets.test.ts",
+    "test:unit": "node --experimental-strip-types --import ./tests/helpers/register-loader.mjs --test tests/cookies.test.ts tests/db.test.ts tests/proxy.test.ts tests/i18n-locales.test.ts tests/cloudflare.test.ts tests/auth.test.ts tests/paywall.test.ts tests/portal-guardrails.test.ts tests/suite-manifest.test.ts tests/game-viewport.test.ts tests/game-assets.test.ts tests/engine-bridge.test.ts tests/engine-addressing.test.ts tests/engine-asset-retry.test.ts tests/session-validation-memo.test.ts tests/asset-burst.test.ts tests/game-sync.test.ts tests/workflow-manifest.test.ts tests/admin-bootstrap.test.ts tests/save-bridge.test.ts tests/save-hud-dock.test.ts tests/design-motion-fixes.test.ts tests/engine-boot-failure.test.ts tests/save-export.test.ts tests/save-import.test.ts tests/save-dialogs.test.ts tests/admin-layout.test.ts tests/admin-entry.test.ts tests/e2e-harness-env.test.ts tests/admin-overrides.test.ts tests/admin-revocation.test.ts tests/admin-action-wrappers.test.ts tests/engine-route.test.ts tests/branding-assets.test.ts",
     "test:e2e": "playwright test",
     "e2e:setup": "npx tsx scripts/e2e/setup-e2e-env.ts",
     "e2e:server": "npm run e2e:setup && npm run build && opennextjs-cloudflare preview --port 3100",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "start": "next start -p 3100",
-    "db:seed:admins": "npx tsx scripts/seed-admin-overrides.ts"
+    "db:seed:admins": "npx tsx scripts/seed-admin-overrides.ts",
+    "profile:boot": "npx tsx scripts/engine-boot-profile.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.6",
