@@ -70,6 +70,20 @@ describe("workflow and upstream integration manifest verification", () => {
     );
   });
 
+  it("keeps release identity out of the runtime bucket", () => {
+    assert.ok(fs.existsSync(workflowPath));
+    const content = fs.readFileSync(workflowPath, "utf-8");
+
+    // The ingest engine bakes the release identifier into the shell it stages and
+    // the runtime only ever serves the `engine/` prefix, so the published location
+    // must stay release-agnostic and the metadata file must never be uploaded.
+    assert.match(
+      content,
+      /aws s3 sync tmp_engine_shell "s3:\/\/\$\{R2_BUCKET_NAME\}\/engine" \\/
+    );
+    assert.match(content, /--exclude "build-metadata\.json"/);
+  });
+
   it("strictly enforces absence of --delete flag in aws s3 sync commands", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");

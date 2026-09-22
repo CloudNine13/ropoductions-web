@@ -1,6 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  ADDRESSING_REVISION,
+  SHELL_ADDRESSED_SOURCES,
+  addressShellReferences,
+  computeReleaseId,
+  type ShellFile,
+} from "../src/lib/engine-addressing";
 
 const BRANCH_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._\/-]{0,100}$/;
 
@@ -25,6 +32,7 @@ export interface BuildMetadataOptions {
   branch: string;
   commitSha: string;
   syncedAt: string;
+  releaseId: string;
   outputDir: string;
 }
 
@@ -33,6 +41,8 @@ export interface BuildMetadata {
   branch: string;
   commitSha: string;
   syncedAt: string;
+  releaseId: string;
+  addressingRevision: number;
 }
 
 /**
@@ -278,6 +288,41 @@ export function segregateAssets(gameDir: string, publicEngineDir: string): Asset
 }
 
 /**
+ * Addresses the staged shell in place: every shell subresource reference the engine
+ * declares or builds carries the release identifier, which is the content digest of
+ * the staged bytes. This pass and the workflow are the only components that know a
+ * game version exists; the runtime serves whatever was published.
+ */
+export async function addressStagedShell(
+  shellDir: string,
+  shellFiles: readonly string[]
+): Promise<string> {
+  const files: ShellFile[] = shellFiles.map((file) => ({
+    path: file,
+    bytes: new Uint8Array(fs.readFileSync(path.join(shellDir, file))),
+  }));
+
+  const releaseId = await computeReleaseId(files);
+
+  const sources = new Map<string, string>();
+  for (const file of SHELL_ADDRESSED_SOURCES) {
+    const sourcePath = path.join(shellDir, file);
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error(`Missing ${file} in the staged engine shell at ${shellDir}`);
+    }
+    sources.set(file, fs.readFileSync(sourcePath, "utf-8"));
+  }
+
+  addressShellReferences(sources, releaseId);
+
+  for (const [file, content] of sources) {
+    fs.writeFileSync(path.join(shellDir, file), content, "utf-8");
+  }
+
+  return releaseId;
+}
+
+/**
  * Generates build-metadata.json in the public engine directory.
  */
 export function generateBuildMetadata(options: BuildMetadataOptions): BuildMetadata {
@@ -286,6 +331,8 @@ export function generateBuildMetadata(options: BuildMetadataOptions): BuildMetad
     branch: options.branch,
     commitSha: options.commitSha,
     syncedAt: options.syncedAt,
+    releaseId: options.releaseId,
+    addressingRevision: ADDRESSING_REVISION,
   };
 
   const dest = path.join(options.outputDir, "build-metadata.json");
@@ -326,11 +373,15 @@ async function runCli() {
   const segregation = segregateAssets(gameRoot, shellOutputDir);
   console.log(`Segregated: ${segregation.mediaFiles.length} media files, ${segregation.shellFiles.length} shell files staged.`);
 
+  const releaseId = await addressStagedShell(shellOutputDir, segregation.shellFiles);
+  console.log(`Engine release id: ${releaseId} (addressing revision ${ADDRESSING_REVISION})`);
+
   generateBuildMetadata({
     upstreamRepo: "salamin888/Final_Orginity",
     branch: resolvedBranch,
     commitSha: process.env.UPSTREAM_COMMIT_SHA || "unknown",
     syncedAt: new Date().toISOString(),
+    releaseId,
     outputDir: shellOutputDir,
   });
 

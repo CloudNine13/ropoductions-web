@@ -11,10 +11,12 @@ import {
   validateGameStructure,
   injectWebBridge,
   segregateAssets,
+  addressStagedShell,
   generateBuildMetadata,
   printResolvedBranch,
   printGameRoot,
 } from "../scripts/sync-game-release";
+import { ENGINE_RELEASE_ID_PATTERN, ENGINE_RELEASE_PARAM } from "../src/lib/engine-addressing";
 
 describe("upstream game release ingestion engine (scripts/sync-game-release.ts)", () => {
   let tempDir: string;
@@ -299,12 +301,13 @@ describe("upstream game release ingestion engine (scripts/sync-game-release.ts)"
   });
 
   describe("generateBuildMetadata", () => {
-    it("writes build-metadata.json with commit, branch, and timestamp", () => {
+    it("writes build-metadata.json with commit, branch, timestamp, and the release identifier", () => {
       generateBuildMetadata({
         upstreamRepo: "salamin888/Final_Orginity",
         branch: "0.6.0",
         commitSha: "abc1234567890",
         syncedAt: "2026-09-17T12:00:00.000Z",
+        releaseId: "b".repeat(64),
         outputDir: tempDir,
       });
 
@@ -316,11 +319,124 @@ describe("upstream game release ingestion engine (scripts/sync-game-release.ts)"
         branch: string;
         commitSha: string;
         syncedAt: string;
+        releaseId: string;
+        addressingRevision: number;
       };
       assert.equal(parsed.upstreamRepo, "salamin888/Final_Orginity");
       assert.equal(parsed.branch, "0.6.0");
       assert.equal(parsed.commitSha, "abc1234567890");
       assert.equal(parsed.syncedAt, "2026-09-17T12:00:00.000Z");
+      assert.equal(parsed.releaseId, "b".repeat(64));
+      assert.equal(parsed.addressingRevision, 1);
+    });
+  });
+
+  describe("addressStagedShell", () => {
+    const SHELL_SOURCES: Record<string, string> = {
+      "index.html": `<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="icon" href="icon/icon.png" type="image/png">
+        <link rel="apple-touch-icon" href="icon/icon.png">
+        <link rel="stylesheet" type="text/css" href="css/game.css">
+    </head>
+    <body>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/main.js"></script>
+    </body>
+</html>
+`,
+      "js/main.js": `const scriptUrls = ["js/libs/pixi.js", "js/rmmz_core.js", "js/plugins.js"];
+const effekseerWasmUrl = "js/libs/effekseer.wasm";
+script.src = url;
+`,
+      "js/rmmz_managers.js": `DataManager.loadDataFile = function(name, src) {
+    const url = "data/" + src;
+};
+FontManager.makeUrl = function(filename) {
+    return "fonts/" + Utils.encodeURI(filename);
+};
+ImageManager.loadBitmap = function(folder, filename) {
+    const url = folder + Utils.encodeURI(filename) + ".png";
+};
+EffectManager.makeUrl = function(filename) {
+    return "effects/" + Utils.encodeURI(filename) + ".efkefc";
+};
+PluginManager.makeUrl = function(filename) {
+    return "js/plugins/" + Utils.encodeURI(filename) + ".js";
+};
+`,
+    };
+
+    function stageReleasableGame(overrides: Record<string, string> = {}): {
+      shellDir: string;
+      shellFiles: string[];
+    } {
+      fs.mkdirSync(path.join(tempDir, "data"), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, "data", "System.json"), "{}");
+      fs.writeFileSync(path.join(tempDir, "package.json"), JSON.stringify({ name: "game" }));
+      fs.mkdirSync(path.join(tempDir, "js", "libs"), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, "css"), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, "icon"), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, "js", "libs", "pixi.js"), "// pixi");
+      fs.writeFileSync(path.join(tempDir, "css", "game.css"), "body{}");
+      fs.writeFileSync(path.join(tempDir, "icon", "icon.png"), "png");
+      for (const [file, content] of Object.entries({ ...SHELL_SOURCES, ...overrides })) {
+        const dest = path.join(tempDir, file);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, content);
+      }
+
+      const shellDir = path.join(tempDir, "staged");
+      const segregation = segregateAssets(tempDir, shellDir);
+      return { shellDir, shellFiles: segregation.shellFiles };
+    }
+
+    it("addresses every staged shell reference with the content digest it returns", async () => {
+      const { shellDir, shellFiles } = stageReleasableGame();
+
+      const releaseId = await addressStagedShell(shellDir, shellFiles);
+
+      assert.match(releaseId, ENGINE_RELEASE_ID_PATTERN);
+      const document = fs.readFileSync(path.join(shellDir, "index.html"), "utf-8");
+      assert.equal(document.split(`?${ENGINE_RELEASE_PARAM}=${releaseId}`).length - 1, 4);
+      assert.match(document, /src="cordova\.js"/);
+
+      const main = fs.readFileSync(path.join(shellDir, "js", "main.js"), "utf-8");
+      assert.ok(main.includes(`script.src = url + "?${ENGINE_RELEASE_PARAM}=${releaseId}";`));
+      assert.ok(main.includes(`effekseer.wasm?${ENGINE_RELEASE_PARAM}=${releaseId}"`));
+
+      const managers = fs.readFileSync(path.join(shellDir, "js", "rmmz_managers.js"), "utf-8");
+      assert.ok(managers.includes(`+ ".js" + "?${ENGINE_RELEASE_PARAM}=${releaseId}";`));
+      assert.ok(managers.includes(`Utils.encodeURI(filename) + "?${ENGINE_RELEASE_PARAM}=${releaseId}";`));
+      assert.ok(managers.includes('const url = "data/" + src;'));
+      assert.ok(managers.includes('const url = folder + Utils.encodeURI(filename) + ".png";'));
+      assert.ok(managers.includes('return "effects/" + Utils.encodeURI(filename) + ".efkefc";'));
+    });
+
+    it("derives the same identifier from identical bytes and a different one from changed bytes", async () => {
+      const firstStage = stageReleasableGame();
+      const first = await addressStagedShell(firstStage.shellDir, firstStage.shellFiles);
+
+      fs.rmSync(path.join(tempDir, "staged"), { recursive: true, force: true });
+      const secondStage = stageReleasableGame();
+      const second = await addressStagedShell(secondStage.shellDir, secondStage.shellFiles);
+      assert.equal(second, first);
+
+      fs.rmSync(path.join(tempDir, "staged"), { recursive: true, force: true });
+      const thirdStage = stageReleasableGame({ "css/game.css": "body{color:red}" });
+      const third = await addressStagedShell(thirdStage.shellDir, thirdStage.shellFiles);
+      assert.notEqual(third, first);
+    });
+
+    it("refuses to address an already addressed staged shell", async () => {
+      const { shellDir, shellFiles } = stageReleasableGame();
+      await addressStagedShell(shellDir, shellFiles);
+
+      await assert.rejects(
+        () => addressStagedShell(shellDir, shellFiles),
+        /already addressed/
+      );
     });
   });
 
