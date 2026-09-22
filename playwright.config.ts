@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/** Runs only under a browser profile that genuinely refuses WebGL contexts. */
+const WEBGL_DISABLED_SPEC = /webgl-unavailable\.spec\.ts/;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -13,7 +16,21 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: WEBGL_DISABLED_SPEC,
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      testIgnore: WEBGL_DISABLED_SPEC,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "firefox-webgl-disabled",
+      testMatch: WEBGL_DISABLED_SPEC,
+      use: {
+        ...devices["Desktop Firefox"],
+        launchOptions: { firefoxUserPrefs: { "webgl.disabled": true } },
+      },
     },
   ],
   webServer: {
