@@ -69,6 +69,7 @@ export function GameViewport({
 }: GameViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const fabRef = useRef<HTMLButtonElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const [isHudCollapsed, setIsHudCollapsed] = useState(false);
@@ -98,6 +99,28 @@ export function GameViewport({
       watchdogRef.current = null;
     }
   }, []);
+
+  // Every fullscreen entry collapses the save chrome: the control that entered
+  // fullscreen was the last chrome interaction. The toolbar leaves the tab order,
+  // so focus follows to the FAB instead of being stranded on a hidden button.
+  const collapseHudOnFullscreenEntry = useCallback(() => {
+    const activeElement = document.activeElement;
+    const dock = containerRef.current?.querySelector('[data-testid="save-hud-dock"]');
+    const restoreFocus = Boolean(activeElement && dock && dock.contains(activeElement));
+    setIsHudCollapsed(true);
+    if (restoreFocus) {
+      requestAnimationFrame(() => fabRef.current?.focus());
+    }
+  }, []);
+
+  const collapseHud = useCallback(() => {
+    setIsHudCollapsed(true);
+  }, []);
+
+  const enterPseudoFullscreen = useCallback(() => {
+    setIsPseudoFullscreen(true);
+    collapseHudOnFullscreenEntry();
+  }, [collapseHudOnFullscreenEntry]);
 
   const sessionEscalatedRef = useRef(false);
 
@@ -393,15 +416,16 @@ export function GameViewport({
       const isOurFs = Boolean(currentFsElem && currentFsElem === containerRef.current);
 
       setIsFullscreen(isOurFs);
-      if (!isOurFs) {
+      if (isOurFs) {
+        collapseHudOnFullscreenEntry();
+      } else {
         setIsPseudoFullscreen(false);
-        setIsHudCollapsed(false);
       }
     };
 
     const handleFullscreenError = () => {
       // If native fullscreen fails or is denied, fall back to pseudo-fullscreen
-      setIsPseudoFullscreen(true);
+      enterPseudoFullscreen();
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -415,7 +439,7 @@ export function GameViewport({
       document.removeEventListener("fullscreenerror", handleFullscreenError);
       document.removeEventListener("webkitfullscreenerror", handleFullscreenError);
     };
-  }, []);
+  }, [collapseHudOnFullscreenEntry, enterPseudoFullscreen]);
 
   useEffect(() => {
     if (!isPseudoFullscreen) return;
@@ -426,7 +450,6 @@ export function GameViewport({
       }
       if (e.key === "Escape") {
         setIsPseudoFullscreen(false);
-        setIsHudCollapsed(false);
       }
     };
 
@@ -594,7 +617,6 @@ export function GameViewport({
 
     if (isPseudoFullscreen) {
       setIsPseudoFullscreen(false);
-      setIsHudCollapsed(false);
       return;
     }
 
@@ -603,17 +625,17 @@ export function GameViewport({
         try {
           await elem.requestFullscreen();
         } catch {
-          setIsPseudoFullscreen(true);
+          enterPseudoFullscreen();
         }
       } else if (typeof elem.webkitRequestFullscreen === "function") {
         try {
           elem.webkitRequestFullscreen();
         } catch {
-          setIsPseudoFullscreen(true);
+          enterPseudoFullscreen();
         }
       } else {
         // Fallback for devices without Element.requestFullscreen (e.g. iOS Safari on iPhone)
-        setIsPseudoFullscreen(true);
+        enterPseudoFullscreen();
       }
     } else {
       if (typeof doc.exitFullscreen === "function") {
@@ -631,9 +653,8 @@ export function GameViewport({
       }
       setIsFullscreen(false);
       setIsPseudoFullscreen(false);
-      setIsHudCollapsed(false);
     }
-  }, [isPseudoFullscreen]);
+  }, [isPseudoFullscreen, enterPseudoFullscreen]);
 
   const activeFullscreen = isFullscreen || isPseudoFullscreen;
 
@@ -705,21 +726,22 @@ export function GameViewport({
           : "flex w-full shrink-0 items-center justify-center"
       }
     >
-      {!isHudCollapsed && (
-        <SaveHudDock
-          id={hudId}
-          onExport={handleExport}
-          onImport={handleImportClick}
-          onReset={handleResetClick}
-          onToggleFullscreen={toggleFullscreen}
-          isFullscreen={activeFullscreen}
-        />
-      )}
+      <SaveHudDock
+        id={hudId}
+        onExport={handleExport}
+        onImport={handleImportClick}
+        onReset={handleResetClick}
+        onToggleFullscreen={toggleFullscreen}
+        isFullscreen={activeFullscreen}
+        collapsed={activeFullscreen && isHudCollapsed}
+        onRequestCollapse={collapseHud}
+      />
     </div>
   );
 
   const fabSlot = activeFullscreen ? (
     <button
+      ref={fabRef}
       type="button"
       data-testid="save-hud-collapse-fab"
       onClick={() => setIsHudCollapsed((current) => !current)}

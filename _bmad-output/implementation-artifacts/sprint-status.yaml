@@ -72,8 +72,8 @@ development_status:
 
   epic-6: in-progress
   6-1-admin-panel-entry-point-role-safe-resolution: done
-  6-2-fullscreen-viewport-continuity: review
-  6-3-fullscreen-save-hud-collapsed-default: backlog
+  6-2-fullscreen-viewport-continuity: done
+  6-3-fullscreen-save-hud-collapsed-default: review
   epic-6-retrospective: optional
 
   epic-7: in-progress
