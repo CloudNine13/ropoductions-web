@@ -5,11 +5,20 @@
  */
 
 import type {
+  OverrideAuditRecord,
   PatronOverrideRecord,
   SessionRecord,
   UpsertPatronOverrideInput,
   UpsertSessionInput,
 } from "@/types/database";
+
+/**
+ * Audit actor recorded when no human performed the mutation: creator-admin
+ * materialization (OAuth login, session validation) and the dev-only admin seed CLI.
+ * It is trail data only — authorization never reads `override_audit`, and sealing is
+ * decided solely by `patron_overrides.granted_by`.
+ */
+export const SYSTEM_BOOTSTRAP_ACTOR = "system_bootstrap";
 
 /**
  * Retrieves a session record by its unique UUIDv4 session identifier.
@@ -181,39 +190,58 @@ export async function getPatronOverride(
  * Creates or updates an administrative or complimentary access override.
  * Preserves initial `created_at_sec` while updating role, notes, and `updated_at_sec`.
  *
+ * The mutation and its `override_audit` row are one `db.batch` interaction, so neither
+ * can commit without the other. `actorPatronId` is required because attribution is a
+ * caller fact the database cannot derive — pass `SYSTEM_BOOTSTRAP_ACTOR` when no human
+ * acted, never an env value or a target id.
+ *
  * @param db Cloudflare D1 Database binding
  * @param override Override parameters with target role ('admin' or 'comp')
+ * @param actorPatronId Acting administrator's Patreon ID, or the system sentinel
  */
 export async function upsertPatronOverride(
   db: D1Database,
-  override: UpsertPatronOverrideInput
+  override: UpsertPatronOverrideInput,
+  actorPatronId: string
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   const createdAt = override.created_at_sec ?? now;
   const updatedAt = override.updated_at_sec ?? now;
   const notes = override.notes ?? null;
 
-  await db
-    .prepare(
-      `INSERT INTO patron_overrides (patron_id, role, notes, granted_by, created_at_sec, updated_at_sec)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(patron_id) DO UPDATE SET
-         role = excluded.role,
-         notes = CASE WHEN ? IS NOT NULL THEN excluded.notes ELSE patron_overrides.notes END,
-         -- granted_by is an immutable audit attribution set on INSERT only;
-         -- pre-5.4 updates clobbered it, leaving no recoverable trail.
-         updated_at_sec = excluded.updated_at_sec`
-    )
-    .bind(
-      override.patron_id,
-      override.role,
-      notes,
-      override.granted_by,
-      createdAt,
-      updatedAt,
-      override.notes !== undefined ? 1 : null
-    )
-    .run();
+  await db.batch([
+    // Audit first: it derives `action`/`before_role` from the pre-write row, so the
+    // batch order is load-bearing. Reordering silently records post-write state.
+    db
+      .prepare(
+        `INSERT INTO override_audit (actor_patron_id, target_patron_id, action, before_role, after_role, created_at_sec)
+         SELECT ?1, ?2,
+                CASE WHEN (SELECT role FROM patron_overrides WHERE patron_id = ?2) IS NULL THEN 'grant' ELSE 'update' END,
+                (SELECT role FROM patron_overrides WHERE patron_id = ?2),
+                ?3, ?4`
+      )
+      .bind(actorPatronId, override.patron_id, override.role, updatedAt),
+    db
+      .prepare(
+        `INSERT INTO patron_overrides (patron_id, role, notes, granted_by, created_at_sec, updated_at_sec)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(patron_id) DO UPDATE SET
+           role = excluded.role,
+           notes = CASE WHEN ? IS NOT NULL THEN excluded.notes ELSE patron_overrides.notes END,
+           -- granted_by is an immutable audit attribution set on INSERT only;
+           -- pre-5.4 updates clobbered it, leaving no recoverable trail.
+           updated_at_sec = excluded.updated_at_sec`
+      )
+      .bind(
+        override.patron_id,
+        override.role,
+        notes,
+        override.granted_by,
+        createdAt,
+        updatedAt,
+        override.notes !== undefined ? 1 : null
+      ),
+  ]);
 }
 
 /**
@@ -253,6 +281,31 @@ export async function countAdminOverrides(db: D1Database): Promise<number> {
 }
 
 /**
+ * Lists the append-only override audit trail, newest first.
+ * Ordering is `created_at_sec` descending with the monotonic row id as tiebreaker so
+ * LIMIT/OFFSET paging stays stable when several events share a second.
+ *
+ * @param db Cloudflare D1 Database binding
+ * @param limit Maximum number of trail rows to return
+ * @param offset Number of trail rows to skip
+ * @returns Array of OverrideAuditRecord
+ */
+export async function listOverrideAudit(
+  db: D1Database,
+  limit: number = 25,
+  offset: number = 0
+): Promise<OverrideAuditRecord[]> {
+  const { results } = await db
+    .prepare(
+      "SELECT * FROM override_audit ORDER BY created_at_sec DESC, id DESC LIMIT ? OFFSET ?"
+    )
+    .bind(limit, offset)
+    .all<OverrideAuditRecord>();
+
+  return results ?? [];
+}
+
+/**
  * Deletes a patron override row.
  * Sealing of founder rows is enforced at the action layer (isSealedCreatorAdmin /
  * isCreatorAdmin) before this is reached; the sole-admin *row-count* guard is
@@ -261,18 +314,33 @@ export async function countAdminOverrides(db: D1Database): Promise<number> {
  * A `comp` override is always deleted; an `admin` override is deleted too (even
  * the caller's own last one) — founder access does not depend on this row.
  *
+ * The deletion and its `override_audit` row are one `db.batch` interaction. The audit
+ * statement is batch[0] and inserts only when the row still exists, so a revoke that
+ * removes nothing appends nothing.
+ *
  * @param db Cloudflare D1 Database binding
  * @param patronId Numeric string Patreon user ID
+ * @param actorPatronId Acting administrator's Patreon ID, or the system sentinel
  * @returns Number of rows deleted (0 = target absent)
  */
 export async function deletePatronOverrideGuarded(
   db: D1Database,
-  patronId: string
+  patronId: string,
+  actorPatronId: string
 ): Promise<number> {
-  const result = await db
-    .prepare("DELETE FROM patron_overrides WHERE patron_id = ?")
-    .bind(patronId)
-    .run();
+  const now = Math.floor(Date.now() / 1000);
 
-  return result.meta?.changes ?? 0;
+  const results = await db.batch([
+    db
+      .prepare(
+        `INSERT INTO override_audit (actor_patron_id, target_patron_id, action, before_role, after_role, created_at_sec)
+         SELECT ?1, ?2, 'revoke', prev.role, NULL, ?3
+         FROM (SELECT (SELECT role FROM patron_overrides WHERE patron_id = ?2) AS role) AS prev
+         WHERE prev.role IS NOT NULL`
+      )
+      .bind(actorPatronId, patronId, now),
+    db.prepare("DELETE FROM patron_overrides WHERE patron_id = ?").bind(patronId),
+  ]);
+
+  return results[1]?.meta?.changes ?? 0;
 }

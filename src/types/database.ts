@@ -95,6 +95,34 @@ export interface CreateSessionInput {
 export type UpsertSessionInput = CreateSessionInput | SessionRecord;
 
 /**
+ * Audit action recorded in the `override_audit` trail for a single mutation.
+ * Check constraint: action IN ('grant', 'update', 'revoke')
+ */
+export type OverrideAuditAction = "grant" | "update" | "revoke";
+
+/**
+ * Row record representation for the append-only `override_audit` table in Cloudflare D1.
+ * `before_role` is null on a grant and `after_role` is null on a revocation; a row whose
+ * roles are equal records a re-materialization (bootstrap) or a notes-only change.
+ */
+export interface OverrideAuditRecord {
+  /** Insertion-ordered row id (monotonic; the table rejects deletes) */
+  id: number;
+  /** Acting Patreon user ID, or 'system_bootstrap' when the system wrote the row */
+  actor_patron_id: string;
+  /** Patreon user ID the mutation was applied to */
+  target_patron_id: string;
+  /** Mutation kind: grant (row created), update (conflict path), revoke (row deleted) */
+  action: OverrideAuditAction;
+  /** Role stored before the mutation, null when no row existed */
+  before_role: OverrideRole | null;
+  /** Role stored after the mutation, null when the row was deleted */
+  after_role: OverrideRole | null;
+  /** Unix timestamp in integer seconds when the mutation was committed */
+  created_at_sec: number;
+}
+
+/**
  * Input type for creating or upserting a patron override in D1.
  * Omits timestamps or accepts them optionally.
  */

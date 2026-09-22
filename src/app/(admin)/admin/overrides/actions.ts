@@ -111,14 +111,18 @@ export async function handleUpsertOverrideCore(
   const currentTime = nowSec ?? Math.floor(Date.now() / 1000);
 
   try {
-    await upsertPatronOverride(db, {
-      patron_id: patronId,
-      role: role as "admin" | "comp",
-      notes: sanitizedNotes && sanitizedNotes.length > 0 ? sanitizedNotes : null,
-      granted_by: callingSession.patron_id,
-      created_at_sec: existing ? existing.created_at_sec : currentTime,
-      updated_at_sec: currentTime,
-    });
+    await upsertPatronOverride(
+      db,
+      {
+        patron_id: patronId,
+        role: role as "admin" | "comp",
+        notes: sanitizedNotes && sanitizedNotes.length > 0 ? sanitizedNotes : null,
+        granted_by: callingSession.patron_id,
+        created_at_sec: existing ? existing.created_at_sec : currentTime,
+        updated_at_sec: currentTime,
+      },
+      callingSession.patron_id
+    );
   } catch (err) {
     console.error("[handleUpsertOverrideCore] Failed to upsert patron override:", err);
     return {
@@ -265,7 +269,7 @@ export async function handleRevokeOverrideCore(
 
   let changes = 0;
   try {
-    changes = await deletePatronOverrideGuarded(db, normalizedPatronId);
+    changes = await deletePatronOverrideGuarded(db, normalizedPatronId, callingSession.patron_id);
   } catch (err) {
     console.error("[handleRevokeOverrideCore] Failed to revoke patron override:", err);
     return {
