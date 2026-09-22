@@ -163,6 +163,7 @@ export function EngineBootRecovery({
   return (
     <div
       data-testid="engine-boot-recovery"
+      data-failure-class={report.failureClass}
       className={`absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-black/90 px-4 py-6 ${className}`}
     >
       <section className="w-full max-w-md rounded-xl border border-border/80 bg-card p-5 text-left shadow-2xl">

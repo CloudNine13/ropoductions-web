@@ -13,6 +13,7 @@ import {
   buildDiagnosticsReport,
   classifyEngineBootFailure,
   isEngineReadyReport,
+  isSameOriginEngineSrc,
   isSessionRejectedReport,
   parseEngineBootFailureReport,
   runWebglProbe,
@@ -43,22 +44,14 @@ const LOAD_TICK_CAP = 90;
 const BOOT_LOAD_TIMEOUT_MS = 20000;
 /** Budget for a loaded engine document to report readiness or a failure. */
 const BOOT_READY_TIMEOUT_MS = 6000;
+/** Budget for the one-shot boot-script probe the watchdog issues. */
+const BOOT_PROBE_TIMEOUT_MS = 5000;
 
 /** MZ's boot script, as it appears in the shell document's `script[src]` list. */
 const BOOT_SCRIPT_PATTERN = /(^|\/)main\.js(\?|#|$)/;
 
-function isSafeEngineSrc(value: string): boolean {
-  const trimmed = value.trim().toLowerCase();
-  if (
-    trimmed.startsWith("javascript:") ||
-    trimmed.startsWith("data:") ||
-    trimmed.startsWith("blob:") ||
-    trimmed.startsWith("vbscript:")
-  ) {
-    return false;
-  }
-  return value.startsWith("/") || value.startsWith("https://") || value.startsWith("http://");
-}
+/** Marker the website-owned mock harness carries; see `src/engine-plugins/mock-shell.html`. */
+const HARNESS_MARKER_SELECTOR = 'meta[name="ropoductions-harness"]';
 
 interface EngineBootFailureInput {
   failureClass: EngineBootFailureClass;
@@ -179,24 +172,37 @@ export function GameViewport({
 
     const bootScript = scriptSources.find((src) => BOOT_SCRIPT_PATTERN.test(src));
     if (!bootScript) {
-      if (!doc) {
-        let documentUrl = engineSrc;
-        try {
-          documentUrl = new URL(engineSrc, window.location.href).href;
-        } catch {
-          documentUrl = engineSrc;
-        }
-        applyFailure({
-          failureClass: "boot_request_failed",
-          diagnostics: {
-            url: documentUrl,
-            networkError: "engine document unavailable",
-            engineScripts: scriptSources,
-          },
-        });
+      let isHarness = false;
+      try {
+        isHarness = Boolean(doc?.querySelector(HARNESS_MARKER_SELECTOR));
+      } catch {
+        isHarness = false;
       }
-      // No boot script in the document means there is nothing to boot (the
-      // website-owned mock harness); silence from it is not a failure.
+      if (isHarness) {
+        // Website-owned mock harness: no MZ runtime to boot, and it reports its own
+        // readiness from document load. Silence from it is not a failure.
+        return;
+      }
+      // A document with no boot script cannot boot: an error body (the shell route
+      // answers 403/404/5xx as JSON), a published shell whose boot script is gone,
+      // or a document this origin is not allowed to read at all.
+      let documentUrl = engineSrc;
+      try {
+        documentUrl = new URL(engineSrc, window.location.href).href;
+      } catch {
+        documentUrl = engineSrc;
+      }
+      applyFailure({
+        failureClass: "boot_request_failed",
+        raw: doc
+          ? "The engine document declared no boot script."
+          : "Your browser does not allow to read local files.",
+        diagnostics: {
+          url: documentUrl,
+          ...(doc ? {} : { networkError: "engine document unavailable" }),
+          engineScripts: scriptSources,
+        },
+      });
       return;
     }
 
@@ -230,12 +236,21 @@ export function GameViewport({
     bootCheckRef.current?.abort();
     const controller = new AbortController();
     bootCheckRef.current = controller;
+    let probeExpired = false;
+    const probeDeadline = window.setTimeout(() => {
+      // A probe that never answers must not consume the one-shot watchdog: the
+      // overlay is already dismissed by the load event, so silence here is the
+      // player's only remaining outcome.
+      probeExpired = true;
+      controller.abort();
+    }, BOOT_PROBE_TIMEOUT_MS);
 
     try {
       const response = await fetch(bootScriptUrl, {
         cache: "no-store",
         signal: controller.signal,
       });
+      window.clearTimeout(probeDeadline);
       if (controller.signal.aborted) {
         return;
       }
@@ -259,6 +274,19 @@ export function GameViewport({
       // A reachable boot script means the engine is still booting: the watchdog
       // never concludes a failure from silence alone.
     } catch (error) {
+      window.clearTimeout(probeDeadline);
+      if (probeExpired) {
+        applyFailure({
+          failureClass: "boot_request_failed",
+          raw: "The engine boot script did not answer.",
+          diagnostics: {
+            url: bootScriptUrl,
+            networkError: "boot script probe timed out",
+            engineScripts: scriptSources,
+          },
+        });
+        return;
+      }
       if (controller.signal.aborted) {
         return;
       }
@@ -295,7 +323,7 @@ export function GameViewport({
   }, [clearWatchdog]);
 
   useEffect(() => {
-    if (!isSafeEngineSrc(engineSrc)) {
+    if (!isSameOriginEngineSrc(engineSrc, window.location.origin)) {
       applyFailure({
         failureClass: "boot_request_failed",
         raw: `Refused engine source: ${engineSrc}`,
