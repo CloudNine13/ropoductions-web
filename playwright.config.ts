@@ -6,8 +6,11 @@ const WEBGL_DISABLED_SPEC = /webgl-unavailable\.spec\.ts/;
 /**
  * Headless Firefox ships without a WebGL path (Mozilla 1375585; Playwright
  * #13146/#21783: WebGL is headed-only), so the engine preflight refuses the
- * session and the boot specs see no iframe. CI therefore runs this project
+ * session and the boot specs see no iframe. GitHub Actions runs this project
  * headed under xvfb; the force-enabled prefs cover blocklisted software GL.
+ * Guard on GITHUB_ACTIONS (automatic on every GHA runner), not CI, because
+ * CI=true is commonly set in local shells and would otherwise spawn headed
+ * Firefox windows on developer machines.
  */
 const FIREFOX_WEBGL_PREFS = {
   "webgl.disabled": false,
@@ -35,7 +38,7 @@ export default defineConfig({
       testIgnore: WEBGL_DISABLED_SPEC,
       use: {
         ...devices["Desktop Firefox"],
-        headless: process.env.CI ? false : true,
+        headless: process.env.GITHUB_ACTIONS ? false : true,
         launchOptions: { firefoxUserPrefs: FIREFOX_WEBGL_PREFS },
       },
     },
