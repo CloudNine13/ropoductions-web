@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-22-2026 23:19
+last_updated: 09-22-2026 23:55
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -76,12 +76,12 @@ development_status:
   6-3-fullscreen-save-hud-collapsed-default: backlog
   epic-6-retrospective: optional
 
-  epic-7: in-progress
+  epic-7: done
   7-1-engine-boot-failure-classification-localized-recovery-surface: done
   7-2-release-addressed-immutable-engine-shell-delivery: done
   7-3-burst-safe-session-validation-for-engine-and-asset-requests: done
   7-4-engine-asset-load-retry-in-injected-bridge-plugin: done
-  7-5-firefox-reload-storm-and-asset-burst-verification: review
+  7-5-firefox-reload-storm-and-asset-burst-verification: done
   epic-7-retrospective: done
 
 action_items:
@@ -312,7 +312,7 @@ action_items:
     action: "Close story 7.5 remaining verification gaps: data-failure-class under
       a WebGL-disabled Firefox profile and a concurrent burst spec"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
   - id: "epic-7-retro-item-31-replace-the-source-text-assertions-in-te"
     epic: 7
