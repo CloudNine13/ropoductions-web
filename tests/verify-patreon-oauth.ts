@@ -30,8 +30,10 @@ import {
 } from "../src/lib/auth";
 import {
   getSessionById,
+  SYSTEM_BOOTSTRAP_ACTOR,
   upsertPatronOverride,
 } from "../src/lib/db";
+import type { OverrideAuditRecord } from "../src/types/database";
 import { PATREON_CAMPAIGNS_URL } from "../src/lib/patreon";
 import { GET as initiateAuth } from "../src/app/api/auth/patreon/route";
 import { GET as callbackAuth } from "../src/app/api/auth/callback/route";
@@ -250,11 +252,18 @@ async function testInitialAdminBootstrap(): Promise<void> {
           return {
             async run() {
               upsertCalls.push(args);
-              return { success: true };
+              return { success: true, meta: { changes: 1 } };
             },
           };
         },
       };
+    },
+    async batch(statements: { run: () => Promise<unknown> }[]) {
+      const results = [];
+      for (const statement of statements) {
+        results.push(await statement.run());
+      }
+      return results;
     },
   } as unknown as D1Database;
 
@@ -264,10 +273,14 @@ async function testInitialAdminBootstrap(): Promise<void> {
     "11111, 22222"
   );
   assert.equal(bootstrapped, true);
-  assert.equal(upsertCalls.length, 1);
-  assert.equal(upsertCalls[0][0], "22222");
-  assert.equal(upsertCalls[0][1], "admin");
-  assert.equal(upsertCalls[0][3], "system_bootstrap");
+  // The bootstrap write is one atomic batch: the audit statement runs first so it
+  // observes pre-write state, the override upsert second.
+  assert.equal(upsertCalls.length, 2);
+  assert.equal(upsertCalls[0][0], SYSTEM_BOOTSTRAP_ACTOR);
+  assert.equal(upsertCalls[0][1], "22222");
+  assert.equal(upsertCalls[1][0], "22222");
+  assert.equal(upsertCalls[1][1], "admin");
+  assert.equal(upsertCalls[1][3], "system_bootstrap");
 
   const nonAdmin = await bootstrapInitialAdminIfEligible(
     mockDb,
@@ -275,14 +288,15 @@ async function testInitialAdminBootstrap(): Promise<void> {
     "11111, 22222"
   );
   assert.equal(nonAdmin, false);
-  assert.equal(upsertCalls.length, 1);
+  assert.equal(upsertCalls.length, 2);
 }
 
 type DbRow = Record<string, unknown>;
 
-function createMockDb(): D1Database {
+function createMockDb(): { db: D1Database; audit: OverrideAuditRecord[] } {
   const sessions = new Map<string, DbRow>();
   const patronOverrides = new Map<string, DbRow>();
+  const audit: OverrideAuditRecord[] = [];
 
   const db = {
     prepare(sql: string) {
@@ -318,6 +332,43 @@ function createMockDb(): D1Database {
           throw new Error(`Unhandled all() query: ${sql}`);
         },
         async run(): Promise<void> {
+          // The audit SQL embeds `FROM patron_overrides WHERE patron_id = ?2` inside its
+          // subquery, so this branch MUST precede every patron_overrides branch.
+          if (sql.includes("INSERT INTO override_audit")) {
+            const isRevoke = sql.includes("'revoke'");
+            const [actor, target, third, createdAt] = stmt.params as [
+              string,
+              string,
+              string | number,
+              number,
+            ];
+            const before = patronOverrides.get(target);
+            if (isRevoke) {
+              if (!before) {
+                return;
+              }
+              audit.push({
+                id: audit.length + 1,
+                actor_patron_id: actor,
+                target_patron_id: target,
+                action: "revoke",
+                before_role: before.role as "admin" | "comp",
+                after_role: null,
+                created_at_sec: third as number,
+              });
+              return;
+            }
+            audit.push({
+              id: audit.length + 1,
+              actor_patron_id: actor,
+              target_patron_id: target,
+              action: before ? "update" : "grant",
+              before_role: (before?.role as "admin" | "comp" | undefined) ?? null,
+              after_role: third as "admin" | "comp",
+              created_at_sec: createdAt,
+            });
+            return;
+          }
           if (sql.startsWith("INSERT INTO sessions")) {
             const [
               id, patron_id, email, role, tier_id, tier_name, pledge_cents,
@@ -386,8 +437,15 @@ function createMockDb(): D1Database {
       };
       return stmt;
     },
+    async batch(statements: { run: () => Promise<unknown> }[]) {
+      const results = [];
+      for (const statement of statements) {
+        results.push(await statement.run());
+      }
+      return results;
+    },
   };
-  return db as unknown as D1Database;
+  return { db: db as unknown as D1Database, audit };
 }
 
 async function createSignedVerifierCookie(secret: string): Promise<{
@@ -431,7 +489,7 @@ async function testRouteHandlers(): Promise<void> {
   process.env.INITIAL_ADMIN_PATREON_IDS = "987654321, 555555555";
   process.env.PATREON_CAMPAIGN_ID = "camp_123456";
 
-  const mockDb = createMockDb();
+  const { db: mockDb, audit: auditRows } = createMockDb();
   globalThis.__D1_TEST_DB__ = mockDb;
 
   const initRequest = new Request("http://localhost:3000/api/auth/patreon", {
@@ -779,13 +837,22 @@ async function testRouteHandlers(): Promise<void> {
     );
     assert.equal(decryptedRefreshToken1, "live_refresh_token_abc");
     assert.equal(isAccessAuthorized(sessionRecord1), true);
+
+    // The route swallows bootstrap failures, so a green session here proves nothing
+    // about the durable write: the appended audit row is the observable proof.
+    const founderAuditRow = auditRows.find((row) => row.target_patron_id === "987654321");
+    assert.ok(founderAuditRow, "Bootstrap must append an audit row for the founder");
+    assert.equal(founderAuditRow.actor_patron_id, SYSTEM_BOOTSTRAP_ACTOR);
+    assert.equal(founderAuditRow.after_role, "admin");
+    assert.ok(founderAuditRow.created_at_sec > 0);
+
     // Scenario 2: Complimentary Override Short-Circuit
     await upsertPatronOverride(mockDb, {
       patron_id: "comp_patron_888",
       role: "comp",
       granted_by: "system_admin",
       notes: "VIP Tester",
-    });
+    }, "555555555");
     currentUserId = "comp_patron_888";
     currentUserEmail = "comp@example.com";
     currentUserFullName = "VIP Tester";
