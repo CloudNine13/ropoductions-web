@@ -108,3 +108,29 @@ Recorded here so no later session has to reconstruct what was decided after the 
 **Residuals.** The four recorded residuals (mid-publish mixed-bytes window, media/`data/` never pinned, pre-existing pipeline hygiene, and the shell route's `head`+`get` pair) are filed in `deferred-work.md` against this spec. The CI-wired seeded harness stays 7.5's, as the Verification section above records.
 
 **Correction to the frozen I/O matrix.** The "Metadata file" row predicts a 404 for `/engine/build-metadata.json`. The route answers **400 `BAD_REQUEST`** with `no-store`: a non-allowlisted top-level segment is rejected by `sanitizeAssetPath` before any R2 access, which is the stronger outcome (the object is not even looked up). `tests/engine-route.test.ts` "never serves the ingest pipeline's release metadata" pins the 400; the dated epics amendment A-2026-09-22-01 records the corrected wording.
+
+## Verification Record (2026-09-22, successor session)
+
+Baseline: `origin/develop` @ `22d4359` (this story's implementation and artifact set, merged through PR #58). Everything below was measured in the story worktree against that tip; no source file changed.
+
+**Suite runs**
+
+| Command | Result |
+|---|---|
+| `npm run test:unit` | 541 pass, 0 fail (95 suites) |
+| `npx tsc --noEmit` | clean |
+| `npm run lint` | 0 errors, 4 pre-existing warnings (`tests/admin-layout.test.ts`) |
+| `npm run build` (OpenNext, run by the e2e server command) | success |
+| `npm run test:e2e` (Chromium, mock harness) | 46 passed |
+
+**Seeded real-shell proof** — opt-in, local miniflare, isolated persist root (`/tmp/release-proof/state`, never the shared `.wrangler/state`), real Chrome 153 driven over raw CDP with the HTTP cache enabled. Passive observation only (`Network.*` events plus the wrangler stdout request log as ground truth); no `page.route`. Playwright-driven Chromium cannot run this measurement: it does not serve these responses from the HTTP cache (control: a static server answering the same `private, immutable, max-age=31536000` re-fetched on the second navigation under Playwright, and cache-served the same request under raw CDP).
+
+1. **Staging.** Sparse read-only clone of `salamin888/Final Orginity` (shell plus `Final Orginity/package.json` and `Final Orginity/data/System.json`, as the ingestion engine validates both) → `npx tsx scripts/sync-game-release.ts` staged 78 shell files, addressed them, and logged `Engine release id: 1a75b419…eb8be (addressing revision 1)`. Addresses per source: `index.html` 4, `js/main.js` 2, `js/rmmz_managers.js` 2; the bridge is registered in `js/plugins.js`.
+2. **Seeding.** 78 shell objects under the `engine/` prefix (8,469,507 B) plus `data/`, `img/system/`, `img/titles1/` media (309 objects, 35,682,076 B) written through `env.GAME_ASSETS.put`, and the e2e session fixtures into the isolated D1.
+3. **Cold load of `/play`.** 51 shell `200`s: 1 document, 16 boot scripts, 30 plugin scripts (including `Ropoductions_WebBridge.js`), 1 font file. Every `js/`, `css/`, `icon/` and font-file reference carried `?v=<releaseId>` — zero unaddressed pipeline sources; addressed responses carried exactly `private, immutable, max-age=31536000`; the document carried `private, no-cache`; 31 media responses (`data/*.json`, `img/system/*.png`) stayed unaddressed at `private, max-age=86400`.
+4. **Reload of `/play`.** 51 non-document shell requests, **50 served from the browser cache** (45 memory-cache, 5 disk-cache), **0 non-document `304`s**, **0 shell URLs re-fetched with a network `200`**. The server access log confirms it independently: one `/engine/index.html 304 Not Modified` per reload, no `/engine/js/**` request at all.
+5. **Conditional document.** A direct conditional request against the live route (`If-None-Match` = the object's ETag) answers `304` with `Cache-Control: private, no-cache`.
+6. **Excluded by URL**, as the story records: `/engine/cordova.js` (upstream dangling reference; `400`).
+7. **Observed residual, already inside the frozen matrix.** `/engine/fonts/Minicode.json` is a plugin-authored literal (`CC_FontTexture`), so the pipeline never addressed it: it is served `private, max-age=86400` — a revalidation, never a broken boot. It is the only shell-namespace request that escapes addressing on the real shell.
+
+Harness state: the seeding driver, the CDP proof driver and the raw report (`authoritative-report.json`) are throwaway and live outside the repository (worktree `tmp/proof/`, `/tmp/release-proof/`). The CI-wired seeded harness remains Story 7.5's.
