@@ -11,6 +11,9 @@ import { createMockD1 } from "./helpers/mock-d1";
 const worktreeDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readSource = (rel: string): string => readFileSync(join(worktreeDir, rel), "utf8");
 
+/** Numeric actor fixture: audit rows reject any actor that is neither the sentinel nor a patron id. */
+const REVOKING_ADMIN_ID = "12345678";
+
 function adminSessionFixture(patronId: string): SessionRecord {
   return {
     id: `session-${patronId}`,
@@ -64,7 +67,7 @@ describe("deletePatronOverrideGuarded (founder-preservation invariant)", () => {
   it("always deletes a comp override", async () => {
     const { db, overrides } = createMockD1();
     overrides.set("22222222", overrideFixture("22222222", "comp"));
-    const changes = await deletePatronOverrideGuarded(db, "22222222");
+    const changes = await deletePatronOverrideGuarded(db, "22222222", REVOKING_ADMIN_ID);
     assert.equal(changes, 1);
     assert.equal(overrides.has("22222222"), false);
   });
@@ -73,7 +76,7 @@ describe("deletePatronOverrideGuarded (founder-preservation invariant)", () => {
     const { db, overrides } = createMockD1();
     overrides.set("11111111", overrideFixture("11111111", "admin"));
     overrides.set("33333333", overrideFixture("33333333", "admin"));
-    const changes = await deletePatronOverrideGuarded(db, "33333333");
+    const changes = await deletePatronOverrideGuarded(db, "33333333", REVOKING_ADMIN_ID);
     assert.equal(changes, 1);
     assert.equal(overrides.has("33333333"), false);
     assert.equal(overrides.has("11111111"), true);
@@ -82,14 +85,14 @@ describe("deletePatronOverrideGuarded (founder-preservation invariant)", () => {
   it("deletes the last admin override (founder access is env-guaranteed)", async () => {
     const { db, overrides } = createMockD1();
     overrides.set("11111111", overrideFixture("11111111", "admin"));
-    const changes = await deletePatronOverrideGuarded(db, "11111111");
+    const changes = await deletePatronOverrideGuarded(db, "11111111", REVOKING_ADMIN_ID);
     assert.equal(changes, 1);
     assert.equal(overrides.has("11111111"), false);
   });
 
   it("reports zero changes for an absent override", async () => {
     const { db } = createMockD1();
-    assert.equal(await deletePatronOverrideGuarded(db, "99999999"), 0);
+    assert.equal(await deletePatronOverrideGuarded(db, "99999999", REVOKING_ADMIN_ID), 0);
   });
 });
 
@@ -261,6 +264,13 @@ describe("override revocation core logic (handleRevokeOverrideCore)", () => {
             return { success: true, meta: { changes: isDelete ? 0 : 0 } };
           },
         };
+      },
+      async batch(statements: { run: () => Promise<unknown> }[]) {
+        const results = [];
+        for (const statement of statements) {
+          results.push(await statement.run());
+        }
+        return results;
       },
     } as unknown as D1Database;
 

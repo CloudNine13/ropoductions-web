@@ -1,4 +1,4 @@
-import { upsertPatronOverride } from "@/lib/db";
+import { SYSTEM_BOOTSTRAP_ACTOR, upsertPatronOverride } from "@/lib/db";
 import type {
   PatreonCampaignMembersResponse,
   PatreonIdentityResponse,
@@ -419,12 +419,16 @@ export async function bootstrapInitialAdminIfEligible(
     return false;
   }
 
-  await upsertPatronOverride(db, {
-    patron_id: patronId,
-    role: "admin",
-    granted_by: "system_bootstrap",
-    notes: "Creator Admin (Sealed)",
-  });
+  await upsertPatronOverride(
+    db,
+    {
+      patron_id: patronId,
+      role: "admin",
+      granted_by: "system_bootstrap",
+      notes: "Creator Admin (Sealed)",
+    },
+    SYSTEM_BOOTSTRAP_ACTOR
+  );
 
   return true;
 }
@@ -437,12 +441,16 @@ export async function syncInitialAdminOverrides(
   const synced: string[] = [];
 
   for (const patronId of adminSet) {
-    await upsertPatronOverride(db, {
-      patron_id: patronId,
-      role: "admin",
-      granted_by: "system_bootstrap",
-      notes: "Creator Admin (Sealed)",
-    });
+    await upsertPatronOverride(
+      db,
+      {
+        patron_id: patronId,
+        role: "admin",
+        granted_by: "system_bootstrap",
+        notes: "Creator Admin (Sealed)",
+      },
+      SYSTEM_BOOTSTRAP_ACTOR
+    );
     synced.push(patronId);
   }
 

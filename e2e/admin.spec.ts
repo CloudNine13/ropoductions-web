@@ -80,3 +80,28 @@ test.describe("admin anti-enumeration guard (Epic 5)", () => {
     await expect(page.getByTestId("admin-nav-play")).toBeVisible();
   });
 });
+
+test.describe("admin override audit trail (Story 5.5)", () => {
+  test("the /admin/overrides trail renders a row for the mutation the seeder performed", async ({
+    page,
+  }) => {
+    await page.context().addCookies(await sessionCookies(E2E_FIXTURES.panelAdmin.sessionId));
+
+    const response = await page.goto("/admin/overrides");
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBe(200);
+
+    const trail = page.getByTestId("audit-trail");
+    await expect(trail).toBeVisible();
+
+    // Content-based, never count-based: each `npm run e2e:setup` re-materializes the
+    // fixture overrides and therefore appends rows that can never be deleted.
+    const seededRow = page
+      .getByTestId("audit-row")
+      .filter({ hasText: E2E_FIXTURES.compHolder.patronId });
+    await expect(seededRow.first()).toBeVisible();
+    // The seeder grants on the first run and updates on every later one, so the badge
+    // kind carries no stable expectation — only that an action badge is rendered.
+    await expect(seededRow.first().locator('[data-testid^="audit-badge-"]')).toBeVisible();
+  });
+});

@@ -298,6 +298,7 @@ The **Ropoductions Web Portal** transforms this workflow into a premier, web-fir
   - No panel action can delete or alter a sealed founder record.
   - After Story 5.5, every successful role mutation produces exactly one audit row (actor, target, action, before/after, timestamp).
   - *Back-filled 2026-09-19 from as-built scope (Story 5.3, PR #44) plus the epic-title audit-logs promise and its retro correction; see epic-5-retro-2026-09-19.md F9.*
+  - *Delivered 2026-09-23 by Story 5.5 — append-only `override_audit` (migration `0003`) written in the same atomic D1 batch as the mutation, rendered on `/admin/overrides` newest-first with bounded pagination; see `_bmad-output/implementation-artifacts/spec-5-5-grant-revoke-audit-trail.md` for the operational definitions and amendment A-2026-09-23-01 in `epics.md`.*
 
 #### FR-22: Studio Admin Panel Entry Point
 * **Actor:** Studio administrator (founder or panel-assigned).

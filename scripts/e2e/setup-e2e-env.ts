@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getPlatformProxy } from "wrangler";
-import { upsertPatronOverride, upsertSession } from "../../src/lib/db";
+import { SYSTEM_BOOTSTRAP_ACTOR, upsertPatronOverride, upsertSession } from "../../src/lib/db";
 import {
   buildE2eFixtureSeed,
   readFounderPatronId,
@@ -87,7 +87,7 @@ async function seedFixtures(): Promise<void> {
       await upsertSession(db, session);
     }
     for (const override of seed.overrides) {
-      await upsertPatronOverride(db, override);
+      await upsertPatronOverride(db, override, SYSTEM_BOOTSTRAP_ACTOR);
     }
     if (founderPatronId) {
       // founderPatronId is the dedicated disposable key, never a creator id, so this

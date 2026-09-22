@@ -12,8 +12,12 @@ import {
   upsertPatronOverride,
   upsertSession,
 } from "../src/lib/db";
+import type { OverrideAuditRecord } from "../src/types/database";
 
 type Row = Record<string, unknown>;
+
+/** Numeric actor fixture: the audit stamp columns require a real patron id or the sentinel. */
+const ACTOR_ID = "12345678";
 
 function sessionFixture(id: string, overrides: Row = {}): Row {
   return {
@@ -35,11 +39,13 @@ function sessionFixture(id: string, overrides: Row = {}): Row {
   };
 }
 
-function createMockDb(): D1Database {
+function createMockDb(): { db: D1Database; audit: OverrideAuditRecord[] } {
   const sessions = new Map<string, Row>();
   const patronOverrides = new Map<string, Row>();
+  const audit: OverrideAuditRecord[] = [];
 
   const db = {
+    _audit: audit,
     prepare(sql: string) {
       const stmt = {
         params: [] as unknown[],
@@ -73,6 +79,43 @@ function createMockDb(): D1Database {
           throw new Error(`Unhandled all() query: ${sql}`);
         },
         async run(): Promise<{ meta?: Record<string, unknown> }> {
+          // The audit SQL embeds `FROM patron_overrides WHERE patron_id = ?2` inside its
+          // subquery, so this branch MUST precede every patron_overrides branch.
+          if (sql.includes("INSERT INTO override_audit")) {
+            const isRevoke = sql.includes("'revoke'");
+            const [actor, target, third, createdAt] = stmt.params as [
+              string,
+              string,
+              string | number,
+              number,
+            ];
+            const before = patronOverrides.get(target);
+            if (isRevoke) {
+              if (!before) {
+                return { meta: { changes: 0 } };
+              }
+              audit.push({
+                id: audit.length + 1,
+                actor_patron_id: actor,
+                target_patron_id: target,
+                action: "revoke",
+                before_role: before.role as "admin" | "comp",
+                after_role: null,
+                created_at_sec: third as number,
+              });
+              return { meta: { changes: 1 } };
+            }
+            audit.push({
+              id: audit.length + 1,
+              actor_patron_id: actor,
+              target_patron_id: target,
+              action: before ? "update" : "grant",
+              before_role: (before?.role as "admin" | "comp" | undefined) ?? null,
+              after_role: third as "admin" | "comp",
+              created_at_sec: createdAt,
+            });
+            return { meta: { changes: 1 } };
+          }
           if (sql.startsWith("INSERT INTO sessions")) {
             const [
               id, patron_id, email, role, tier_id, tier_name, pledge_cents,
@@ -141,14 +184,21 @@ function createMockDb(): D1Database {
       };
       return stmt;
     },
+    async batch(statements: { run: () => Promise<unknown> }[]) {
+      const results = [];
+      for (const statement of statements) {
+        results.push(await statement.run());
+      }
+      return results;
+    },
   };
-  return db as unknown as D1Database;
+  return { db: db as unknown as D1Database, audit };
 }
 
 let db: D1Database;
 
 beforeEach(() => {
-  db = createMockDb();
+  ({ db } = createMockDb());
 });
 
 describe("sessions data entry points", () => {
@@ -243,7 +293,7 @@ describe("patron override entry points", () => {
       granted_by: "system_bootstrap",
       created_at_sec: 1700000000,
       updated_at_sec: 1700000000,
-    });
+    }, ACTOR_ID);
     assert.equal((await getPatronOverride(db, "patron-override-1"))!.role, "admin");
 
     await upsertPatronOverride(db, {
@@ -253,7 +303,7 @@ describe("patron override entry points", () => {
       granted_by: "lead_dev",
       created_at_sec: 1999999999,
       updated_at_sec: 1700002000,
-    });
+    }, ACTOR_ID);
     const updated = await getPatronOverride(db, "patron-override-1");
     assert.equal(updated!.role, "comp");
     assert.equal(updated!.created_at_sec, 1700000000);
@@ -264,7 +314,7 @@ describe("patron override entry points", () => {
       (await listPatronOverrides(db)).some((o) => o.patron_id === "patron-override-1")
     );
 
-    await deletePatronOverrideGuarded(db, "patron-override-1");
+    await deletePatronOverrideGuarded(db, "patron-override-1", ACTOR_ID);
     assert.equal(await getPatronOverride(db, "patron-override-1"), null);
   });
 });

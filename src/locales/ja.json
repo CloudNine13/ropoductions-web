@@ -331,6 +331,27 @@
       "confirm": "アクセスを失効",
       "error": "アクセスパスの失効に失敗しました。",
       "errorRetry": "アクセスパスの失効に失敗しました。もう一度お試しください。"
+    },
+    "audit": {
+      "title": "監査証跡",
+      "subtitle": "アクセスパスの付与・変更・取消を記録する追記専用の記録です。",
+      "appendOnly": "記録は変更と同時に書き込まれ、編集も削除もできません。",
+      "emptyTitle": "監査記録がありません",
+      "emptyDesc": "アクセスパスの付与・変更・取消はまだありません。",
+      "caption": "アクセスパスの監査証跡",
+      "time": "時刻 (UTC)",
+      "actor": "実行者",
+      "target": "対象",
+      "action": "操作",
+      "before": "変更前",
+      "after": "変更後",
+      "actionGrant": "付与",
+      "actionUpdate": "変更",
+      "actionRevoke": "取消",
+      "none": "—",
+      "pagerPrev": "前へ",
+      "pagerNext": "次へ",
+      "pagerPage": "{page} ページ"
     }
   }
 }

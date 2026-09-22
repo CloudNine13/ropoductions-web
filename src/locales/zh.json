@@ -331,6 +331,27 @@
       "confirm": "确认撤销",
       "error": "撤销访问权限失败。",
       "errorRetry": "撤销访问权限失败，请重试。"
+    },
+    "audit": {
+      "title": "审计追踪",
+      "subtitle": "每次访问通行证的授予、更改和撤销的仅追加记录。",
+      "appendOnly": "记录与变更同时写入，无法编辑或删除。",
+      "emptyTitle": "暂无审计记录",
+      "emptyDesc": "尚未授予、更改或撤销任何访问通行证。",
+      "caption": "访问通行证审计追踪",
+      "time": "时间 (UTC)",
+      "actor": "操作者",
+      "target": "目标",
+      "action": "操作",
+      "before": "变更前",
+      "after": "变更后",
+      "actionGrant": "授予",
+      "actionUpdate": "更改",
+      "actionRevoke": "撤销",
+      "none": "—",
+      "pagerPrev": "上一页",
+      "pagerNext": "下一页",
+      "pagerPage": "第 {page} 页"
     }
   }
 }

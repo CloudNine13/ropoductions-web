@@ -10,11 +10,12 @@ import {
 import { validateSessionAccess } from "../src/lib/auth";
 import { getAuthEnv } from "../src/lib/cloudflare";
 import { signValue } from "../src/lib/crypto";
-import type { SessionRecord, PatronOverrideRecord } from "../src/types/database";
+import type { OverrideAuditRecord, SessionRecord, PatronOverrideRecord } from "../src/types/database";
 
 function createMockD1() {
   const overrides = new Map<string, PatronOverrideRecord>();
   const sessions = new Map<string, SessionRecord>();
+  const audit: OverrideAuditRecord[] = [];
 
   const db = {
     prepare(sql: string) {
@@ -42,6 +43,43 @@ function createMockD1() {
           throw new Error(`Unhandled query in mock all(): ${sql}`);
         },
         async run(): Promise<{ success: boolean; meta: Record<string, unknown> }> {
+          // The audit SQL embeds `FROM patron_overrides WHERE patron_id = ?2` inside its
+          // subquery, so this branch MUST precede every patron_overrides branch.
+          if (sql.includes("INSERT INTO override_audit")) {
+            if (sql.includes("'revoke'")) {
+              const [actor, target, createdAt] = stmt.params as [string, string, number];
+              const before = overrides.get(target);
+              if (before) {
+                audit.push({
+                  id: audit.length + 1,
+                  actor_patron_id: actor,
+                  target_patron_id: target,
+                  action: "revoke",
+                  before_role: before.role,
+                  after_role: null,
+                  created_at_sec: createdAt,
+                });
+              }
+              return { success: true, meta: { changes: before ? 1 : 0 } };
+            }
+            const [actor, target, role, createdAt] = stmt.params as [
+              string,
+              string,
+              "admin" | "comp",
+              number,
+            ];
+            const before = overrides.get(target);
+            audit.push({
+              id: audit.length + 1,
+              actor_patron_id: actor,
+              target_patron_id: target,
+              action: before ? "update" : "grant",
+              before_role: before ? before.role : null,
+              after_role: role,
+              created_at_sec: createdAt,
+            });
+            return { success: true, meta: { changes: 1 } };
+          }
           if (sql.includes("INSERT INTO patron_overrides")) {
             const [patronId, role, notes, grantedBy, createdAt, updatedAt] = stmt.params as [
               string,
@@ -126,9 +164,16 @@ function createMockD1() {
       };
       return stmt;
     },
+    async batch(statements: { run: () => Promise<unknown> }[]) {
+      const results = [];
+      for (const statement of statements) {
+        results.push(await statement.run());
+      }
+      return results;
+    },
   } as unknown as D1Database;
 
-  return { db, overrides, sessions };
+  return { db, overrides, sessions, audit };
 }
 
 describe("parseInitialAdminPatreonIds", () => {

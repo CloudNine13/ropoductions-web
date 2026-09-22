@@ -331,6 +331,27 @@
       "confirm": "Cofnij dostęp",
       "error": "Nie udało się cofnąć przepustki dostępu.",
       "errorRetry": "Nie udało się cofnąć przepustki dostępu. Spróbuj ponownie."
+    },
+    "audit": {
+      "title": "Dziennik audytu",
+      "subtitle": "Rejestr tylko dopisujący każdego nadania, zmiany i odebrania przepustki dostępu.",
+      "appendOnly": "Wpisy są zapisywane razem ze zmianą i nie można ich edytować ani usuwać.",
+      "emptyTitle": "Brak wpisów audytu",
+      "emptyDesc": "Nie nadano, nie zmieniono ani nie odebrano jeszcze żadnej przepustki dostępu.",
+      "caption": "Dziennik audytu przepustek dostępu",
+      "time": "Czas (UTC)",
+      "actor": "Wykonawca",
+      "target": "Cel",
+      "action": "Akcja",
+      "before": "Przed",
+      "after": "Po",
+      "actionGrant": "Nadanie",
+      "actionUpdate": "Zmiana",
+      "actionRevoke": "Odebranie",
+      "none": "—",
+      "pagerPrev": "Poprzednia",
+      "pagerNext": "Następna",
+      "pagerPage": "Strona {page}"
     }
   }
 }
