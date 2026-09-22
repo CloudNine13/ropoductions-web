@@ -209,8 +209,8 @@ export function createSessionValidationMemo(
 
       if (requestGeneration === generation) {
         entries.set(key, { kind: "pending", promise: pending });
+        evict();
       }
-      evict();
       return verdictFrom(await pending, wallNow());
     },
   };
