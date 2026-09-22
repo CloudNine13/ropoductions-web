@@ -10,6 +10,7 @@ import {
   FOUNDER_PATRON_ID_KEY,
   GENERATED_DEV_VARS_MARKER,
 } from "../../e2e/helpers/session";
+import { seededShellFixture } from "../../e2e/fixtures/engine-boot-profile";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const DEV_VARS_PATH = resolve(ROOT, ".dev.vars");
@@ -76,6 +77,10 @@ async function seedFixtures(): Promise<void> {
   const seed = buildE2eFixtureSeed(founderPatronId);
   const proxy = await getPlatformProxy();
   const db = proxy.env.DB as D1Database;
+  const bucket = proxy.env.GAME_ASSETS as R2Bucket;
+  // Shell objects live under the `engine/` prefix; media objects are keyed by their
+  // own path, matching what the engine rewrite hands to /api/game.
+  const shellFixture = seededShellFixture();
 
   try {
     for (const session of seed.sessions) {
@@ -93,7 +98,14 @@ async function seedFixtures(): Promise<void> {
         .bind(founderPatronId)
         .run();
     }
+    for (const entry of shellFixture) {
+      const key = entry.route === "shell" ? `engine/${entry.key}` : entry.key;
+      await bucket.put(key, entry.body, {
+        httpMetadata: { contentType: entry.contentType },
+      });
+    }
     console.log(`[e2e] seeded ${seed.sessions.length} session fixture(s)`);
+    console.log(`[e2e] seeded ${shellFixture.length} boot-profile fixture object(s)`);
   } finally {
     await proxy.dispose();
   }
