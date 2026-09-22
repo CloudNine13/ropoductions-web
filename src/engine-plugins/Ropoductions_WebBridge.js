@@ -630,17 +630,6 @@
         return result;
       };
     }
-    if (typeof Bitmap.prototype._onLoad === "function") {
-      const originalOnLoad = Bitmap.prototype._onLoad;
-      Bitmap.prototype._onLoad = function () {
-        try {
-          if (this && typeof this._url === "string") delete assetRetryCounts[absoluteUrl(this._url)];
-        } catch (error) {
-          // A spent budget is harmless: the boot window bounds every retry.
-        }
-        return originalOnLoad.apply(this, arguments);
-      };
-    }
     if (typeof Bitmap.prototype._onError !== "function") {
       return;
     }
@@ -676,7 +665,14 @@
       }
 
       const scheduled = scheduleRetry(function () {
-        if (bootReady) return;
+        if (bootReady) {
+          // Readiness closed the retry window while this timer was pending, so the
+          // retry is dropped; the bitmap still owes the engine its terminal state
+          // or it stays in "loading" forever. The host report is suppressed past
+          // readiness by reportBootFailure itself.
+          finishBitmapFailure(bitmap, url, { retries: attempts });
+          return;
+        }
         try {
           bitmap._startLoading();
         } catch (error) {
@@ -981,8 +977,13 @@
           finish(status, event);
           return;
         }
-        if (request.retries < RETRY_MAX_ATTEMPTS) {
-          request.retries += 1;
+        const spent = assetRetryCounts[request.url] || 0;
+        request.retries = spent;
+        if (spent < RETRY_MAX_ATTEMPTS) {
+          request.retries = spent + 1;
+          // The budget belongs to the URL, not to this request: two requests for one
+          // asset inside a boot share the two attempts the contract allows.
+          assetRetryCounts[request.url] = request.retries;
           const pending = { status: status, event: event, body: body };
           if (
             scheduleRetry(function () {

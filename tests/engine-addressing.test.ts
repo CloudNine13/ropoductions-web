@@ -207,6 +207,26 @@ describe("engine release addressing", () => {
     it("refuses an identifier that is not a release digest", () => {
       assert.throws(() => addressShellReferences(stagedSources(), "8c0be72"), /not a release identifier/);
     });
+
+    it("keeps an existing query and fragment when it addresses a staged reference", () => {
+      const sources = stagedSources();
+      sources.set(
+        "index.html",
+        (sources.get("index.html") as string).replace(
+          'href="css/game.css"',
+          'href="css/game.css?theme=dark#top"'
+        )
+      );
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      assert.match(
+        sources.get("index.html") as string,
+        new RegExp(
+          `href="css/game\\.css\\?theme=dark&${ENGINE_RELEASE_PARAM}=${RELEASE_ID}#top"`
+        )
+      );
+    });
   });
 
   describe("shell cache policy", () => {

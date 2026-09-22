@@ -572,4 +572,33 @@ describe("burst-safe session validation memo", () => {
       globalThis.__D1_TEST_DB__ = undefined;
     }
   });
+
+  it("drops the verdict of a validation that was already in flight when the store was reset", async () => {
+    const clock = { mono: 0, wall: WALL_BASE };
+    const harness = createHarness({ sessions: [sessionFixture()] });
+    const memo = createMemo(clock);
+    const cookie = await signValue("sess-burst-1", SECRET);
+
+    const gate = Promise.withResolvers<void>();
+    harness.gate = gate.promise;
+
+    const inFlight = resolveWith(memo, harness, cookie);
+    memo.reset();
+    gate.resolve();
+
+    assert.equal(
+      (await inFlight).status,
+      "authorized",
+      "a caller whose validation was already running still gets its verdict"
+    );
+    assert.deepEqual(memo.keys(), [], "the cleared store must stay empty");
+    assert.equal(harness.reads().sessions, 1);
+
+    assert.equal((await resolveWith(memo, harness, cookie)).status, "authorized");
+    assert.equal(
+      harness.reads().sessions,
+      2,
+      "a request after the reset revalidates instead of reading the pre-reset verdict"
+    );
+  });
 });

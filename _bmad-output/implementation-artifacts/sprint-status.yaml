@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-22-2026 04:10
+last_updated: 09-22-2026 17:27
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
   epic-5-retrospective: done
 
   epic-6: in-progress
-  6-1-admin-panel-entry-point-role-safe-resolution: review
+  6-1-admin-panel-entry-point-role-safe-resolution: done
   6-2-fullscreen-viewport-continuity: backlog
   6-3-fullscreen-save-hud-collapsed-default: backlog
   epic-6-retrospective: optional
@@ -82,7 +82,7 @@ development_status:
   7-3-burst-safe-session-validation-for-engine-and-asset-requests: done
   7-4-engine-asset-load-retry-in-injected-bridge-plugin: done
   7-5-firefox-reload-storm-and-asset-burst-verification: review
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
 action_items:
   - id: "epic-1-retro-item-1-restore-age_verified_cookie_max_age-to-3"
@@ -286,6 +286,76 @@ action_items:
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+  - id: "epic-7-retro-item-27-keep-the-two-phase-shell-publish-and-its"
+    epic: 7
+    action: "Keep the two-phase shell publish and its workflow-manifest test green
+      on every pipeline change"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-28-add-the-ci-check-deriving-story-status-f"
+    epic: 7
+    action: "Add the CI check deriving story status from merge events (carried from
+      epic-5-retro-item-12)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-29-document-the-server-component-cookie-and"
+    epic: 7
+    action: "Document the Server Component cookie and Route Handler bounce pattern
+      (carried from epic-2-retro-item-5)"
+    owner: "architect"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-30-close-story-7-5-remaining-verification-g"
+    epic: 7
+    action: "Close story 7.5 remaining verification gaps: data-failure-class under
+      a WebGL-disabled Firefox profile and a concurrent burst spec"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-31-replace-the-source-text-assertions-in-te"
+    epic: 7
+    action: "Replace the source-text assertions in tests/game-viewport.test.ts with
+      the behavioural case and delete the block"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-32-tighten-the-memo-contract-wording-to-a-s"
+    epic: 7
+    action: "Tighten the memo contract wording to a settled-entry bound and name the
+      pending-entry residual"
+    owner: "architect"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-33-harden-the-addressing-validation-to-exec"
+    epic: 7
+    action: "Harden the addressing validation to executable sites only and widen the
+      document scanner"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-34-wrap-xhr-abort-and-timeout-on-retry-owne"
+    epic: 7
+    action: "Wrap XHR abort and timeout on retry-owned requests and contain replayed
+      handler exceptions"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-35-split-the-injected-engine-plugin-into-bo"
+    epic: 7
+    action: "Split the injected engine plugin into boot, retry and save sections at
+      the next engine-plugin story"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
+  - id: "epic-7-retro-item-36-resolve-the-uncommitted-agents-md-in-the"
+    epic: 7
+    action: "Resolve the uncommitted AGENTS.md in the main checkout so develop can
+      fast-forward"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
 priorities:
   # P0 = next up, P1 = tech debt / hardening, P2 = internal admin, P3 = optional hygiene.
   # NOTE: epics.md retitled stories 2-1..2-4 and 3-3, so `generate --dry-run` reports
@@ -296,19 +366,34 @@ priorities:
   # 5-4 reconciled to done (PR #45 merged) in the same pass.
   - rank: P0
     item: "epic-6"
-    why: "Three owner-reported defects from manual testing of the deployed portal: D1 no entry point to /admin and the role pill never renders for a pledging admin, D2 fullscreen enter/exit remounts the engine iframe and restarts the game, D3 save dock chrome covers the fullscreen game by default (analytics-epic-6-2026-09-21.md)"
+    why: "Three owner-reported defects from manual testing of the deployed portal:
+      D1 no entry point to /admin and the role pill never renders for a pledging admin,
+      D2 fullscreen enter/exit remounts the engine iframe and restarts the game, D3
+      save dock chrome covers the fullscreen game by default (analytics-epic-6-2026-09-21.md)"
   - rank: P0
     item: "epic-7"
-    why: "Owner-reported Firefox defects on the deployed portal: after a reload, engine asset requests fail (game image-guard alert fires, sprites and custom cursor missing) and the boot sometimes ends on MZ's 'Your browser does not support WebGL.' or 'Your browser does not allow to read local files.' screen. Scope, evidence and the measured exoneration of the iframe sandbox/CSP: brief-epic-7-2026-09-21/brief.md; contract: specs/spec-ropoductions-web/engine-browser-compat.md. OD-1 (asset-path validation amortisation) and OD-2 (shell cache addressing) need owner approval before 7.3/7.2 implementation. Story 6.2 removes the remount path that multiplies engine boots per document"
+    why: "Owner-reported Firefox defects on the deployed portal: after a reload, engine
+      asset requests fail (game image-guard alert fires, sprites and custom cursor
+      missing) and the boot sometimes ends on MZ's 'Your browser does not support
+      WebGL.' or 'Your browser does not allow to read local files.' screen. Scope,
+      evidence and the measured exoneration of the iframe sandbox/CSP: brief-epic-7-2026-09-21/brief.md;
+      contract: specs/spec-ropoductions-web/engine-browser-compat.md. OD-1 (asset-path
+      validation amortisation) and OD-2 (shell cache addressing) need owner approval
+      before 7.3/7.2 implementation. Story 6.2 removes the remount path that multiplies
+      engine boots per document"
   - rank: P0
     item: "5-4-override-integrity-hardening"
-    why: "Owner-gated before any new epic work: preserved-grantor attribution, caller-fresh upsert, founder-preservation regression + relaxed self-revoke, dead-code and validation fixes (retro items 1-8, 11)"
+    why: "Owner-gated before any new epic work: preserved-grantor attribution, caller-fresh
+      upsert, founder-preservation regression + relaxed self-revoke, dead-code and
+      validation fixes (retro items 1-8, 11)"
   - rank: P1
     item: "5-5-grant-revoke-audit-trail"
-    why: "Fulfills the epic 5 title's dropped audit-logs promise (F9); substrate for any future 4-eyes control (retro item 10)"
+    why: "Fulfills the epic 5 title's dropped audit-logs promise (F9); substrate for
+      any future 4-eyes control (retro item 10)"
   - rank: P1
     item: "epic-2-retro-item-5-document-server-component-cookie-route-pattern"
-    why: "Open since epic 2; three epics running undocumented; fold into 5.4/5.5 cutover docs work"
+    why: "Open since epic 2; three epics running undocumented; fold into 5.4/5.5 cutover
+      docs work"
   - rank: P3
     item: "epic-3-retrospective"
     why: "Optional hygiene; Epic 3 verified done (200/200 unit tests pass)"

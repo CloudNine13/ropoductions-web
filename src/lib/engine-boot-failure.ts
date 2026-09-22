@@ -84,6 +84,33 @@ export function playerCopyClass(failureClass: EngineBootFailureClass): EngineBoo
   return failureClass === "renderer_init_failed" ? "webgl_unavailable" : failureClass;
 }
 
+/**
+ * The engine document must resolve to our own origin: it is the origin whose
+ * IndexedDB holds the saves, and the bridge contract only trusts a same-origin
+ * frame. A scheme that executes or an address that resolves elsewhere is refused
+ * before the frame is created.
+ */
+export function isSameOriginEngineSrc(value: unknown, baseOrigin: string): boolean {
+  if (typeof value !== "string" || value.trim() === "") {
+    return false;
+  }
+  const trimmed = value.trim();
+  const lowered = trimmed.toLowerCase();
+  if (
+    lowered.startsWith("javascript:") ||
+    lowered.startsWith("data:") ||
+    lowered.startsWith("blob:") ||
+    lowered.startsWith("vbscript:")
+  ) {
+    return false;
+  }
+  try {
+    return new URL(trimmed, `${baseOrigin}/`).origin === baseOrigin;
+  } catch {
+    return false;
+  }
+}
+
 export function isEngineBootFailureClass(value: unknown): value is EngineBootFailureClass {
   return ENGINE_BOOT_FAILURE_CLASSES.includes(value as EngineBootFailureClass);
 }
@@ -117,12 +144,19 @@ export function buildDiagnosticsReport(
       if (key in result) {
         continue;
       }
-      if (typeof value === "string") {
-        const max =
-          key === "engineScripts"
-            ? MAX_ENGINE_SCRIPT_CHARS
-            : MAX_ENGINE_DIAGNOSTIC_STRING_CHARS;
-        (result as Record<string, unknown>)[key] = truncateString(value, max);
+      if (key === "engineScripts") {
+        // The inventory is rendered by mapping it, so the boundary drops any other
+        // shape instead of letting it reach the recovery surface.
+        if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) {
+          (result as Record<string, unknown>)[key] = (value as string[])
+            .slice(0, MAX_ENGINE_SCRIPT_ENTRIES)
+            .map((entry) => truncateString(entry, MAX_ENGINE_SCRIPT_CHARS));
+        }
+      } else if (typeof value === "string") {
+        (result as Record<string, unknown>)[key] = truncateString(
+          value,
+          MAX_ENGINE_DIAGNOSTIC_STRING_CHARS
+        );
       } else if (typeof value === "number" || typeof value === "boolean") {
         (result as Record<string, unknown>)[key] = value;
       } else if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) {
@@ -221,14 +255,13 @@ export function runWebglProbe(
   };
 
   canvas.addEventListener("webglcontextcreationerror", onCreationError);
-  let context: WebGLRenderingContext | WebGL2RenderingContext | null = null;
+  let context: WebGLRenderingContext | null = null;
   try {
-    context =
-      (canvas.getContext("webgl2") as
-        | WebGLRenderingContext
-        | WebGL2RenderingContext
-        | null) ??
-      (canvas.getContext("webgl") as WebGLRenderingContext | null);
+    // MZ's own gate asks for WebGL1 (`Utils.canUseWebGL`), so the preflight asks
+    // for exactly the same context: a WebGL2-only answer would pass here and still
+    // fail the engine's own capability check. The cast keeps the DOM's union type
+    // from widening the result to a WebGL2 context we no longer request.
+    context = canvas.getContext("webgl") as WebGLRenderingContext | null;
   } catch {
     context = null;
   }

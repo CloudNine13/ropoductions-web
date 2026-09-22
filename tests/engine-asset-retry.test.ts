@@ -683,4 +683,43 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
     assert.deepEqual(xhrRequestUrls(), ["data/System.json"], "no request leaves after readiness");
     assert.deepEqual(outcomes, ["error"], "the running game owns the failure");
   });
+
+  it("marks a bitmap failed when the boot window closes while its retry is pending", () => {
+    setupEnvironment({ sceneManager: true });
+    // One queued failure: a retry that ran would now succeed, so the terminal
+    // error state proves the timer dropped the retry instead of re-issuing it.
+    failBitmapLoads(1);
+    loadPlugin();
+
+    const bitmap = startBitmap("/engine/img/pictures/hero.png");
+
+    assert.equal(timers.length, 1, "one retry is scheduled");
+    assert.equal(bitmap._loadingState, "loading", "the bitmap keeps loading across the retry");
+
+    const sceneManager = sandbox.SceneManager as { goto: (scene: unknown) => void };
+    sceneManager.goto({ name: "Scene_Boot" });
+    sceneManager.goto({ name: "Scene_Title" });
+
+    assert.deepEqual(
+      postedMessages.map((entry) => entry.message.type),
+      ["ROPODUCTIONS_ENGINE_READY"],
+      "readiness lands while the retry timer is still pending"
+    );
+    assert.equal(timers.length, 1, "the dropped retry is still on the timer queue");
+
+    runTimers();
+
+    assert.equal(
+      bitmap._loadingState,
+      "error",
+      "the bitmap reaches MZ's terminal state instead of staying in loading"
+    );
+    const failureReports = postedMessages.filter(
+      (entry) =>
+        entry.message.type === "ROPODUCTIONS_ENGINE_BOOT_FAILURE" &&
+        entry.message.diagnostics?.url === `${ORIGIN}/engine/img/pictures/hero.png`
+    );
+    assert.deepEqual(failureReports, [], "the closed boot window suppresses the asset report");
+    assert.equal(postedMessages.length, 1, "readiness stays the only message the host received");
+  });
 });
