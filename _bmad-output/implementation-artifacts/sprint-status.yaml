@@ -78,7 +78,7 @@ development_status:
 
   epic-7: in-progress
   7-1-engine-boot-failure-classification-localized-recovery-surface: review
-  7-2-release-addressed-immutable-engine-shell-delivery: in-progress
+  7-2-release-addressed-immutable-engine-shell-delivery: review
   7-3-burst-safe-session-validation-for-engine-and-asset-requests: review
   7-4-engine-asset-load-retry-in-injected-bridge-plugin: review
   7-5-firefox-reload-storm-and-asset-burst-verification: backlog
