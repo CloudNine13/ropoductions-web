@@ -112,7 +112,11 @@ All Git interactions MUST go through GitHub MCP in this exact sequence:
 6. Review changes thoroughly via `git status` and `git diff`.
 7. Check for merge conflicts against the latest `develop` branch before opening a PR.
 8. `git push -u origin <branch>`
-9. Open a Pull Request targeting base `develop` ONLY.
+9. Open a Pull Request targeting base `develop` ONLY using `gh pr create`:
+   ```
+   gh pr create --base develop --title "<type>(<scope>): <summary>" --body-file <path-to-body-file>
+   ```
+   NEVER pass `--project` to `gh pr create`; the projects-classic GraphQL API is sunset and that flag triggers a fatal deprecation error.
    * PR Title format: `<type>(<scope>): <imperative summary>` (Scopes: `portal`, `auth`, `play`, `save-hud`, `i18n`, `edge`, `db`).
    * PR Body MUST explicitly list the Story ID and all Functional Requirements (FRs) covered.
    * Provide the user with the full URL to the created PR.
@@ -124,6 +128,35 @@ All Git interactions MUST go through GitHub MCP in this exact sequence:
     * NEVER execute `git reset --hard` if it risks wiping out uncommitted changes in active worktrees or concurrent sessions.
 
 **Commit hygiene:** Conventional Commits `<type>(<scope>): <imperative summary>`; permitted types are `feat`, `fix`, `refactor`, `test`, `docs`, `chore`; keep each commit focused on one logical change; never mention AI, Claude, or "generated" in commit messages.
+
+### Known gh CLI deprecations (gh v2.46.0, verified 2026-09-23)
+
+`gh pr view`, `gh pr edit`, `gh issue view` and `gh issue edit` request the projects-classic GraphQL field `projectCards(first:100){nodes{project{name}column{name}},totalCount}`. Projects (classic) was sunset in May 2024, so these commands abort and write nothing:
+
+```
+GraphQL: Projects (classic) is being deprecated in favor of the new Projects experience, see: https://github.blog/changelog/2024-05-23-sunset-notice-projects-classic/. (repository.pullRequest.projectCards)
+```
+
+An edit made this way fails without touching the PR; never assume it landed. Use the REST API through `gh api` instead.
+
+| Need | Deprecated command | REST replacement |
+|---|---|---|
+| Read a PR | `gh pr view <N>` | `gh api repos/{owner}/{repo}/pulls/<N>` |
+| Edit PR title | `gh pr edit <N> --title "..."` | `gh api --method PATCH repos/{owner}/{repo}/pulls/<N> -f title="..."` |
+| Edit PR body | `gh pr edit <N> --body "..."` | `gh api --method PATCH repos/{owner}/{repo}/pulls/<N> -f body="..."` |
+| Edit PR body from file | `gh pr edit <N> --body-file <file>` | `gh api --method PATCH repos/{owner}/{repo}/pulls/<N> -F body=@<file>` |
+| Read an issue | `gh issue view <N>` | `gh api repos/{owner}/{repo}/issues/<N>` |
+| Edit an issue | `gh issue edit <N> ...` | `gh api --method PATCH repos/{owner}/{repo}/issues/<N> ...` |
+| Create a PR | `gh pr create --project ...` | drop `--project`; plain `gh pr create` is unaffected |
+| Put an item on a project | `--add-project` / `--remove-project` | unavailable; projects-classic is gone |
+
+`gh api` notes:
+- `-f key=value` sends a string field; `-F key=@file` reads the value from a file (use it for multi-line bodies).
+- Adding any field switches the method to POST, so pass `--method PATCH` explicitly for edits.
+- `{owner}` and `{repo}` are substituted automatically when the command runs inside a checkout of this repo (`CloudNine13/ropoductions-web`).
+- Confirm an edit landed by reading it back: `gh api repos/{owner}/{repo}/pulls/<N> --jq '.title'`.
+
+Verified working (their queries do not request `projectCards`): `gh pr create` (without `--project`), `gh pr list`, `gh pr status`, `gh pr checks`, `gh pr diff`, `gh pr comment`, `gh pr close`, `gh pr ready`, `gh pr review`.
 
 ---
 
