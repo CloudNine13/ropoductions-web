@@ -34,6 +34,7 @@ test.describe("WebGL unavailable", () => {
 
     await expect(page.locator("html")).toHaveAttribute("lang", LOCALE);
     await expect(page.locator(RECOVERY)).toBeVisible();
+    await expect(page.locator(RECOVERY)).toHaveAttribute("data-failure-class", "webgl_unavailable");
     await expect(page.locator(TITLE)).toHaveText(copy.webglTitle);
     // The engine document is never mounted once the preflight refuses the session.
     await expect(page.locator(IFRAME)).toHaveCount(0);
