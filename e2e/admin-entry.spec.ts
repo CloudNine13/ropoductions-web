@@ -85,7 +85,14 @@ test.describe("admin panel entry point (Epic 6)", () => {
     await page.goto("/");
     await expect(page.getByTestId("portal-admin-entry")).toBeHidden();
 
-    await page.getByRole("button", { name: "Toggle navigation menu" }).click();
+    const toggle = page.getByRole("button", { name: "Toggle navigation menu" });
+    // The row must not push the toggle past the viewport edge: its centre then lands on a classic
+    // scrollbar, where Firefox's hit test resolves to <html> and a real tap does nothing.
+    expect(
+      await toggle.evaluate((el) => el.getBoundingClientRect().right <= window.innerWidth)
+    ).toBe(true);
+
+    await toggle.click();
     await expect(page.getByTestId("portal-admin-entry-drawer")).toBeVisible();
   });
 
