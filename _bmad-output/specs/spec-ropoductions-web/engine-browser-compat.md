@@ -19,11 +19,14 @@ The taxonomy is the classification contract: adding a class means adding its cop
 
 ## 2. Delivery and caching
 
-- The engine shell (HTML, `js/`, `css/`, `fonts/`, `icon/`) is **release-addressed**: the shell document is requested with the release identifier (`/engine/index.html?v=<commitSha>` from `build-metadata.json`), and every shell subresource URL carries the same identifier.
-- Shell responses are cached `private, immutable, max-age=31536000` keyed by that identifier. A reload MUST NOT revalidate the shell. A new release changes every shell URL; nothing else invalidates it.
-- Shell subresources MUST be served with the correct content type (`text/javascript`, `text/css`, `font/woff2`, `image/png`) and MUST NOT be served without their `?v=` identifier — an unaddressed shell request is refused rather than cached.
-- Media (`img/`, `audio/`, `effects/`, `movies/`, `data/`) keeps a moderate private cache (currently `private, max-age=86400`) because the upstream sync is additive and may reuse file names across releases. Media revalidation MUST NOT cost more than one D1 read per boot (Section 4).
+- The engine shell is **release-addressed by the publish pipeline, never by the runtime**. `scripts/sync-game-release.ts` computes a content digest of the staged shell (`releaseId`) and bakes it into every shell subresource reference it can see — the `index.html` shell attributes, `main.js`'s boot-script loop and Effekseer wasm URL, `PluginManager.makeUrl` and `FontManager.makeUrl` — so every shell request the engine issues carries `?v=<releaseId>`. The runtime holds no release state whatsoever: it applies a cache policy to the URL shape it received and streams the object it found. The decision record and the boundary of responsibility are in `_bmad-output/implementation-artifacts/spec-7-2-release-addressed-immutable-engine-shell-delivery.md`.
+- The shell document (`/engine/index.html`) is served `Cache-Control: private, no-cache`. It is how a client discovers the shell that is currently published, so it revalidates — at most one conditional shell document request per `/play` load — while every file it references is immutable.
+- Addressed shell responses are `private, immutable, max-age=31536000`, keyed by that identifier. A reload MUST NOT revalidate them.
+- A shell request **without** an identifier keeps `Cache-Control: private, max-age=86400`. It is deliberately not refused: the runtime cannot judge which identifier is current, and a reference the pipeline failed to address must degrade to a revalidation rather than break a boot. `?v=` values that are not a full-length lowercase sha256 digest are not treated as addresses.
+- Shell subresources MUST be served with the correct content type (`text/javascript`, `text/css`, `font/woff2`, `image/png`): the R2 object's stored type wins when present, otherwise the extension map in `src/lib/r2-http.ts`.
+- Media (`img/`, `audio/`, `effects/`, `movies/`, `data/`) is NEVER addressed. It keeps a moderate private cache (`private, max-age=86400`) because the upstream sync is additive and may reuse file names across releases; media therefore keeps one cache identity across releases and is revalidated, not re-downloaded.
 - Engine boot must remain exactly one document per `/play` mount: fullscreen toggles, retry and HUD interactions never remount the iframe (see `save-and-runtime-contract.md` §1 and CAP-12).
+- The identifier is a content digest, so re-publishing identical bytes yields identical URLs (a rollback serves what clients already hold) and any byte change yields a different URL set. The runtime never learns that a release happened; it only ever serves files the pipeline published.
 
 ## 3. Boot-path resilience
 
@@ -50,7 +53,8 @@ The taxonomy is the classification contract: adding a class means adding its cop
 ## 6. Verification contract
 
 - **Firefox boot e2e:** `/play` boots the engine harness in a real Firefox project and asserts no recovery surface appears and boot reaches the engine's ready state.
-- **Reload storm:** five consecutive reloads of `/play` in Firefox and Chromium produce zero boot failures, zero missing-asset reports, and no shell revalidation burst.
+- **Reload storm:** five consecutive reloads of `/play` in Firefox and Chromium produce zero boot failures, zero missing-asset reports, and no shell revalidation burst. The metric is defined over addressed shell subresources: the shell document is expected to revalidate (at most one conditional document request per load), and the host's boot-probe fetch of the boot script — `cache: "no-store"`, issued only when readiness has not been reported within the boot budget — is excluded from the budget.
+- **Release addressing:** a single load of a published shell is asserted to request every shell subresource with its release identifier and to receive `private, immutable, max-age=31536000`; a second load of the same shell is asserted to issue zero shell subresource requests and at most one document request; media requests are asserted to carry no identifier and to keep `private, max-age=86400`.
 - **Asset burst:** the boot's request profile (65+ requests) is replayed against the routes; every response is `200`/`304` and the burst costs at most one D1 validation read.
 - **Honest-failure check:** with WebGL disabled in the browser profile, the classified recovery surface appears with the raw status message, in the active locale.
 - **R2-backed smoke harness:** a repository script boots the real shell from the private bucket with the production header set in Firefox and Chromium, and prints the per-boot WebGL context and request profile. This is the harness that produced the Epic 7 brief's evidence table.

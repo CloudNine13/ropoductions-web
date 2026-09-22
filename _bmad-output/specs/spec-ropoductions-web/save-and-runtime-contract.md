@@ -74,14 +74,15 @@ The web game wrapper must provide an accessible, responsive HUD outside or overl
   - The upstream repository is NEVER given Cloudflare tokens or write access to the web repository.
 * **Validation & Shell Ingestion:**
   - Pipeline verifies file structure (`data/System.json`, `index.html`) and injects `Ropoductions_WebBridge.js` before copying assets.
-  - Media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) sync to private Cloudflare R2 (`GAME_ASSETS`).
+  - Media assets (`audio/`, `img/`, `effects/`, `movies/`, `data/`) sync to private Cloudflare R2 (`GAME_ASSETS`) and are never release-addressed.
   - Lightweight engine shell (`index.html`, `js/`, `css/`, `fonts/`, `icon/`) syncs additively to private R2 (`GAME_ASSETS`) under the `engine/` prefix and streams same-origin at `/engine/*`; the ingestion runner never commits to Git.
+  - **Release addressing is a pipeline concern.** Before publishing, the runner computes a content digest of the staged shell and bakes it into every shell subresource reference it can reach, so the browser cache key changes with the bytes; it fails the run rather than publish a shell whose URL builders it no longer recognises. `build-metadata.json` records `releaseId` and `addressingRevision` for humans and is deliberately NOT uploaded: the runtime holds no release state and never reads release metadata (`engine-browser-compat.md` §2).
 
 ## 6. Decoupled Mock Harness Testing Invariant
 * **Independent Container Verification:** The web game iframe container (`src/app/(game)/play/page.tsx`, Story 3.1) and Save HUD dock (`src/components/save-hud-dock.tsx`, Epic 4) are architecturally decoupled from upstream game download infrastructure.
 * **Local Canvas Test Harness:**
   - The web client iframe targets same-origin `/engine/index.html`.
-  - For local development, integration, and E2E verification prior to upstream asset availability, the `/engine/[...path]` route serves a lightweight HTML5 `<canvas>` mock harness (`src/engine-plugins/mock-shell.html`) at `/engine/index.html` while R2 holds no published shell.
+  - For local development, integration, and E2E verification prior to upstream asset availability, the `/engine/[...path]` route serves a lightweight HTML5 `<canvas>` mock harness (`src/engine-plugins/mock-shell.html`) at `/engine/index.html` while R2 holds no published shell — "no published shell" means the requested object does not exist, which is the only signal the runtime has. The runtime never asks whether a release exists and never reads release metadata.
   - The harness renders a 16:9 canvas (1280x720) with active input visualization and implements the `postMessage` protocol defined in Section 4 (`ROPODUCTIONS_GET_SAVES`, `ROPODUCTIONS_SET_SAVES`, `ROPODUCTIONS_RESET_SAVES`).
   - Replacing the mock canvas harness with the production engine shell requires zero modifications to the web wrapper container, layout, or postMessage handlers.
 
@@ -91,3 +92,4 @@ The web game wrapper must provide an accessible, responsive HUD outside or overl
 * Revocation and expiry take effect no later than the window after the next request. An entry also ends with the validated verdict's own `expires_at_sec`; for an override-elevated session that value is the elevated expiry `validateSessionAccess` writes, so the window is the effective bound on that path.
 * Anonymous requests (no session cookie) cost zero D1 reads on both routes.
 * `/play` navigation entry and the admin surfaces keep strict per-request D1 validation, so a revoked patron is stopped at the door rather than up to a window later.
+* The revocation window bounds *requests*, not cached bytes: an addressed shell response is cached by the browser for a year (`engine-browser-compat.md` §2), so a revoked patron whose session cookie is unchanged keeps that shell locally. What stops the game is everything that is not the shell — `/play` itself, and the media/`data` burst (`private, max-age=86400`) it needs to boot — and the shell alone cannot boot.
