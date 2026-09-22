@@ -1,5 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/** Runs only under a browser profile that genuinely refuses WebGL contexts. */
+const WEBGL_DISABLED_SPEC = /webgl-unavailable\.spec\.ts/;
+
+/**
+ * Headless Firefox ships without a WebGL path (Mozilla 1375585; Playwright
+ * #13146/#21783: WebGL is headed-only), so the engine preflight refuses the
+ * session and the boot specs see no iframe. CI therefore runs this project
+ * headed under xvfb; the force-enabled prefs cover blocklisted software GL.
+ */
+const FIREFOX_WEBGL_PREFS = {
+  "webgl.disabled": false,
+  "webgl.force-enabled": true,
+};
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -13,7 +27,25 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: WEBGL_DISABLED_SPEC,
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      testIgnore: WEBGL_DISABLED_SPEC,
+      use: {
+        ...devices["Desktop Firefox"],
+        headless: process.env.CI ? false : true,
+        launchOptions: { firefoxUserPrefs: FIREFOX_WEBGL_PREFS },
+      },
+    },
+    {
+      name: "firefox-webgl-disabled",
+      testMatch: WEBGL_DISABLED_SPEC,
+      use: {
+        ...devices["Desktop Firefox"],
+        launchOptions: { firefoxUserPrefs: { "webgl.disabled": true } },
+      },
     },
   ],
   webServer: {

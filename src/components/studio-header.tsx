@@ -34,7 +34,7 @@ export function StudioHeader({ isAdmin = false }: StudioHeaderProps) {
             className="pixelated"
             priority
           />
-          <span className="font-display text-xl sm:text-2xl font-bold tracking-wider text-foreground">
+          <span className="hidden font-display text-xl font-bold tracking-wider text-foreground sm:inline sm:text-2xl">
             {t("brand")}
           </span>
         </Link>

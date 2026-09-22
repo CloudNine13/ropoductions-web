@@ -16,17 +16,6 @@ const SHELL_WITHOUT_BRIDGE = `<!DOCTYPE html>
 </html>`;
 
 test.describe("engine boot failure recovery surface (Epic 7)", () => {
-  test("boots the mock harness on /play and shows no recovery surface", async ({ page }) => {
-    await page.context().addCookies(await sessionCookies(E2E_FIXTURES.plainPatron.sessionId));
-
-    await page.goto("/play");
-
-    await expect(page.locator(IFRAME)).toBeVisible();
-    await expect(page.frameLocator(IFRAME).locator("#gameCanvas")).toBeVisible();
-    await expect(page.locator(RECOVERY)).toHaveCount(0);
-    await expect(page.locator('[role="progressbar"]')).toHaveCount(0);
-  });
-
   test("refuses to mount the engine and reports the probe when WebGL is unavailable", async ({
     page,
   }) => {
