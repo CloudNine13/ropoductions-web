@@ -257,7 +257,7 @@ describe("engine shell route GET & HEAD /engine/*", () => {
     assert.equal(res.status, 404);
   });
 
-  it("streams a published shell for a valid patron session", async () => {
+  it("streams a published shell document for a valid patron session", async () => {
     const req = makeRequest("/engine/index.html", {
       cookies: {
         ropoductions_age_verified: "true",
@@ -267,13 +267,106 @@ describe("engine shell route GET & HEAD /engine/*", () => {
     const res = await GET(req, { params: Promise.resolve({ path: ["index.html"] }) });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get("cache-control"), "private, max-age=86400");
+    // The document revalidates: it is how a browser discovers the shell the ingest
+    // pipeline published last, and every file it references is release-addressed.
+    assert.equal(res.headers.get("cache-control"), "private, no-cache");
     assert.equal(res.headers.get("vary"), "Cookie");
     assert.equal(res.headers.get("cross-origin-resource-policy"), "same-origin");
     assert.equal(res.headers.get("accept-ranges"), "bytes");
     assert.equal(res.headers.get("etag"), '"etag-shell-html"');
     assert.equal(res.headers.get("content-type"), "text/html");
     assert.equal(await res.text(), SHELL_HTML);
+  });
+
+  it("caches a release-addressed shell file immutably for a valid patron session", async () => {
+    globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
+      "engine/js/main.js": { data: "console.log('mz');", contentType: "text/javascript" },
+    });
+    const req = makeRequest(`/engine/js/main.js?v=${"c".repeat(64)}`, {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, { params: Promise.resolve({ path: ["js", "main.js"] }) });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("cache-control"), "private, immutable, max-age=31536000");
+    assert.equal(res.headers.get("vary"), "Cookie");
+  });
+
+  it("keeps the moderate cache for a shell file the pipeline did not address", async () => {
+    globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
+      "engine/js/plugin-that-builds-its-own-url.js": { data: "// plugin", contentType: "text/javascript" },
+    });
+    const req = makeRequest("/engine/js/plugin-that-builds-its-own-url.js", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, {
+      params: Promise.resolve({ path: ["js", "plugin-that-builds-its-own-url.js"] }),
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("cache-control"), "private, max-age=86400");
+  });
+
+  it("does not treat a malformed identifier as a release address", async () => {
+    globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
+      "engine/js/main.js": { data: "console.log('mz');", contentType: "text/javascript" },
+    });
+    const req = makeRequest("/engine/js/main.js?v=8c0be72", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, { params: Promise.resolve({ path: ["js", "main.js"] }) });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("cache-control"), "private, max-age=86400");
+  });
+
+  it("never serves the ingest pipeline's release metadata", async () => {
+    globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
+      "engine/build-metadata.json": {
+        data: JSON.stringify({ releaseId: "d".repeat(64) }),
+        contentType: "application/json",
+      },
+    });
+    const req = makeRequest("/engine/build-metadata.json", {
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, { params: Promise.resolve({ path: ["build-metadata.json"] }) });
+
+    assert.equal(res.status, 400);
+    assert.equal(res.headers.get("cache-control"), "no-store");
+  });
+
+  it("answers an unsatisfiable range without caching the error", async () => {
+    globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({
+      "engine/js/main.js": {
+        data: new Uint8Array(1000).fill(66),
+        contentType: "text/javascript",
+      },
+    });
+    const req = makeRequest("/engine/js/main.js", {
+      headers: { range: "bytes=5000-6000" },
+      cookies: {
+        ropoductions_age_verified: "true",
+        ropoductions_session: validSignedCookie,
+      },
+    });
+    const res = await GET(req, { params: Promise.resolve({ path: ["js", "main.js"] }) });
+
+    assert.equal(res.status, 416);
+    assert.equal(res.headers.get("content-range"), "bytes */1000");
+    assert.equal(res.headers.get("cache-control"), "no-store");
   });
 
   it("returns 304 for a published shell with a matching If-None-Match and session", async () => {

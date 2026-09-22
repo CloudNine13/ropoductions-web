@@ -106,11 +106,19 @@ jobs:
           R2_ENDPOINT="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
           # Strictly additive S3 sync of the MZ shell (index.html, js/, css/,
-          # fonts/, icon/, build-metadata.json) under the engine/ prefix,
-          # served same-origin at /engine/* and streamed on demand.
+          # fonts/, icon/, package.json) under the engine/ prefix, served
+          # same-origin at /engine/* and streamed on demand. The staged shell is
+          # already release-addressed by the ingestion engine, which is the only
+          # component that knows a game release exists: the runtime never reads a
+          # release identifier. build-metadata.json records that identifier for
+          # humans and is deliberately NOT published to the bucket.
           echo "==> Syncing engine shell to R2 bucket: ${R2_BUCKET_NAME}/engine"
           aws s3 sync tmp_engine_shell "s3://${R2_BUCKET_NAME}/engine" \
+            --exclude "build-metadata.json" \
             --endpoint-url "${R2_ENDPOINT}"
+
+          echo "==> Published engine shell (release metadata kept in the runner log only):"
+          cat tmp_engine_shell/build-metadata.json
 
       - name: Cleanup Runner Workspace
         if: always()

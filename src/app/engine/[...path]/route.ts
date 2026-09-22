@@ -12,6 +12,10 @@ import {
   sanitizeAssetPath,
 } from "@/lib/r2-http";
 import {
+  isAddressedShellRequest,
+  resolveShellCacheControl,
+} from "@/lib/engine-addressing";
+import {
   MOCK_ENGINE_HTML,
   WEB_BRIDGE_SOURCE,
   MOCK_ENGINE_PATHS,
@@ -22,6 +26,8 @@ export const dynamic = "force-dynamic";
 // Top-level segments the engine shell may expose. Media directories
 // (data/img/audio/effects/movies) never reach this route: the `rewrites()`
 // block in next.config.ts forwards them to the authenticated /api/game route.
+// `build-metadata.json` is deliberately absent: the publish pipeline owns release
+// identity and never publishes that file to the runtime.
 const SHELL_TOP_LEVEL: Record<string, true> = {
   "index.html": true,
   js: true,
@@ -29,7 +35,6 @@ const SHELL_TOP_LEVEL: Record<string, true> = {
   fonts: true,
   icon: true,
   "package.json": true,
-  "build-metadata.json": true,
 };
 
 // Website-owned decoupled test harness served only while R2 holds no
@@ -48,7 +53,6 @@ function isMockPath(key: string): boolean {
   return key in MOCK_BY_PATH && MOCK_PATH_SET[key] === true;
 }
 
-const SHELL_CACHE = "private, max-age=86400";
 const NO_STORE = "no-store";
 const CORP = "same-origin";
 
@@ -161,6 +165,10 @@ async function handleEngineRequest(
   }
   const key = pathResult.key;
 
+  // Release addressing is baked into the published content by the ingest pipeline;
+  // the runtime only reads the URL shape and never resolves or remembers a release.
+  const isAddressed = isAddressedShellRequest(request.nextUrl.searchParams);
+
   const ageVerified =
     unquoteCookieValue(request.cookies.get(AGE_VERIFIED_COOKIE_NAME)?.value) === "true";
   const sessionCookie = unquoteCookieValue(
@@ -217,7 +225,7 @@ async function handleEngineRequest(
   }
 
   const headers = new Headers();
-  headers.set("Cache-Control", SHELL_CACHE);
+  headers.set("Cache-Control", resolveShellCacheControl(key, isAddressed));
   headers.set("Vary", "Cookie");
   headers.set("Cross-Origin-Resource-Policy", CORP);
   headers.set("Accept-Ranges", "bytes");
@@ -253,7 +261,7 @@ async function handleEngineRequest(
         status: 416,
         headers: {
           "Content-Range": `bytes */${head.size}`,
-          "Cache-Control": SHELL_CACHE,
+          "Cache-Control": NO_STORE,
           "Vary": "Cookie",
           "Cross-Origin-Resource-Policy": CORP,
         },
