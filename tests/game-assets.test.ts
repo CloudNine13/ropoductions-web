@@ -475,18 +475,25 @@ describe("authenticated r2 asset streaming route GET & HEAD /api/game/*", () => 
 
     const burstCookie = await signValue("session-burst-test", TEST_SECRET);
 
-    for (let i = 0; i < 5; i++) {
-      const req = makeRequest("/api/game/data/System.json", {
-        cookies: {
-          ropoductions_age_verified: "true",
-          ropoductions_session: burstCookie,
-        },
-      });
-      const res = await GET(req, { params: Promise.resolve({ asset: ["data", "System.json"] }) });
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        GET(
+          makeRequest("/api/game/data/System.json", {
+            cookies: {
+              ropoductions_age_verified: "true",
+              ropoductions_session: burstCookie,
+            },
+          }),
+          { params: Promise.resolve({ asset: ["data", "System.json"] }) }
+        )
+      )
+    );
+
+    for (const res of responses) {
       assert.equal(res.status, 200);
     }
 
-    assert.equal(d1Queries, 1);
+    assert.equal(d1Queries, 1, "a cold cache must cost one session read for the whole burst");
   });
 
   it("rejects revoked sessions immediately without a stale window", async () => {
