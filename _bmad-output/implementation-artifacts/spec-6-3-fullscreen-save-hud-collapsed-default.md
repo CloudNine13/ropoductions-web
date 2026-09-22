@@ -103,3 +103,102 @@ E2e (`e2e/fullscreen-continuity.spec.ts` append; needs 6.1's session helper and 
 3. `npm test`
 4. `npm run build`
 Plus, before the PR: `npm run test:e2e` (the appended dock-default spec plus all existing specs green) and zero conflicts against `origin/develop`.
+
+---
+
+## Review Triage Log (2026-09-22)
+
+Four adversarial lenses (React state machine, accessibility/DESIGN compliance, test validity, spec conformance) reviewed
+the merged 6.2 tree before implementation. Verdicts and dispositions:
+
+- **R1 — fullscreen entry hides the control the 6.2 e2e helpers click. CONFIRMED.** `exitFullscreen` clicked the in-dock
+  fullscreen button, which this story hides on entry; all three continuity tests would time out. Disposition: the spec's
+  omission is repaired in `e2e/fullscreen-continuity.spec.ts` — `expandSaveHud` summons the toolbar through the FAB
+  before the in-dock toggle is used, and the three continuity tests stay unchanged otherwise.
+- **R2 — `hidden` plus `flex` on one class list races on Tailwind's utility order. CONFIRMED as unsound.** Equal
+  specificity is not resolved by class-attribute order. Disposition: the display utilities are exclusive —
+  `collapsed ? "hidden" : "pointer-events-auto flex …"`.
+- **R3 — FAB wiring for the countdown restart. AMENDED.** The FAB is not a `SaveHudDock` descendant and is the only
+  expansion affordance, so the dock restarts the countdown on the `collapsed` true→false transition instead of a
+  cross-component event; `onRequestCollapse` carries the opposite direction. Windowed transitions are gated out by
+  `shouldArmHudRecollapse`.
+- **R4 — a collapsed dock can reappear already dimmed. CONFIRMED** (EXPERIENCE.md: expansion "restores full chrome
+  instantly"). Disposition: collapse clears the dim timer; expansion re-runs `resetTimer()` (un-dim plus a fresh 4s rung).
+- **R5 — behaviour when suppression ends. AMENDED.** The countdown fires once at 12s and, while an export is in flight or
+  a `[role="dialog"][data-state="open"]` node exists, re-checks every `RECOLLAPSE_RETRY_MS` (1000ms) against live refs.
+  A stalled export holds expansion indefinitely; the retry is cleared on collapse, fullscreen exit and unmount.
+- **R6 — entry-path fan-out. CONFIRMED.** Native entry collapses in the `fullscreenchange` handler; the three pseudo
+  entries collapse through one `enterPseudoFullscreen` helper, which the `fullscreenerror` handler also uses. No
+  `activeFullscreen` effect (it would add a post-commit expanded frame and a lint-suppressed state write).
+- **R7 — windowed can never render collapsed. CONFIRMED.** `collapsed={activeFullscreen && isHudCollapsed}` plus a FAB
+  that only renders in fullscreen.
+- **R8 — unit-level behaviour assertions would be false green. CONFIRMED.** The repository has no DOM renderer and the
+  existing `createDockHarness` is a hand-written model of the component. Disposition: the precedence rules moved into
+  real code (`src/lib/hud-recollapse.ts`) and are unit-tested directly; the dock/viewport suites keep source and
+  structure pins; every runtime claim (visibility, focus, countdown, holds, windowed control) is asserted in Playwright —
+  and the entry/exit behaviour an earlier draft pinned as source text now has behavioural cover instead (advisory round 2).
+- **R9 — accessibility of the removal. CONFIRMED/AMENDED.** `display:none` is the documented removal (`DESIGN.md` §3
+  accepts the toolbar leaving the tab order); `aria-controls` may reference a hidden node; `aria-expanded` tracks the same
+  state. Focus that entered fullscreen from the toolbar follows to the FAB instead of being stranded on a hidden button.
+- **R10 — stale line references. CONFIRMED.** The spec's `Files` numbers predate the 6.2 merge; implementation targeted
+  symbols instead: viewport state `:70-124`, `fullscreenchange` entry `:401-442`, pseudo Escape `:444-459`,
+  `toggleFullscreen` `:599-657`, `dockArea` `:721-740`, `fabSlot` `:742-760`; dock props/constants `:23-46`, lifecycle
+  effect `:298-319`, root element `:323-343`.
+
+Implementation deviations from the non-frozen sections above: `src/lib/hud-recollapse.ts` added as the home of the two
+precedence rules (which now include held chrome); `e2e/fullscreen-continuity.spec.ts` helper changed (R1); the collapse
+class is emitted exclusively (R2); `tests/game-viewport.test.ts` carries no 6.3 assertions — the Epic 7 A4 policy
+("superseded source assertions deleted, not re-pinned") moved them into the Playwright spec, since the behaviours are
+observable there.
+
+Out of scope, surfaced for routing and recorded in `deferred-work.md`: the unconditional `fullscreenerror` →
+`isPseudoFullscreen` transition (native and pseudo can both read true, so the first exit click clears only pseudo);
+spec-6-2's frozen `Files` clause that defers the exit-reset removal (intentional stacked handoff, docs note owed); the
+historical whole-element `opacity` wording in `DESIGN.md` §3 / `EXPERIENCE.md` that Layer 2 has superseded.
+
+### Advisory round 2 (2026-09-22)
+
+- **6.2 precondition / stale local tip — no action needed.** `origin/develop` at `1c7596d` already carries 6.2
+  (`52d3e50`, single tree with `dockArea`/`fabSlot`); the working branch was cut from it, so the story's stacked
+  precondition was satisfied before any 6.3 code was written.
+- **Source-text assertions vs the Epic 7 policy (A4 / action item 5: "superseded source assertions deleted, not
+  re-pinned") — APPLIED.** The two new `src.includes(...)` blocks this story had added to `tests/game-viewport.test.ts`
+  are deleted; the same behaviour is now asserted in Playwright instead: native entry, a forced pseudo-fullscreen entry,
+  exit restoring the windowed dock, and re-entry collapsing again. What remains as unit pins is the component's lexical
+  contract (`collapsed`, `data-collapsed`, `hidden` never beside `flex`, the exported constants, the policy call) plus
+  the policy tests, none of which the e2e can express given the repository has no DOM renderer.
+- **`DEFAULT_HUD_RECOLLAPSE_MS` is a delta, not a duration — APPLIED.** The countdown is armed for
+  `idleTimeoutMs + DEFAULT_HUD_RECOLLAPSE_MS` from the last chrome interaction; it is an independent epoch, never
+  chained to the dim rung firing, so canvas/bridge activity (which resets only the dim rung) cannot move the collapse
+  deadline. The exported constant stays 8000.
+- **Hover and focus-within must hold the expansion — APPLIED.** `shouldHoldHudRecollapse` now takes the held-chrome
+  flag, matching the dim rung's own suppression of hover/focus-within; collapsing would otherwise pull a focused
+  Export/Import button out of the tab order mid-operation. The latch is cleared when the dock collapses, because a node
+  that has left the layout cannot be hovered or focused (and the viewport moves focus to the FAB).
+- **Entry-site counting and the too-loose collapse deadline — APPLIED (as behaviour, superseding the counts).** The
+  forced-pseudo case exercises a fallback entry behaviourally, and the canvas case now (a) proves the canvas click
+  reached the dock as `ROPODUCTIONS_ACTIVITY` (the un-dim is only observable if the bridge forwarded it) and (b) checks
+  the collapse deadline at 10s after that activity, so a countdown restarted by canvas play (16s) fails where the
+  correct 12s passes.
+- **Pseudo-fullscreen path unexercised — APPLIED.** Both browser projects had recorded "native top layer"; the new case
+  removes `requestFullscreen`/`webkitRequestFullscreen` before load and asserts the collapse through the fallback.
+
+### Verification evidence
+
+- Red first: the dock pins are absent at `HEAD` — `collapsed?: boolean`, `data-collapsed`, `DEFAULT_HUD_RECOLLAPSE_MS`,
+  `collapsed ? "hidden"`, `idleTimeoutMs + DEFAULT_HUD_RECOLLAPSE_MS`, `onRequestCollapseRef.current?.()` — and every new
+  Playwright case fails on the pre-fix tree: the toolbar is visible on entry, the FAB reports `aria-expanded="true"`, the
+  pseudo-forced case never collapses, and no countdown exists at all. The windowed case is the negative control and
+  passes pre-fix by design.
+- `node --test tests/save-hud-dock.test.ts tests/game-viewport.test.ts` — 40/40 pass; `npm run test:unit` — 563/563 pass.
+- `npx tsc --noEmit` — clean. `npx eslint .` — 0 errors.
+- `npx playwright test e2e/fullscreen-continuity.spec.ts` — 10/10 on the Chromium project (43.9s) and 10/10 on the
+  Firefox project (46.3s): the three Epic 6.2 continuity cases plus the seven Epic 6.3 cases. The continuity case
+  records the native top-layer path, and the forced-pseudo case (both `requestFullscreen` entry points removed before
+  load) is the one that exercises `enterPseudoFullscreen` behaviourally. The canvas case carries its own positive
+  control: `data-dimmed` flips `true` → `false` across a canvas click, so the assertion that canvas play does not
+  postpone the collapse is not vacuous.
+- The Playwright webServer command runs `npm run build` (OpenNext), so the production build is exercised by every run.
+- The first Chromium run earned its keep: the countdown was armed at `DEFAULT_HUD_RECOLLAPSE_MS` (8s) instead of the
+  documented 12s of total idle, so an expanded dock collapsed while the player was still inside the 8s window. The
+  timer now starts at `idleTimeoutMs + DEFAULT_HUD_RECOLLAPSE_MS` (the 4s dim rung plus the 8s budget).

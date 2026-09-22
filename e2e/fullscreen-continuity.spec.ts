@@ -4,6 +4,8 @@ import { E2E_FIXTURES, sessionCookies } from "./helpers/session";
 const VIEWPORT = '[data-testid="game-viewport-container"]';
 const IFRAME = '[data-testid="game-engine-iframe"]';
 const FULLSCREEN_BUTTON = '[data-testid="save-hud-fullscreen-button fullscreen-toggle-button"]';
+const DOCK = '[data-testid="save-hud-dock"]';
+const COLLAPSE_FAB = '[data-testid="save-hud-collapse-fab"]';
 const STATUS_OVERLAY = "#statusOverlay";
 const ENGINE_DOCUMENT = "/engine/index.html";
 
@@ -108,7 +110,18 @@ async function enterFullscreen(page: Page): Promise<void> {
   await expect(page.locator(VIEWPORT)).toHaveAttribute("data-fullscreen", "true");
 }
 
+/**
+ * Fullscreen entry collapses the dock, so the in-dock toggle is only reachable after
+ * the FAB summons the toolbar back.
+ */
+async function expandSaveHud(page: Page): Promise<void> {
+  await page.locator(COLLAPSE_FAB).click();
+  await expect(page.locator(COLLAPSE_FAB)).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(DOCK)).toBeVisible();
+}
+
 async function exitFullscreen(page: Page): Promise<void> {
+  await expandSaveHud(page);
   await page.locator(FULLSCREEN_BUTTON).click();
   await expect(page.locator(VIEWPORT)).toHaveAttribute("data-fullscreen", "false");
 }
@@ -203,5 +216,138 @@ test.describe("fullscreen viewport continuity (Epic 6.2)", () => {
     expect(await frame.evaluate(() => performance.timeOrigin)).toBe(timeOrigin);
     expect(page.frames().filter((candidate) => candidate.url().includes(ENGINE_DOCUMENT))).toHaveLength(1);
     expect(await readIframeLoads(page)).toBe(1);
+  });
+});
+
+test.describe("fullscreen save HUD collapse (Epic 6.3)", () => {
+  test("the save dock is collapsed by default on fullscreen entry", async ({ page }) => {
+    await openPlay(page);
+    await enterFullscreen(page);
+
+    const dock = page.locator(DOCK);
+    await expect(page.locator('[role="toolbar"]')).toHaveCount(1);
+    await expect(dock).toHaveCount(1);
+    await expect(dock).toBeHidden();
+    await expect(dock).toHaveAttribute("data-collapsed", "true");
+    expect(await dock.evaluate((node) => getComputedStyle(node).display)).toBe("none");
+    expect(await dock.boundingBox()).toBeNull();
+
+    const fab = page.locator(COLLAPSE_FAB);
+    await expect(fab).toBeVisible();
+    await expect(fab).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("keyboard entry hands focus to the collapse FAB, which restores the toolbar", async ({ page }) => {
+    await openPlay(page);
+    const dock = page.locator(DOCK);
+    const fab = page.locator(COLLAPSE_FAB);
+
+    await page.locator(FULLSCREEN_BUTTON).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(VIEWPORT)).toHaveAttribute("data-fullscreen", "true");
+    await expect(dock).toBeHidden();
+    await expect(fab).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await expect(fab).toHaveAttribute("aria-expanded", "true");
+    await expect(dock).toBeVisible();
+    await expect(dock).toHaveAttribute("data-collapsed", "false");
+
+    await fab.click();
+    await expect(dock).toBeHidden();
+    await expect(fab).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("canvas play neither restores nor postpones the expanded dock's collapse", async ({ page }) => {
+    await openPlay(page);
+    await enterFullscreen(page);
+    await expandSaveHud(page);
+
+    const dock = page.locator(DOCK);
+    // Positive control: a canvas click reaches the dock as ROPODUCTIONS_ACTIVITY —
+    // the un-dim is only observable if the bridge actually forwarded it.
+    await expect(dock).toHaveAttribute("data-dimmed", "true", { timeout: 8000 });
+    await pulseEngineCanvas(page);
+    await expect(dock).toHaveAttribute("data-dimmed", "false", { timeout: 3000 });
+
+    // ...and that same activity must not move the collapse deadline: 12s from the FAB
+    // click, so a countdown restarted by the canvas click (16s) must fail here.
+    await expect(dock).toBeHidden({ timeout: 10000 });
+    await expect(page.locator(COLLAPSE_FAB)).toHaveAttribute("aria-expanded", "false");
+
+    await pulseEngineCanvas(page);
+    await expect(dock).toBeHidden();
+    await expect(page.locator(COLLAPSE_FAB)).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("fullscreen entry collapses the dock through the pseudo-fullscreen fallback too", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(Element.prototype, "requestFullscreen", { value: undefined, configurable: true });
+      Object.defineProperty(Element.prototype, "webkitRequestFullscreen", { value: undefined, configurable: true });
+    });
+    await openPlay(page);
+    await enterFullscreen(page);
+
+    const dock = page.locator(DOCK);
+    await expect(dock).toBeHidden();
+    await expect(dock).toHaveAttribute("data-collapsed", "true");
+
+    const fab = page.locator(COLLAPSE_FAB);
+    await expect(fab).toBeVisible();
+    await expect(fab).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("leaving fullscreen restores the windowed dock and re-entering collapses it again", async ({ page }) => {
+    await openPlay(page);
+    const dock = page.locator(DOCK);
+
+    await enterFullscreen(page);
+    await expect(dock).toBeHidden();
+    await exitFullscreen(page);
+
+    await expect(dock).toBeVisible();
+    await expect(dock).toHaveAttribute("data-collapsed", "false");
+    await expect(page.locator(COLLAPSE_FAB)).toHaveCount(0);
+
+    await enterFullscreen(page);
+    await expect(dock).toBeHidden();
+    await expect(dock).toHaveAttribute("data-collapsed", "true");
+  });
+
+  test("an open save dialog holds the expansion until it closes", async ({ page }) => {
+    await openPlay(page);
+    await enterFullscreen(page);
+    await expandSaveHud(page);
+
+    const dock = page.locator(DOCK);
+    await page.locator('[data-testid="save-hud-import-button"]').click();
+    await expect(page.locator('[data-testid="save-import-dialog"]')).toBeVisible();
+    await expect(page.locator('[role="dialog"][data-state="open"]')).toHaveCount(1);
+
+    await page.waitForTimeout(14000);
+    await expect(dock).toBeVisible();
+
+    await page.locator('[data-testid="save-import-close-button"]').click();
+    await expect(page.locator('[role="dialog"][data-state="open"]')).toHaveCount(0);
+
+    // The close ends the hold: the pending retry observes the closed dialog with
+    // unheld chrome and collapses the dock. The 8s window proves closing neither
+    // sticks the dock open nor restarts the countdown.
+    await pulseEngineCanvas(page);
+    await expect(dock).toBeHidden({ timeout: 8000 });
+  });
+
+  test("the windowed dock never collapses and keeps its dim-only decay", async ({ page }) => {
+    await openPlay(page);
+    const dock = page.locator(DOCK);
+
+    await expect(page.locator(COLLAPSE_FAB)).toHaveCount(0);
+    await expect(dock).toBeVisible();
+    await expect(dock).toHaveAttribute("data-collapsed", "false");
+    await expect(dock).toHaveAttribute("data-dimmed", "true", { timeout: 8000 });
+
+    await page.waitForTimeout(13000);
+    await expect(dock).toBeVisible();
+    await expect(dock).toHaveAttribute("data-collapsed", "false");
   });
 });

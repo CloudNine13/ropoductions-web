@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { shouldArmHudRecollapse, shouldHoldHudRecollapse } from "../src/lib/hud-recollapse";
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readSource = (rel: string): string => readFileSync(join(rootDir, rel), "utf8");
@@ -101,6 +102,65 @@ describe("floating frosted-glass save hud dock contract (Story 4.2)", () => {
 
     // Touch guard: pointerType === 'touch' must not latch hover state
     assert.ok(src.includes('e.pointerType === "touch"'), "Must avoid latching hover state on mobile touch events");
+  });
+
+  it("collapses the fullscreen toolbar by display removal and only through the sibling FAB (Story 6.3)", () => {
+    const src = readSource(saveHudPath);
+    const viewportSrc = readSource(gameViewportPath);
+
+    // Collapse is a prop on a permanently mounted toolbar.
+    assert.ok(src.includes("collapsed?: boolean"), "SaveHudDock must accept the collapsed prop");
+    assert.ok(src.includes("collapsed = false"), "The collapsed prop must default to the windowed expanded state");
+    assert.ok(
+      src.includes('data-collapsed={collapsed ? "true" : "false"}'),
+      "Collapse state must be queryable through data-collapsed"
+    );
+
+    // Display removal instead of opacity, and never both display utilities at once:
+    // equal-specificity Tailwind utilities would otherwise race on stylesheet order.
+    assert.ok(
+      src.includes('collapsed ? "hidden" : "pointer-events-auto flex'),
+      "The collapsed toolbar must emit hidden INSTEAD of the flex display utility"
+    );
+    assert.ok(
+      !src.includes('collapsed ? "opacity'),
+      "Collapse must be display removal, never an opacity toggle"
+    );
+
+    // The dock asks the viewport to collapse instead of unmounting itself.
+    assert.ok(src.includes("onRequestCollapse?: () => void"), "SaveHudDock must expose the collapse request");
+    assert.ok(
+      src.includes("onRequestCollapseRef.current?.()"),
+      "The re-collapse countdown must surface through the collapse request"
+    );
+
+    // The viewport keeps the dock mounted and gates collapse to fullscreen only.
+    assert.ok(
+      !viewportSrc.includes("{!isHudCollapsed && ("),
+      "GameViewport must not conditionally unmount SaveHudDock"
+    );
+    assert.ok(
+      viewportSrc.includes("collapsed={activeFullscreen && isHudCollapsed}"),
+      "Collapse must be scoped to the fullscreen overlay; the windowed dock never collapses"
+    );
+  });
+
+  it("keeps the re-collapse budget independent of the windowed dim rung (Story 6.3)", () => {
+    const src = readSource(saveHudPath);
+
+    assert.ok(src.includes("export const DEFAULT_IDLE_TIMEOUT_MS = 4000;"), "The windowed dim rung stays at 4000ms");
+    assert.ok(
+      src.includes("export const DEFAULT_HUD_RECOLLAPSE_MS = 8000;"),
+      "The fullscreen re-collapse delay must be an independent 8000ms constant (12s total idle)"
+    );
+    assert.ok(
+      src.includes("idleTimeoutMs + DEFAULT_HUD_RECOLLAPSE_MS"),
+      "The countdown must start where the dim rung ends (4s dim + 8s = 12s total idle)"
+    );
+    assert.ok(
+      src.includes("RECOLLAPSE_RETRY_MS"),
+      "Held expansions must re-check rather than collapse under an in-flight save operation"
+    );
   });
 
   it("renders clean Lucide SVG icons and labels for Export (.zip), Import, Fullscreen, and Reset", () => {
@@ -495,5 +555,43 @@ describe("Save HUD Dock behavioral state machine and lifecycle", () => {
     assert.equal(harness.target.listeners["keydown"].length, 0);
     assert.equal(harness.target.listeners["wheel"].length, 0);
     assert.equal(harness.target.listeners["message"].length, 0);
+  });
+});
+
+describe("save HUD re-collapse policy (Story 6.3)", () => {
+  it("arms the countdown only for an expanded dock inside fullscreen", () => {
+    assert.equal(shouldArmHudRecollapse(false, true), true, "an expanded fullscreen dock counts down");
+    assert.equal(shouldArmHudRecollapse(true, true), false, "a collapsed dock cannot re-collapse");
+    assert.equal(shouldArmHudRecollapse(false, false), false, "the windowed dock never collapses (owner decision Q13)");
+    assert.equal(shouldArmHudRecollapse(true, false), false);
+  });
+
+  it("holds the expansion while a save operation or held chrome owns the dock", () => {
+    assert.equal(shouldHoldHudRecollapse(true, false, false), true, "an export in flight holds expansion");
+    assert.equal(shouldHoldHudRecollapse(false, true, false), true, "an open save dialog holds expansion");
+    assert.equal(
+      shouldHoldHudRecollapse(false, false, true),
+      true,
+      "hover or focus-within holds expansion, exactly as it suppresses the dim rung"
+    );
+    assert.equal(shouldHoldHudRecollapse(true, true, true), true);
+    assert.equal(shouldHoldHudRecollapse(true, true, false), true);
+    assert.equal(shouldHoldHudRecollapse(true, false, true), true);
+    assert.equal(shouldHoldHudRecollapse(false, true, true), true);
+    assert.equal(shouldHoldHudRecollapse(false, false, false), false, "an idle dock is free to collapse");
+  });
+
+  it("drives the dock's countdown from the policy instead of duplicating the rules", () => {
+    const src = readSource("src/components/save-hud-dock.tsx");
+
+    assert.ok(
+      src.includes("shouldArmHudRecollapse(collapsedRef.current, isFullscreenRef.current)"),
+      "The arm decision must come from the shared policy"
+    );
+    assert.match(
+      src,
+      /shouldHoldHudRecollapse\([\s\S]*?exportStatusRef\.current[\s\S]*?dialogOpen[\s\S]*?isHoveredOrFocusedRef\.current[\s\S]*?\)/,
+      "The hold decision must read the live export status, the live dialog state, and held chrome"
+    );
   });
 });
