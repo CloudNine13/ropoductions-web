@@ -80,6 +80,9 @@ export function createSessionValidationMemo(
   const monotonicMs = options.nowMs ?? (() => performance.now());
   const wallSec = options.nowSec ?? (() => Math.floor(Date.now() / 1000));
   const entries = new Map<string, MemoEntry>();
+  // Bumped by reset() so a validation that was already in flight when the store
+  // was cleared cannot write its verdict back into the fresh store.
+  let generation = 0;
 
   // In-flight validations are counted against nothing and evicted never: they
   // remove themselves when they settle, and counting them here would let a
@@ -117,11 +120,16 @@ export function createSessionValidationMemo(
     },
 
     reset() {
+      generation += 1;
       entries.clear();
     },
 
     async resolve(request: SessionValidationRequest): Promise<SessionValidationVerdict> {
       const { db, sessionCookie, sessionSecret, initialAdminIds } = request;
+      // A reset clears the store and invalidates every validation already running, so
+      // the generation is captured before the first await: capturing it after the key
+      // hash would let a validation that began before the reset register and write.
+      const requestGeneration = generation;
       // One clock for both the verdict and the bounds, so amortisation can never
       // be more permissive than a fresh validation reading the same instant. It
       // is read before the key is registered: a synchronous throw after that
@@ -156,6 +164,7 @@ export function createSessionValidationMemo(
         entries.delete(key);
       }
 
+      const pendingGeneration = requestGeneration;
       const pending = (async (): Promise<Resolution> => {
         try {
           const result = await validateSessionAccess({
@@ -166,7 +175,9 @@ export function createSessionValidationMemo(
             nowSec: validationNowSec,
           });
           if (result.status !== "authorized") {
-            entries.delete(key);
+            if (pendingGeneration === generation) {
+              entries.delete(key);
+            }
             return { authorized: false, status: result.status };
           }
 
@@ -174,23 +185,32 @@ export function createSessionValidationMemo(
           const settledAtMs = monotonicMs();
           const expiresAtMs = settledAtMs + ttlMs;
           if (expiresAtMs <= settledAtMs || sessionExpiresAtSec <= wallNow()) {
-            entries.delete(key);
+            if (pendingGeneration === generation) {
+              entries.delete(key);
+            }
             return { authorized: true, sessionExpiresAtSec };
           }
 
-          // Re-insert so eviction sees most-recently-validated last.
-          entries.delete(key);
-          entries.set(key, { kind: "settled", sessionExpiresAtSec, expiresAtMs });
-          evict();
+          // Re-insert so eviction sees most-recently-validated last. A store that
+          // was reset while this validation ran is left untouched.
+          if (pendingGeneration === generation) {
+            entries.delete(key);
+            entries.set(key, { kind: "settled", sessionExpiresAtSec, expiresAtMs });
+            evict();
+          }
           return { authorized: true, sessionExpiresAtSec };
         } catch (error) {
-          entries.delete(key);
+          if (pendingGeneration === generation) {
+            entries.delete(key);
+          }
           throw error;
         }
       })();
 
-      entries.set(key, { kind: "pending", promise: pending });
-      evict();
+      if (requestGeneration === generation) {
+        entries.set(key, { kind: "pending", promise: pending });
+        evict();
+      }
       return verdictFrom(await pending, wallNow());
     },
   };

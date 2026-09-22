@@ -137,7 +137,12 @@ const DOCUMENT_REFERENCE_PATTERN = /(src|href)=(["'])((?:js|css|fonts|icon)\/[^"
 const DOCUMENT_REFERENCE_HINT = /(?:src|href)=["']?(?:js|css|fonts|icon)\//g;
 
 /** Media literals must never carry the identifier: media keeps its moderate cache. */
-const ADDRESSED_MEDIA_PATTERN = /"(?:data|img|audio|effects|movies)\/[^"]*\?v=/;
+const ADDRESSED_MEDIA_PATTERN = /"(?:data|img|audio|effects|movies)\/[^"]*[?&]v=/;
+
+/** The identifier counts whether it opened the query or extended an existing one. */
+function addressedReferencePattern(releaseId: string): RegExp {
+  return new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=${releaseId}`, "g");
+}
 
 function replaceOnce(
   sources: Map<string, string>,
@@ -166,7 +171,15 @@ function addressDocument(source: string, releaseId: string): string {
     DOCUMENT_REFERENCE_PATTERN,
     (match, attribute: string, quote: string, value: string) => {
       applied += 1;
-      return `${attribute}=${quote}${value}?${ENGINE_RELEASE_PARAM}=${releaseId}${quote}`;
+      // A staged reference may carry a query or a fragment already. The identifier
+      // belongs inside the query, before the fragment: appended to the whole value it
+      // would be swallowed by the query or the fragment and the request would stay
+      // unaddressed, costing the immutable cache this addressing exists to give.
+      const fragmentIndex = value.indexOf("#");
+      const fragment = fragmentIndex === -1 ? "" : value.slice(fragmentIndex);
+      const unaddressed = fragmentIndex === -1 ? value : value.slice(0, fragmentIndex);
+      const separator = unaddressed.includes("?") ? "&" : "?";
+      return `${attribute}=${quote}${unaddressed}${separator}${ENGINE_RELEASE_PARAM}=${releaseId}${fragment}${quote}`;
     }
   );
   if (hinted === 0 || applied !== hinted) {
@@ -186,7 +199,7 @@ function assertAddressed(sources: Map<string, string>, releaseId: string): void 
   ]);
   for (const [file, expected] of expectedPerFile) {
     const source = sources.get(file) ?? "";
-    const found = source.split(`?${ENGINE_RELEASE_PARAM}=${releaseId}`).length - 1;
+    const found = source.match(addressedReferencePattern(releaseId))?.length ?? 0;
     if (found < expected) {
       throw new Error(
         `Shell addressing: ${file} carries ${found} release-addressed references, expected at least ${expected}.`
@@ -217,7 +230,7 @@ export function addressShellReferences(
     if (source === undefined) {
       throw new Error(`Shell addressing: ${file} is missing from the staged shell`);
     }
-    if (source.includes(`?${ENGINE_RELEASE_PARAM}=`)) {
+    if (new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=`).test(source)) {
       throw new Error(`Shell addressing: ${file} is already addressed`);
     }
   }

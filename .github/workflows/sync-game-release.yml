@@ -112,9 +112,22 @@ jobs:
           # component that knows a game release exists: the runtime never reads a
           # release identifier. build-metadata.json records that identifier for
           # humans and is deliberately NOT published to the bucket.
-          echo "==> Syncing engine shell to R2 bucket: ${R2_BUCKET_NAME}/engine"
+          #
+          # The publish runs in two ordered phases so the document lands last.
+          # index.html is the file that introduces the new identifier set, so a
+          # client that reads it must never find a subresource still holding the
+          # previous release's bytes: an addressed subresource response is cached
+          # immutably for a year, so such a mix would not self-heal.
+          echo "==> Publishing engine shell files (every object except index.html)"
           aws s3 sync tmp_engine_shell "s3://${R2_BUCKET_NAME}/engine" \
             --exclude "build-metadata.json" \
+            --exclude "index.html" \
+            --endpoint-url "${R2_ENDPOINT}"
+
+          echo "==> Publishing engine shell document (index.html) last"
+          aws s3 sync tmp_engine_shell "s3://${R2_BUCKET_NAME}/engine" \
+            --exclude "*" \
+            --include "index.html" \
             --endpoint-url "${R2_ENDPOINT}"
 
           echo "==> Published engine shell (release metadata kept in the runner log only):"

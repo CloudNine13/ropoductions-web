@@ -7,6 +7,7 @@ import {
   formatEngineBootDiagnostics,
   isEngineBootFailureReport,
   isEngineReadyReport,
+  isSameOriginEngineSrc,
   isSessionRejectedReport,
   parseEngineBootFailureReport,
   playerCopyClass,
@@ -396,5 +397,72 @@ describe("session rejection escalation", () => {
       isSessionRejectedReport({ ...base, diagnostics: { url: "js/main.js", sessionRejected: true } }),
       true
     );
+  });
+});
+
+describe("engine source boundary", () => {
+  it("admits only addresses that resolve to our own origin", () => {
+    const origin = "https://ropoductions.com";
+
+    assert.equal(isSameOriginEngineSrc("/engine/index.html", origin), true);
+    assert.equal(isSameOriginEngineSrc("engine/index.html", origin), true);
+    assert.equal(isSameOriginEngineSrc("https://ropoductions.com/engine/index.html", origin), true);
+    assert.equal(isSameOriginEngineSrc("https://ropoductions.com:443/engine/index.html", origin), true);
+
+    assert.equal(isSameOriginEngineSrc("//tracker.example/engine/index.html", origin), false);
+    assert.equal(isSameOriginEngineSrc("https://tracker.example/engine/index.html", origin), false);
+    assert.equal(isSameOriginEngineSrc("http://ropoductions.com/engine/index.html", origin), false);
+    assert.equal(isSameOriginEngineSrc("javascript:alert(1)", origin), false);
+    assert.equal(isSameOriginEngineSrc("data:text/html,<canvas>", origin), false);
+    assert.equal(isSameOriginEngineSrc("blob:https://ropoductions.com/uuid", origin), false);
+    assert.equal(isSameOriginEngineSrc("", origin), false);
+    assert.equal(isSameOriginEngineSrc(null, origin), false);
+  });
+});
+
+describe("diagnostics inventory boundary", () => {
+  it("drops a script inventory that is not a string array instead of failing to render", () => {
+    const merged = buildDiagnosticsReport({
+      url: "/engine/index.html",
+      engineScripts: "not-an-array" as unknown as string[],
+    });
+
+    assert.equal(merged.url, "/engine/index.html");
+    assert.equal(merged.engineScripts, undefined);
+
+    const report = {
+      type: ENGINE_BOOT_FAILURE_MESSAGE_TYPE,
+      failureClass: "boot_request_failed" as EngineBootFailureClass,
+      diagnostics: merged,
+    };
+    const rows = engineBootDiagnosticsRows(report, LABELS);
+
+    assert.equal(
+      rows.some((row) => row.label === LABELS.engineScripts),
+      false,
+      "a non-array inventory must not produce a scripts row"
+    );
+    assert.doesNotThrow(() => formatEngineBootDiagnostics(report, LABELS));
+  });
+
+  it("still keeps a well-formed inventory, capped and truncated", () => {
+    const merged = buildDiagnosticsReport({
+      engineScripts: ["/engine/js/main.js", "/engine/js/plugins/x.js"],
+    });
+
+    assert.deepEqual(merged.engineScripts, ["/engine/js/main.js", "/engine/js/plugins/x.js"]);
+
+    const rows = engineBootDiagnosticsRows(
+      {
+        type: ENGINE_BOOT_FAILURE_MESSAGE_TYPE,
+        failureClass: "boot_request_failed" as EngineBootFailureClass,
+        diagnostics: merged,
+      },
+      LABELS
+    );
+    const scriptsRow = rows.find((row) => row.label === LABELS.engineScripts);
+
+    assert.ok(scriptsRow);
+    assert.match(scriptsRow.value, /main\.js/);
   });
 });

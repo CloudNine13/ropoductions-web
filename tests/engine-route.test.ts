@@ -442,4 +442,110 @@ describe("engine shell route GET & HEAD /engine/*", () => {
 
     assert.equal(res.status, 403);
   });
+
+  it("keeps the gate fail-closed when validation fails instead of serving the dev harness", async () => {
+    globalThis.__D1_TEST_DB__ = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first(): Promise<never> {
+                throw new Error("d1 unavailable");
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const previousNodeEnv = process.env.NODE_ENV;
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    mutableEnv.NODE_ENV = "production";
+    try {
+      const req = makeRequest("/engine/index.html", {
+        cookies: {
+          ropoductions_age_verified: "true",
+          ropoductions_session: validSignedCookie,
+        },
+      });
+      const res = await GET(req, { params: Promise.resolve({ path: ["index.html"] }) });
+
+      assert.equal(res.status, 500);
+      const json = (await res.json()) as { error: { code: string } };
+      assert.equal(json.error.code, "INTERNAL_ERROR");
+    } finally {
+      mutableEnv.NODE_ENV = previousNodeEnv;
+    }
+  });
+
+  it("costs no D1 read for requests the route answers before validation", async () => {
+    let d1Queries = 0;
+    globalThis.__D1_TEST_DB__ = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                d1Queries++;
+                return createSessionFixture();
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    globalThis.__R2_TEST_BUCKET__ = createMockR2Bucket({});
+
+    const anonymous = await GET(makeRequest("/engine/index.html"), {
+      params: Promise.resolve({ path: ["index.html"] }),
+    });
+    assert.equal(anonymous.status, 200, "anonymous caller gets the open harness");
+
+    const withoutAgeGate = await GET(
+      makeRequest("/engine/index.html", {
+        cookies: { ropoductions_session: validSignedCookie },
+      }),
+      { params: Promise.resolve({ path: ["index.html"] }) }
+    );
+    assert.equal(withoutAgeGate.status, 200, "a session without the age gate is still anonymous");
+
+    assert.equal(d1Queries, 0);
+  });
+
+  it("shares one in-flight validation across a concurrent shell burst", async () => {
+    let d1Queries = 0;
+    globalThis.__D1_TEST_DB__ = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                d1Queries++;
+                return createSessionFixture();
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const responses = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        GET(
+          makeRequest("/engine/index.html", {
+            cookies: {
+              ropoductions_age_verified: "true",
+              ropoductions_session: validSignedCookie,
+            },
+          }),
+          { params: Promise.resolve({ path: ["index.html"] }) }
+        )
+      )
+    );
+
+    for (const res of responses) {
+      assert.equal(res.status, 200);
+    }
+    assert.equal(d1Queries, 1, "a cold cache must cost one session read for the whole burst");
+  });
 });
