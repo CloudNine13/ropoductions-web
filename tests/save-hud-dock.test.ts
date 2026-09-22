@@ -575,6 +575,9 @@ describe("save HUD re-collapse policy (Story 6.3)", () => {
       "hover or focus-within holds expansion, exactly as it suppresses the dim rung"
     );
     assert.equal(shouldHoldHudRecollapse(true, true, true), true);
+    assert.equal(shouldHoldHudRecollapse(true, true, false), true);
+    assert.equal(shouldHoldHudRecollapse(true, false, true), true);
+    assert.equal(shouldHoldHudRecollapse(false, true, true), true);
     assert.equal(shouldHoldHudRecollapse(false, false, false), false, "an idle dock is free to collapse");
   });
 
@@ -587,7 +590,7 @@ describe("save HUD re-collapse policy (Story 6.3)", () => {
     );
     assert.match(
       src,
-      /shouldHoldHudRecollapse\([\s\S]*?isHoveredOrFocusedRef\.current[\s\S]*?\)/,
+      /shouldHoldHudRecollapse\([\s\S]*?exportStatusRef\.current[\s\S]*?dialogOpen[\s\S]*?isHoveredOrFocusedRef\.current[\s\S]*?\)/,
       "The hold decision must read the live export status, the live dialog state, and held chrome"
     );
   });

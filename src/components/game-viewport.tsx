@@ -100,22 +100,40 @@ export function GameViewport({
     }
   }, []);
 
+  const focusCollapseFab = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (fabRef.current) {
+        fabRef.current.focus();
+        return;
+      }
+      requestAnimationFrame(() => fabRef.current?.focus());
+    });
+  }, []);
+
+  const dockHasFocus = useCallback(() => {
+    const activeElement = document.activeElement;
+    const dock = containerRef.current?.querySelector('[data-testid="save-hud-dock"]');
+    return Boolean(activeElement && dock && dock.contains(activeElement));
+  }, []);
+
   // Every fullscreen entry collapses the save chrome: the control that entered
   // fullscreen was the last chrome interaction. The toolbar leaves the tab order,
   // so focus follows to the FAB instead of being stranded on a hidden button.
   const collapseHudOnFullscreenEntry = useCallback(() => {
-    const activeElement = document.activeElement;
-    const dock = containerRef.current?.querySelector('[data-testid="save-hud-dock"]');
-    const restoreFocus = Boolean(activeElement && dock && dock.contains(activeElement));
+    const restoreFocus = dockHasFocus();
     setIsHudCollapsed(true);
     if (restoreFocus) {
-      requestAnimationFrame(() => fabRef.current?.focus());
+      focusCollapseFab();
     }
-  }, []);
+  }, [dockHasFocus, focusCollapseFab]);
 
   const collapseHud = useCallback(() => {
+    const restoreFocus = dockHasFocus();
     setIsHudCollapsed(true);
-  }, []);
+    if (restoreFocus) {
+      focusCollapseFab();
+    }
+  }, [dockHasFocus, focusCollapseFab]);
 
   const enterPseudoFullscreen = useCallback(() => {
     setIsPseudoFullscreen(true);

@@ -330,9 +330,9 @@ test.describe("fullscreen save HUD collapse (Epic 6.3)", () => {
     await page.locator('[data-testid="save-import-close-button"]').click();
     await expect(page.locator('[role="dialog"][data-state="open"]')).toHaveCount(0);
 
-    // Radix returns focus to the trigger inside the dock, and held chrome (hover or
-    // focus-within) suppresses the countdown exactly as it suppresses the dim rung, so
-    // the player leaves the chrome first: the pending collapse fires right after.
+    // The close ends the hold: the pending retry observes the closed dialog with
+    // unheld chrome and collapses the dock. The 8s window proves closing neither
+    // sticks the dock open nor restarts the countdown.
     await pulseEngineCanvas(page);
     await expect(dock).toBeHidden({ timeout: 8000 });
   });

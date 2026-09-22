@@ -229,20 +229,21 @@ export function SaveHudDock({
   const handleActivity = useCallback(() => {
     const now = Date.now();
     if (now - lastActivityTimeRef.current < ACTIVITY_THROTTLE_MS) {
-      return;
+      return false;
     }
     lastActivityTimeRef.current = now;
     resetTimer();
+    return true;
   }, [resetTimer]);
 
   useEffect(() => {
     startTimer();
 
     const onUserActivity = (event: Event) => {
-      handleActivity();
+      const acted = handleActivity();
       // Canvas and bridge activity belong to the game; only chrome interaction
       // (a pointer or key event landing on the dock itself) defers the collapse.
-      if (event.target instanceof Node && rootRef.current?.contains(event.target)) {
+      if (acted && event.target instanceof Node && rootRef.current?.contains(event.target)) {
         scheduleReCollapse();
       }
     };
@@ -308,8 +309,9 @@ export function SaveHudDock({
   );
 
   const handleTouchStart = useCallback(() => {
-    handleActivity();
-    scheduleReCollapse();
+    if (handleActivity()) {
+      scheduleReCollapse();
+    }
   }, [handleActivity, scheduleReCollapse]);
 
   useEffect(() => {
@@ -328,7 +330,12 @@ export function SaveHudDock({
     // Expansion (or the return to windowed chrome) restarts the 4s dim rung in full
     // chrome and, inside fullscreen, the independent re-collapse countdown. The dim
     // state is cleared as part of the prop transition so the first visible frame is
-    // already full chrome.
+    // already full chrome. A pointer parked over the dock area fires no enter event
+    // on re-expansion, so the held state is re-seeded from layout instead.
+    isHoveredOrFocusedRef.current =
+      (rootRef.current?.matches(":hover") ?? false) ||
+      (document.activeElement instanceof Node &&
+        (rootRef.current?.contains(document.activeElement) ?? false));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetTimer();
     scheduleReCollapse();
