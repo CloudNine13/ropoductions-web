@@ -96,6 +96,47 @@ describe("workflow and upstream integration manifest verification", () => {
     );
   });
 
+  it("publishes the shell document last, after every other shell object", () => {
+    assert.ok(fs.existsSync(workflowPath));
+    const content = fs.readFileSync(workflowPath, "utf-8");
+
+    // index.html introduces the new identifier set, so it must never be readable
+    // while a subresource still holds the previous release's bytes: an addressed
+    // subresource is cached immutably for a year and would not self-heal.
+    const invocations = [
+      ...content.matchAll(
+        /aws s3 sync tmp_engine_shell "s3:\/\/\$\{R2_BUCKET_NAME\}\/engine" \\\n((?:\s+--[a-z-]+ "[^"]*" \\\n)+)/g
+      ),
+    ];
+    assert.equal(
+      invocations.length,
+      2,
+      "The shell publish must be exactly two ordered sync phases: files first, document last"
+    );
+
+    const filesPhase = invocations[0];
+    const documentPhase = invocations[1];
+    assert.ok(filesPhase && documentPhase);
+
+    // Phase 1: every shell object except the document, and never the metadata.
+    assert.match(filesPhase[1], /--exclude "build-metadata\.json"/);
+    assert.match(filesPhase[1], /--exclude "index\.html"/);
+    assert.doesNotMatch(
+      filesPhase[1],
+      /--include "/,
+      "The file phase must not re-include the document"
+    );
+
+    // Phase 2: everything excluded, then the document alone re-included.
+    assert.match(documentPhase[1], /--exclude "\*"/);
+    assert.match(documentPhase[1], /--include "index\.html"/);
+
+    assert.ok(
+      (filesPhase.index ?? -1) < (documentPhase.index ?? -1),
+      "The document sync must appear after the file sync in the workflow source"
+    );
+  });
+
   it("verifies input sanitization: does not interpolate untrusted branch variables in run shell blocks", () => {
     assert.ok(fs.existsSync(workflowPath));
     const content = fs.readFileSync(workflowPath, "utf-8");
