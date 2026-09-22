@@ -75,7 +75,8 @@ jobs:
         run: npx playwright install firefox
 
       - name: Run Chromium and Firefox E2E suites
-        run: npm run test:e2e
+        # Headed Firefox needs a display for its WebGL path; xvfb provides it.
+        run: xvfb-run -a npm run test:e2e
         env:
           CI: true
 

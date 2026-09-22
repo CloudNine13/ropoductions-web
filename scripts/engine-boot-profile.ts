@@ -309,7 +309,14 @@ async function profileBrowser(
   options: Options,
   cookies: Cookie[]
 ): Promise<BootProfile> {
-  const browser = await browserType.launch({ headless: !options.headed });
+  const launchOptions =
+    name === "firefox"
+      ? {
+          headless: !options.headed,
+          firefoxUserPrefs: { "webgl.disabled": false, "webgl.force-enabled": true },
+        }
+      : { headless: !options.headed };
+  const browser = await browserType.launch(launchOptions);
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     await context.addCookies(cookies);
