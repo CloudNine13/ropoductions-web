@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-15-2026 12:00
-last_updated: 09-22-2026 00:46
+last_updated: 09-22-2026 04:10
 project: ropoductions-web
 project_key: NOKEY
 tracking_system: file-system
@@ -77,11 +77,11 @@ development_status:
   epic-6-retrospective: optional
 
   epic-7: in-progress
-  7-1-engine-boot-failure-classification-localized-recovery-surface: review
-  7-2-release-addressed-immutable-engine-shell-delivery: review
-  7-3-burst-safe-session-validation-for-engine-and-asset-requests: review
-  7-4-engine-asset-load-retry-in-injected-bridge-plugin: review
-  7-5-firefox-reload-storm-and-asset-burst-verification: backlog
+  7-1-engine-boot-failure-classification-localized-recovery-surface: done
+  7-2-release-addressed-immutable-engine-shell-delivery: done
+  7-3-burst-safe-session-validation-for-engine-and-asset-requests: done
+  7-4-engine-asset-load-retry-in-injected-bridge-plugin: done
+  7-5-firefox-reload-storm-and-asset-burst-verification: review
   epic-7-retrospective: optional
 
 action_items:
