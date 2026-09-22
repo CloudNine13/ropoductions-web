@@ -44,6 +44,7 @@ export default defineConfig({
       testMatch: WEBGL_DISABLED_SPEC,
       use: {
         ...devices["Desktop Firefox"],
+        headless: true,
         launchOptions: { firefoxUserPrefs: { "webgl.disabled": true } },
       },
     },
