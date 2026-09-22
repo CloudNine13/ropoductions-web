@@ -67,7 +67,7 @@ development_status:
   5-2-patron-override-directory-creation-interface: done
   5-3-override-revocation-self-lockout-prevention: done
   5-4-override-integrity-hardening: done
-  5-5-grant-revoke-audit-trail: backlog
+  5-5-grant-revoke-audit-trail: review
   epic-5-retrospective: done
 
   epic-6: in-progress
@@ -268,8 +268,9 @@ action_items:
       role, timestamp on every mutation; epic-title promise fulfilled; substrate for
       future 4-eyes); record 4-eyes as formal v1 non-goal with reopen trigger in deferred-work.md"
     owner: "pm"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
+    verify: "grep -q 'A-2026-09-23-01' _bmad-output/planning-artifacts/epics.md && grep -q 'the append-only `override_audit` trail rendered on `/admin/overrides`' _bmad-output/implementation-artifacts/deferred-work.md && grep -q '5-5-grant-revoke-audit-trail: review' _bmad-output/implementation-artifacts/sprint-status.yaml"
   - id: "epic-5-retro-item-11-localize-admin-panel"
     epic: 5
     action: "Localize the full admin panel UI across all six locales via next-intl
