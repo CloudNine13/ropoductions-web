@@ -82,6 +82,7 @@ graph TD
 - **Binds:** CAP-3, CAP-4, FR-6, FR-7, NFR-2
 - **Prevents:** Exposure of Patreon OAuth access/refresh tokens to client-side JavaScript, token theft via XSS, and cookie tampering.
 - **Rule:** Client browsers must only receive an opaque, signed, HTTP-only, `SameSite=Lax`, `Secure` session cookie holding a random UUIDv4 `session_id`. Patreon access tokens, refresh tokens, active tier IDs, and token expiration timestamps must be stored strictly server-side in Cloudflare D1. Route handlers and middleware must validate the session cookie against D1 before granting access to `/play` or `/api/game/*`.
+- **Cookie mutation (recorded 2026-09-23, Epic 2 retro item 5 / Epic 7 retro item 29):** a Server Component MUST NOT mutate cookies — Next.js throws `Cookies can only be modified in a Server Action or Route Handler` during a render. Invalidating `ropoductions_session` is owned by the Route Handler `GET /api/auth/session`, which expires the cookie (`Max-Age: 0`) and answers `302` to an allowlisted `/?paywall=<revoked|lapsed|required>`; Server Components `redirect()` to it through `sessionClearHref` (`src/lib/paywall.ts`) rather than clearing the cookie themselves. A redirect that must preserve the cookie (retryable infrastructure failure, age gate) is a plain `/?paywall=…` / `/?auth_required=true` target instead.
 ### AD-4 — Origin-Locked PostMessage Save Bridge [ADOPTED]
 
 - **Binds:** CAP-7, FR-14, FR-15

@@ -712,16 +712,33 @@
       typeof XMLHttpRequest.prototype.removeEventListener === "function"
         ? XMLHttpRequest.prototype.removeEventListener
         : null;
+    const originalAbort =
+      typeof XMLHttpRequest.prototype.abort === "function"
+        ? XMLHttpRequest.prototype.abort
+        : null;
     const OPEN_KEY = "__ropoductionsAssetOpen";
     const RETRY_KEY = "__ropoductionsAssetRetry";
     const HEADERS_KEY = "__ropoductionsAssetHeaders";
     const MIME_KEY = "__ropoductionsAssetMime";
     const LISTENERS_KEY = "__ropoductionsAssetListeners";
+    // Outcome types the retry owns and replays: it detaches the engine's native
+    // listeners for these and hands each of them exactly one final dispatch.
+    const REPLAYED_EVENT_TYPES = ["load", "error", "abort", "timeout"];
+    // Completion notifications owned the same way: a retried request must not fire
+    // one per attempt, so they are detached and replayed once with the outcome.
+    const SECONDARY_EVENT_TYPES = ["loadend", "progress"];
 
     function trackedListeners(xhr) {
       try {
         if (!xhr[LISTENERS_KEY]) {
-          xhr[LISTENERS_KEY] = { load: [], error: [], readystatechange: false };
+          const listeners = { readystatechange: false };
+          for (let i = 0; i < REPLAYED_EVENT_TYPES.length; i++) {
+            listeners[REPLAYED_EVENT_TYPES[i]] = [];
+          }
+          for (let i = 0; i < SECONDARY_EVENT_TYPES.length; i++) {
+            listeners[SECONDARY_EVENT_TYPES[i]] = [];
+          }
+          xhr[LISTENERS_KEY] = listeners;
         }
         return xhr[LISTENERS_KEY];
       } catch (error) {
@@ -755,7 +772,9 @@
     if (originalAddEventListener) {
       XMLHttpRequest.prototype.addEventListener = function (type, listener) {
         if (
-          (type === "load" || type === "error" || type === "readystatechange") &&
+          (REPLAYED_EVENT_TYPES.indexOf(type) !== -1 ||
+            SECONDARY_EVENT_TYPES.indexOf(type) !== -1 ||
+            type === "readystatechange") &&
           typeof listener === "function"
         ) {
           const tracked = trackedListeners(this);
@@ -764,8 +783,10 @@
               tracked.readystatechange = true;
             } else {
               tracked[type].push(listener);
-              const pending = this[RETRY_KEY];
-              if (pending && pending.deferred) {
+              // The retry owns every outcome for a request it holds, so a listener
+              // added mid-flight is replayed by settle() rather than fired natively
+              // on top of its replay.
+              if (this[RETRY_KEY]) {
                 return undefined;
               }
             }
@@ -777,7 +798,12 @@
         XMLHttpRequest.prototype.removeEventListener = function (type, listener) {
           try {
             const tracked = this[LISTENERS_KEY];
-            if (tracked && (type === "load" || type === "error") && typeof listener === "function") {
+            if (
+              tracked &&
+              (REPLAYED_EVENT_TYPES.indexOf(type) !== -1 ||
+                SECONDARY_EVENT_TYPES.indexOf(type) !== -1) &&
+              typeof listener === "function"
+            ) {
               tracked[type] = tracked[type].filter(function (entry) {
                 return entry !== listener;
               });
@@ -822,18 +848,26 @@
       if (tracked && tracked.readystatechange) {
         return originalSend.apply(xhr, arguments);
       }
-      const savedOnLoad = xhr.onload;
-      const savedOnError = xhr.onerror;
+      const savedHandlers = {
+        load: xhr.onload,
+        error: xhr.onerror,
+        abort: xhr.onabort,
+        timeout: xhr.ontimeout,
+        loadend: xhr.onloadend,
+        progress: xhr.onprogress
+      };
       const hasListenerPath =
         !!tracked && (tracked.load.length > 0 || tracked.error.length > 0);
       if (
-        typeof savedOnLoad !== "function" &&
-        typeof savedOnError !== "function" &&
+        typeof savedHandlers.load !== "function" &&
+        typeof savedHandlers.error !== "function" &&
         !hasListenerPath
       ) {
         return originalSend.apply(xhr, arguments);
       }
-      if (hasListenerPath && !originalRemoveEventListener) {
+      if (tracked && !originalRemoveEventListener) {
+        // A tracked listener the retry cannot detach would fire natively on top of
+        // its replay, so such a request keeps native behaviour instead.
         return originalSend.apply(xhr, arguments);
       }
 
@@ -843,61 +877,106 @@
         withCredentials: xhr.withCredentials,
         timeout: xhr.timeout,
         retries: 0,
-        deferred: hasListenerPath,
+        terminal: false,
+        nativeAbortSeen: false,
+        settleAbort: null,
         onLoad: null,
-        onError: null
+        onError: null,
+        onAbort: null,
+        onTimeout: null
       };
       xhr[RETRY_KEY] = request;
 
-      if (hasListenerPath && tracked) {
-        for (let i = 0; i < tracked.load.length; i++) {
-          try {
-            originalRemoveEventListener.call(xhr, "load", tracked.load[i]);
-          } catch (error) {
-            // The listener stays native; finish() still replays the outcome to it.
+      if (tracked) {
+        const detachable = REPLAYED_EVENT_TYPES.concat(SECONDARY_EVENT_TYPES);
+        for (let i = 0; i < detachable.length; i++) {
+          const type = detachable[i];
+          const listeners = tracked[type];
+          for (let j = 0; j < listeners.length; j++) {
+            try {
+              originalRemoveEventListener.call(xhr, type, listeners[j]);
+            } catch (error) {
+              // The listener stays native, so the replay must not hand it the
+              // outcome a second time: fall back to native behaviour for it.
+              tracked[type] = tracked[type].filter(function (entry) {
+                return entry !== listeners[j];
+              });
+            }
           }
         }
-        for (let i = 0; i < tracked.error.length; i++) {
+      }
+      // Completion notifications are replayed once at settle, never per attempt.
+      try {
+        xhr.onloadend = null;
+        xhr.onprogress = null;
+      } catch (error) {
+        // A host that freezes these properties keeps native behaviour for them.
+      }
+
+      function callHandler(handler, event) {
+        if (typeof handler !== "function") return;
+        try {
+          handler.call(xhr, event);
+        } catch (error) {
+          // Contained like the tracked listeners below: one throwing engine handler
+          // must neither silence the rest nor escape into native dispatch or into
+          // the scheduled retry callback. The throw is still reported, because it used
+          // to reach MZ's error printer, which this plugin classifies and posts.
+          const raw = error && error.message ? String(error.message) : String(error);
+          reportBootFailure(classifyBootFailure(raw), raw, { url: request.url });
+        }
+      }
+
+      function replay(kind, event) {
+        const live = xhr[LISTENERS_KEY];
+        callHandler(savedHandlers[kind], event);
+        const listeners = live ? live[kind] : null;
+        if (!listeners) return;
+        for (let i = 0; i < listeners.length; i++) {
           try {
-            originalRemoveEventListener.call(xhr, "error", tracked.error[i]);
+            listeners[i].call(xhr, event);
           } catch (error) {
-            // Same as above.
+            // One listener must not silence the rest, and a throw here is an engine
+            // bug like a throwing property handler, so it is reported the same way.
+            const raw = error && error.message ? String(error.message) : String(error);
+            reportBootFailure(classifyBootFailure(raw), raw, { url: request.url });
           }
         }
       }
 
-      function finish(status, event) {
-        const live = xhr[LISTENERS_KEY];
+      function settle(kind, event) {
+        // The native abort dispatch and this plugin's own abort override can both
+        // reach here for one engine abort; the outcome is replayed exactly once.
+        if (request.terminal) return;
+        request.terminal = true;
         try {
           delete xhr[RETRY_KEY];
         } catch (error) {
           xhr[RETRY_KEY] = undefined;
         }
-        // Native semantics: a response that arrived drives onload, whatever its
-        // status; a request that never completed drives onerror.
-        if (status > 0) {
-          if (typeof savedOnLoad === "function") savedOnLoad.call(xhr, event);
-          if (live) {
-            for (let i = 0; i < live.load.length; i++) {
-              try {
-                live.load[i].call(xhr, event);
-              } catch (error) {
-                // One listener must not silence the rest.
-              }
-            }
-          }
-        } else {
-          if (typeof savedOnError === "function") savedOnError.call(xhr, event);
-          if (live) {
-            for (let i = 0; i < live.error.length; i++) {
-              try {
-                live.error[i].call(xhr, event);
-              } catch (error) {
-                // One listener must not silence the rest.
-              }
-            }
-          }
+        replay(kind, event);
+        if (kind !== "loadend" && kind !== "progress") {
+          replay("loadend", event);
+          replay("progress", event);
         }
+        // open() does not clear handler properties, so a reused XHR would otherwise
+        // capture this request's closures as its engine handlers on the next send.
+        try {
+          xhr.onload = savedHandlers.load;
+          xhr.onerror = savedHandlers.error;
+          xhr.onabort = savedHandlers.abort;
+          xhr.ontimeout = savedHandlers.timeout;
+          xhr.onloadend = savedHandlers.loadend;
+          xhr.onprogress = savedHandlers.progress;
+        } catch (error) {
+          // Restoration is best effort; the replay above already ran.
+        }
+      }
+
+      // Native semantics: a response that arrived drives onload, whatever its
+      // status; a request that never completed drives onerror.
+      function finish(status, event) {
+        settle(status > 0 ? "load" : "error", event);
       }
 
       function retry(pending) {
@@ -909,6 +988,10 @@
         try {
           xhr.onload = request.onLoad;
           xhr.onerror = request.onError;
+          xhr.onabort = request.onAbort;
+          xhr.ontimeout = request.onTimeout;
+          xhr.onloadend = null;
+          xhr.onprogress = null;
           if (originalSetRequestHeader && xhr[HEADERS_KEY]) {
             for (let i = 0; i < xhr[HEADERS_KEY].length; i++) {
               originalSetRequestHeader.call(xhr, xhr[HEADERS_KEY][i][0], xhr[HEADERS_KEY][i][1]);
@@ -949,12 +1032,12 @@
         return true;
       }
 
-      function reportExhausted(status) {
+      function reportExhausted(status, networkError) {
         const detail = { url: request.url, retries: request.retries };
         if (status > 0) {
           detail.status = status;
         } else {
-          detail.networkError = "request did not complete";
+          detail.networkError = networkError || "request did not complete";
         }
         reportBootFailure("asset_load_failed", "Failed to load " + request.url, detail);
       }
@@ -987,6 +1070,11 @@
           const pending = { status: status, event: event, body: body };
           if (
             scheduleRetry(function () {
+              if (request.terminal) {
+                // An abort or timeout already answered this request: re-issuing it
+                // would resurrect a request the engine finished with.
+                return;
+              }
               if (bootReady) {
                 finish(pending.status, pending.event);
                 return;
@@ -1015,11 +1103,58 @@
       request.onError = function (event) {
         retryOrReport(0, event);
       };
+      request.onAbort = function (event) {
+        // An engine-initiated abort is ordinary teardown, not a boot failure, so the
+        // host hears nothing; the engine's own abort handling is still replayed.
+        request.nativeAbortSeen = true;
+        settle("abort", event);
+      };
+      request.onTimeout = function (event) {
+        // A timed-out request is dead and is never retried. The engine's JSON
+        // loaders only listen for load/error, so when nothing handles timeout the
+        // error path is replayed too — otherwise those callers would wait forever.
+        reportExhausted(0, "request timed out");
+        settle("timeout", event);
+        const live = xhr[LISTENERS_KEY];
+        const timeoutListeners = live ? live.timeout : null;
+        if (typeof savedHandlers.timeout !== "function" && (!timeoutListeners || timeoutListeners.length === 0)) {
+          replay("error", event);
+        }
+      };
+      request.settleAbort = function (event) {
+        settle("abort", event);
+      };
       xhr.onload = request.onLoad;
       xhr.onerror = request.onError;
+      xhr.onabort = request.onAbort;
+      xhr.ontimeout = request.onTimeout;
 
       return originalSend.apply(xhr, arguments);
     };
+
+    if (originalAbort) {
+      XMLHttpRequest.prototype.abort = function () {
+        const pending = this[RETRY_KEY];
+        // A failed attempt leaves nothing on the wire, so while a retry waits on its
+        // backoff the native abort dispatches nothing and the timer would re-issue a
+        // request the engine cancelled. Let the native abort run first for its state
+        // reset, then settle only when it delivered nothing: exactly one outcome
+        // either way, and never a resurrection.
+        if (pending && !pending.terminal && typeof pending.settleAbort === "function") {
+          pending.nativeAbortSeen = false;
+          let result;
+          try {
+            result = originalAbort.apply(this, arguments);
+          } finally {
+            if (!pending.nativeAbortSeen && !pending.terminal) {
+              pending.settleAbort({ type: "abort", target: this });
+            }
+          }
+          return result;
+        }
+        return originalAbort.apply(this, arguments);
+      };
+    }
   }
 
   function installCapabilityHook(allowReadyFallback) {

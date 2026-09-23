@@ -130,11 +130,225 @@ function anchorRules(releaseId: string): AnchorRule[] {
   ];
 }
 
-/** Matches a document attribute that points at a shell-relative path. */
-const DOCUMENT_REFERENCE_PATTERN = /(src|href)=(["'])((?:js|css|fonts|icon)\/[^"']*)\2/g;
+/**
+ * Keywords after which a `/` opens a regex literal rather than a division, so the
+ * masker does not read a `//` or `/*` inside a regular expression as a comment.
+ */
+const REGEX_PREFIX_KEYWORDS: Record<string, true> = {
+  await: true,
+  case: true,
+  delete: true,
+  do: true,
+  else: true,
+  in: true,
+  instanceof: true,
+  new: true,
+  of: true,
+  return: true,
+  throw: true,
+  typeof: true,
+  void: true,
+  yield: true,
+};
+
+/** Control-flow keywords whose `)` can be followed by a statement, so a `/` opens a regex. */
+const CONTROL_PAREN_KEYWORDS: Record<string, true> = {
+  catch: true,
+  for: true,
+  if: true,
+  switch: true,
+  while: true,
+  with: true,
+};
+
+/** End of a string literal, exclusive; an unterminated literal stops at its line end. */
+function stringEnd(source: string, from: number): number {
+  const quote = source[from];
+  for (let index = from + 1; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === quote) return index + 1;
+    if (char === "\n") return index;
+  }
+  return source.length;
+}
+
+/**
+ * End of a regex literal, exclusive, or -1 when the `/` cannot open one: a regex never
+ * spans a line, and a `/` immediately followed by another `/` opens a line comment.
+ */
+function regexEnd(source: string, from: number): number {
+  let inCharacterClass = false;
+  for (let index = from + 1; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "\n" || char === "\r") return -1;
+    if (char === "[") {
+      inCharacterClass = true;
+      continue;
+    }
+    if (char === "]") {
+      inCharacterClass = false;
+      continue;
+    }
+    if (char === "/" && !inCharacterClass) {
+      return source[index + 1] === "/" ? -1 : index + 1;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Blanks every comment character, preserving length and offsets so a match found
+ * against the mask sits at the same offset in the original source. The anchor literal
+ * is often only one edit away from a comment that still holds the previous one, and a
+ * match inside that comment would otherwise be rewritten while the executable site —
+ * the only one a browser ever evaluates — stayed unaddressed.
+ *
+ * String contents stay verbatim, because the effekseerWasmUrl anchor legitimately
+ * matches across a string literal, and a `//` or `/*` inside a string, a template
+ * literal or a regex literal is not a comment.
+ */
+function maskComments(source: string): string {
+  type Frame = { kind: "code"; braces: number } | { kind: "template" };
+  const pieces: string[] = [];
+  const frames: Frame[] = [{ kind: "code", braces: 0 }];
+
+  let cursor = 0;
+  let index = 0;
+  // The last significant code character and the identifier it closes, which together
+  // decide whether a `/` opens a regex literal or divides.
+  let lastChar = "";
+  let lastWord = "";
+  // `if (ready) /re/.test(text)` is a regex even though `)` usually produces a value:
+  // the flag records whether the `)` just consumed closed a control-flow condition.
+  const parenStack: boolean[] = [];
+  let lastControlParen = false;
+
+  while (index < source.length) {
+    const frame = frames[frames.length - 1];
+    const char = source[index];
+
+    if (frame.kind === "template") {
+      if (char === "\\") {
+        index += 2;
+      } else if (char === "`") {
+        frames.pop();
+        lastChar = char;
+        lastWord = "";
+        index += 1;
+      } else if (char === "$" && source[index + 1] === "{") {
+        frames.push({ kind: "code", braces: 1 });
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === "/" && source[index + 1] === "/") {
+      const found = source.indexOf("\n", index);
+      const end = found === -1 ? source.length : found;
+      pieces.push(source.slice(cursor, index), " ".repeat(end - index));
+      cursor = end;
+      index = end;
+      continue;
+    }
+    if (char === "/" && source[index + 1] === "*") {
+      const found = source.indexOf("*/", index + 2);
+      const end = found === -1 ? source.length : found + 2;
+      pieces.push(source.slice(cursor, index), " ".repeat(end - index));
+      cursor = end;
+      index = end;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      index = stringEnd(source, index);
+      lastChar = char;
+      lastWord = "";
+      continue;
+    }
+    if (char === "`") {
+      frames.push({ kind: "template" });
+      lastChar = char;
+      lastWord = "";
+      index += 1;
+      continue;
+    }
+    if (char === "/") {
+      const end = regexEnd(source, index);
+      // A `/` divides after something that already produced a value, and opens a regex
+      // everywhere else; the keyword list covers the ones that end in a letter.
+      const opensRegex =
+        lastChar === "" ||
+        lastControlParen ||
+        (/[A-Za-z0-9_$]/.test(lastChar)
+          ? REGEX_PREFIX_KEYWORDS[lastWord] === true
+          : !")]\"'`".includes(lastChar));
+      if (end !== -1 && opensRegex) {
+        // The body is masked like a comment: an anchor-shaped literal inside a regular
+        // expression is not a site a browser ever evaluates, and leaving it visible
+        // would let it absorb the rewrite. The literal produced a value, so a following
+        // `/` reads as division again.
+        pieces.push(source.slice(cursor, index), " ".repeat(end - index));
+        cursor = end;
+        index = end;
+        lastChar = ")";
+        lastWord = "";
+        lastControlParen = false;
+        continue;
+      }
+    }
+
+    if (char === "{") {
+      frame.braces += 1;
+    } else if (char === "}") {
+      frame.braces -= 1;
+      if (frame.braces === 0 && frames.length > 1) frames.pop();
+    } else if (char === "(") {
+      parenStack.push(CONTROL_PAREN_KEYWORDS[lastWord] === true);
+    } else if (char === ")") {
+      lastControlParen = parenStack.length > 0 ? (parenStack.pop() as boolean) : false;
+    }
+    if (!/\s/.test(char)) {
+      if (char !== ")") {
+        lastControlParen = false;
+      }
+      lastWord = /[A-Za-z0-9_$]/.test(char) ? lastWord + char : "";
+      lastChar = char;
+    }
+    index += 1;
+  }
+
+  pieces.push(source.slice(cursor));
+  return pieces.join("");
+}
+
+/**
+ * Blanks `<!-- ... -->` so a commented-out reference is neither counted nor rewritten.
+ * An unterminated open comment runs to the end of the document, as a browser reads it.
+ */
+function maskHtmlComments(source: string): string {
+  return source.replace(/<!--[\s\S]*?(?:-->|$)/g, (comment: string) => " ".repeat(comment.length));
+}
+
+/**
+ * Matches a document attribute that points at a shell-relative path. A bare value ends
+ * at whitespace or the tag close, so `src=js/main.js` is addressed rather than only
+ * hinted. Whitespace around `=` is valid HTML and is fetched, so it is matched too.
+ * Attribute names are matched case-insensitively because browsers fold them:
+ * `SRC=` is fetched, so it must be addressed too.
+ */
+const DOCUMENT_REFERENCE_PATTERN = /(src|href)\s*=\s*(["']?)((?:js|css|fonts|icon)\/[^"'\s<>]*)\2/gi;
 
 /** Lenient detector used only to prove the strict rewrite left nothing behind. */
-const DOCUMENT_REFERENCE_HINT = /(?:src|href)=["']?(?:js|css|fonts|icon)\//g;
+const DOCUMENT_REFERENCE_HINT = /(?:src|href)\s*=\s*["']?(?:js|css|fonts|icon)\//gi;
 
 /** Media literals must never carry the identifier: media keeps its moderate cache. */
 const ADDRESSED_MEDIA_PATTERN = /"(?:data|img|audio|effects|movies)\/[^"]*[?&]v=/;
@@ -144,68 +358,103 @@ function addressedReferencePattern(releaseId: string): RegExp {
   return new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=${releaseId}`, "g");
 }
 
-function replaceOnce(
-  sources: Map<string, string>,
-  rule: AnchorRule,
-  releaseId: string
-): void {
+function replaceOnce(sources: Map<string, string>, rule: AnchorRule): void {
   const source = sources.get(rule.file);
   if (source === undefined) {
     throw new Error(`Shell addressing: ${rule.file} is missing from the staged shell`);
   }
-  const matches = source.match(new RegExp(rule.pattern, "g"));
-  if (!matches || matches.length !== 1) {
+  const masked = maskComments(source);
+  const matches = [...masked.matchAll(new RegExp(rule.pattern.source, `${rule.pattern.flags}g`))];
+  if (matches.length !== 1) {
     throw new Error(
       `Shell addressing: expected exactly one ${rule.label} in ${rule.file}, found ${
-        matches?.length ?? 0
+        matches.length
       }. The upstream engine changed; update the addressing rules in src/lib/engine-addressing.ts.`
     );
   }
-  sources.set(rule.file, source.replace(rule.pattern, rule.replacement));
+  const start = matches[0].index as number;
+  const end = start + matches[0][0].length;
+  const region = source.slice(start, end);
+  // The mask only ever blanks comments, so a rule whose pattern spans whitespace can
+  // match the mask while the source holds a comment in that gap. Rewriting the source
+  // region would then no-op; naming it here keeps the failure honest.
+  if (masked.slice(start, end) !== region) {
+    throw new Error(
+      `Shell addressing: the ${rule.label} site in ${rule.file} is not plain code (a comment sits inside it); update the addressing rules in src/lib/engine-addressing.ts.`
+    );
+  }
+  // The rewrite is spliced into the original text at the offset the mask located, so a
+  // comment that still holds the previous literal can never absorb it.
+  const replacement = region.replace(rule.pattern, rule.replacement);
+  sources.set(rule.file, source.slice(0, start) + replacement + source.slice(end));
 }
 
 function addressDocument(source: string, releaseId: string): string {
-  const hinted = source.match(DOCUMENT_REFERENCE_HINT)?.length ?? 0;
-  let applied = 0;
-  const addressed = source.replace(
-    DOCUMENT_REFERENCE_PATTERN,
-    (match, attribute: string, quote: string, value: string) => {
-      applied += 1;
-      // A staged reference may carry a query or a fragment already. The identifier
-      // belongs inside the query, before the fragment: appended to the whole value it
-      // would be swallowed by the query or the fragment and the request would stay
-      // unaddressed, costing the immutable cache this addressing exists to give.
-      const fragmentIndex = value.indexOf("#");
-      const fragment = fragmentIndex === -1 ? "" : value.slice(fragmentIndex);
-      const unaddressed = fragmentIndex === -1 ? value : value.slice(0, fragmentIndex);
-      const separator = unaddressed.includes("?") ? "&" : "?";
-      return `${attribute}=${quote}${unaddressed}${separator}${ENGINE_RELEASE_PARAM}=${releaseId}${fragment}${quote}`;
-    }
-  );
+  const masked = maskHtmlComments(source);
+  const hinted = masked.match(DOCUMENT_REFERENCE_HINT)?.length ?? 0;
+  const matches = [...masked.matchAll(DOCUMENT_REFERENCE_PATTERN)];
+  const applied = matches.length;
   if (hinted === 0 || applied !== hinted) {
     throw new Error(
       `Shell addressing: index.html has ${hinted} shell-relative references but ${applied} were addressed. ` +
         "The upstream engine changed; update the addressing rules in src/lib/engine-addressing.ts."
     );
   }
-  return addressed;
+  let addressed = "";
+  let cursor = 0;
+  for (const match of matches) {
+    const start = match.index as number;
+    const [attribute, quote, value] = [match[1], match[2], match[3]];
+    // A staged reference may carry a query or a fragment already. The identifier
+    // belongs inside the query, before the fragment: appended to the whole value it
+    // would be swallowed by the query or the fragment and the request would stay
+    // unaddressed, costing the immutable cache this addressing exists to give.
+    const fragmentIndex = value.indexOf("#");
+    const fragment = fragmentIndex === -1 ? "" : value.slice(fragmentIndex);
+    const unaddressed = fragmentIndex === -1 ? value : value.slice(0, fragmentIndex);
+    const separator = unaddressed.includes("?") ? "&" : "?";
+    addressed +=
+      source.slice(cursor, start) +
+      `${attribute}=${quote}${unaddressed}${separator}${ENGINE_RELEASE_PARAM}=${releaseId}${fragment}${quote}`;
+    cursor = start + match[0].length;
+  }
+
+  const rewritten = addressed + source.slice(cursor);
+  // The count check above proves only that every reference the hint saw was rewritten;
+  // this proves none survived, whatever its attribute casing or value shape. Comments
+  // are masked again because a commented-out reference is legitimately unaddressed.
+  for (const match of maskHtmlComments(rewritten).matchAll(DOCUMENT_REFERENCE_PATTERN)) {
+    if (!addressedReferencePattern(releaseId).test(match[3])) {
+      throw new Error(
+        `Shell addressing: index.html kept an unaddressed shell reference (${match[0]}); update the addressing rules in src/lib/engine-addressing.ts.`
+      );
+    }
+  }
+  return rewritten;
 }
 
 function assertAddressed(sources: Map<string, string>, releaseId: string): void {
+  // One addressed reference per anchor rule, exactly: the document's own invariant is
+  // asserted where it is rewritten (every reference carries the identifier).
   const expectedPerFile = new Map<string, number>([
-    ["index.html", 1],
     ["js/main.js", 2],
     ["js/rmmz_managers.js", 2],
   ]);
-  for (const [file, expected] of expectedPerFile) {
+  for (const file of SHELL_ADDRESSED_SOURCES) {
     const source = sources.get(file) ?? "";
-    const found = source.match(addressedReferencePattern(releaseId))?.length ?? 0;
-    if (found < expected) {
-      throw new Error(
-        `Shell addressing: ${file} carries ${found} release-addressed references, expected at least ${expected}.`
-      );
+    // Comments are not code: an identifier-shaped literal in one is neither an
+    // addressed reference nor a media violation.
+    const code = maskComments(source);
+    const expected = expectedPerFile.get(file);
+    if (expected !== undefined) {
+      const found = code.match(addressedReferencePattern(releaseId))?.length ?? 0;
+      if (found !== expected) {
+        throw new Error(
+          `Shell addressing: ${file} carries ${found} release-addressed references, expected exactly ${expected}.`
+        );
+      }
     }
-    if (ADDRESSED_MEDIA_PATTERN.test(source)) {
+    if (ADDRESSED_MEDIA_PATTERN.test(code)) {
       throw new Error(
         `Shell addressing: ${file} addresses a media URL. Media keeps its moderate cache and must never be release-addressed.`
       );
@@ -230,14 +479,14 @@ export function addressShellReferences(
     if (source === undefined) {
       throw new Error(`Shell addressing: ${file} is missing from the staged shell`);
     }
-    if (new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=`).test(source)) {
+    if (new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=`).test(maskComments(source))) {
       throw new Error(`Shell addressing: ${file} is already addressed`);
     }
   }
 
   sources.set("index.html", addressDocument(sources.get("index.html") as string, releaseId));
   for (const rule of anchorRules(releaseId)) {
-    replaceOnce(sources, rule, releaseId);
+    replaceOnce(sources, rule);
   }
   assertAddressed(sources, releaseId);
 }

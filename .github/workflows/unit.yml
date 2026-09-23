@@ -38,7 +38,7 @@ jobs:
               - "package-lock.json"
               - "tsconfig*.json"
               - "next.config.ts"
-              - ".github/workflows/unit.yml"
+              - ".github/workflows/**"
 
   unit:
     name: typecheck and node unit suites
