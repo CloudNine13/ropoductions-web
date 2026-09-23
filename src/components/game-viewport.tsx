@@ -545,6 +545,12 @@ export function GameViewport({
   }, [inspectEngineDocument]);
 
   const handleRetryLoad = useCallback(() => {
+    if (bootFailure?.failureClass === "renderer_init_failed") {
+      // A lost graphics context can poison GPU state an iframe navigation keeps:
+      // reboot the document, never just the frame.
+      window.location.reload();
+      return;
+    }
     // One engine load at a time: a retry while a navigation is in flight is a no-op.
     if (loadInFlightRef.current) {
       return;
@@ -599,7 +605,7 @@ export function GameViewport({
       }
     }
     armWatchdog(BOOT_LOAD_TIMEOUT_MS);
-  }, [applyFailure, armWatchdog, engineSrc]);
+  }, [applyFailure, armWatchdog, bootFailure, engineSrc]);
 
   const handleExport = useCallback(async () => {
     if (onExport) {

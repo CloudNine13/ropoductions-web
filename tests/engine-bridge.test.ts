@@ -45,6 +45,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
   let postedMessages: Array<{ message: BridgeMessage; targetOrigin: string }>;
   let globalInfoLoaded: boolean;
   let eventListeners: Record<string, Array<(event: unknown) => void>>;
+  let documentListeners: Record<string, Array<(event: unknown) => void>>;
   let sandbox: Record<string, unknown>;
   let errorPrinterElement: { style: { display: string } };
 
@@ -53,6 +54,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     postedMessages = [];
     globalInfoLoaded = false;
     eventListeners = {};
+    documentListeners = {};
 
     const mockWindow: Record<string, unknown> = {
       location: {
@@ -128,6 +130,17 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
         },
       }),
       querySelectorAll: () => [],
+      addEventListener: (type: string, listener: (event: unknown) => void) => {
+        if (!documentListeners[type]) {
+          documentListeners[type] = [];
+        }
+        documentListeners[type].push(listener);
+      },
+      removeEventListener: (type: string, listener: (event: unknown) => void) => {
+        if (documentListeners[type]) {
+          documentListeners[type] = documentListeners[type].filter((l) => l !== listener);
+        }
+      },
     };
 
     sandbox = {
@@ -160,6 +173,13 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     const listeners = eventListeners[type] || [];
     for (const listener of listeners) {
       listener({ type, ...event });
+    }
+  }
+
+  function fireDocumentEvent(type: string, event: Record<string, unknown> = {}) {
+    const listeners = documentListeners[type] || [];
+    for (const listener of listeners) {
+      listener({ type, preventDefault: () => {}, ...event });
     }
   }
 
@@ -502,6 +522,55 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(postedMessages.length, 1);
     assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
     assert.equal(gotoTarget, SceneMapForTest);
+  });
+
+  it("reports a boot-window context loss as renderer_init_failed and asks the context to recover", () => {
+    loadPlugin();
+    let prevented = false;
+    fireDocumentEvent("webglcontextlost", {
+      preventDefault: () => {
+        prevented = true;
+      },
+    });
+
+    assert.equal(prevented, true, "the loss must allow restoration via preventDefault");
+    assert.equal(postedMessages.length, 1);
+    const report = postedMessages[0].message as BootReportMessage;
+    assert.equal(report.type, "ROPODUCTIONS_ENGINE_BOOT_FAILURE");
+    assert.equal(report.failureClass, "renderer_init_failed");
+  });
+
+  it("reports a boot-window context loss only once per boot", () => {
+    loadPlugin();
+    fireDocumentEvent("webglcontextlost");
+    fireDocumentEvent("webglcontextlost");
+
+    assert.equal(postedMessages.length, 1);
+    assert.equal(
+      (postedMessages[0].message as BootReportMessage).failureClass,
+      "renderer_init_failed"
+    );
+  });
+
+  it("never posts a context loss after the boot window closed", () => {
+    sandbox.SceneManager = {
+      checkBrowser: () => true,
+      goto: () => {},
+    };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    class SceneMapForTest {}
+    Object.defineProperty(SceneMapForTest, "name", { value: "Scene_Map" });
+    (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneMapForTest);
+    assert.equal(postedMessages[0].message.type, "ROPODUCTIONS_ENGINE_READY");
+
+    fireDocumentEvent("webglcontextlost");
+    assert.equal(
+      postedMessages.length,
+      1,
+      "a mid-game loss must never replace the live session"
+    );
   });
 
   it("single-source verification: generated engine mock stays byte-for-byte identical to its committed sources", () => {    const bridgeSource = path.resolve(process.cwd(), "src/engine-plugins/Ropoductions_WebBridge.js");

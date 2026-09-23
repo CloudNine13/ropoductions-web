@@ -625,6 +625,25 @@
   } catch (error) {
   }
 
+  function installContextLossHook() {
+    // A lost context leaves textures black with no load signal, so the loss
+    // itself is the report. Capture phase reaches canvases created after this
+    // runs, and no canvas is touched, so the hook allocates no probe context.
+    // Delivery stays inside the boot window through reportBootFailure.
+    try {
+      document.addEventListener("webglcontextlost", function (event) {
+        try {
+          if (event && typeof event.preventDefault === "function") {
+            event.preventDefault();
+          }
+        } catch (error) {
+        }
+        reportBootFailure("renderer_init_failed", "WebGL context was lost.", webglProbeDetail);
+      }, true);
+    } catch (error) {
+    }
+  }
+
   function finishBitmapFailure(bitmap, url, diagnostics) {
     // MZ's own failure contract is the loading state; the game-owned alert that
     // the shipped image guard attaches to it would block the host's own recovery
@@ -1336,6 +1355,7 @@
   installCapabilityHook(!sceneReadyInstalled);
   installPrintErrorHook();
   installResourceErrorHook();
+  installContextLossHook();
 
   if (!hasMzRuntime) {
     // The website-owned mock harness has no MZ runtime to gate on, so the document
