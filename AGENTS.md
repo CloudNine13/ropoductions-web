@@ -75,6 +75,7 @@ Ropoductions Web Portal and patron-gated RPG Maker MZ browser client (v1). Stack
 - Invalidating `ropoductions_session` therefore belongs to the Route Handler `GET /api/auth/session`: it expires the cookie (`Max-Age: 0; Path=/; HttpOnly; SameSite=Lax; Secure`) and answers `302` to an allowlisted `/?paywall=<revoked|lapsed|required>` target with `Cache-Control: no-store`. An unknown `paywall` value falls back to `required`.
 - A Server Component that finds an unusable session `redirect()`s to that bounce through `sessionClearHref(type)` (`src/lib/paywall.ts`) instead of clearing the cookie itself; `/play` is the current call site, and the pattern is the contract for every future invalidation (logout, renewal, admin sign-out).
 - A redirect that must KEEP the cookie — a retryable infrastructure failure, the missing age cookie — is a plain `/?paywall=<type>` / `/?auth_required=true` target (`mapSessionStatusToPlayRedirect`), never the clearing route.
+- **No tracking tooling (owner decision 2026-09-23).** No CI check derives story status from merge events, no verify-command discipline on retro action items, no tests or tools for sprint docs and specs. `sprint-status.yaml` is updated by hand; `epic-5-retro-item-12` and `epic-7-retro-item-28` are removed and must not be re-filed.
 
 ---
 

@@ -279,25 +279,10 @@ action_items:
     owner: "dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
-  - id: "epic-5-retro-item-12-wire-status-to-merge-events"
-    epic: 5
-    action: "CI check deriving story status from merge events (dorny/paths-filter
-      precedent) failing PRs whose sprint-status.yaml lags; every retro action item
-      carries a one-line verify command and flips to done only when it passes"
-    owner: "dev"
-    status: open
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-19.md"
   - id: "epic-7-retro-item-27-keep-the-two-phase-shell-publish-and-its"
     epic: 7
     action: "Keep the two-phase shell publish and its workflow-manifest test green
       on every pipeline change"
-    owner: "dev"
-    status: open
-    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
-  - id: "epic-7-retro-item-28-add-the-ci-check-deriving-story-status-f"
-    epic: 7
-    action: "Add the CI check deriving story status from merge events (carried from
-      epic-5-retro-item-12)"
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-22.md"
