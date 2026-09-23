@@ -460,7 +460,13 @@
   }
 
   function postEngineReady() {
-    if (bootReady) return;
+    if (
+      bootReady ||
+      reportedFailureKeys["renderer_init_failed"] ||
+      reportedFailureKeys["webgl_unavailable"]
+    ) {
+      return;
+    }
     bootReady = true;
     postToHost({ type: ENGINE_READY_MESSAGE_TYPE });
   }
@@ -563,7 +569,6 @@
           vendor = null;
         }
       }
-
       if (context && typeof context.getExtension === "function") {
         try {
           const loseContext = context.getExtension("WEBGL_lose_context");
@@ -572,6 +577,7 @@
           // Releasing is best effort: the probe already produced its answer.
         }
       }
+
 
       return {
         statusMessage: statusMessage,
@@ -605,12 +611,18 @@
     // A lost context during the boot window means the game cannot render.
     // Letting the loss be permanent surfaces the renderer_init_failed panel,
     // which gives the player a retry button backed by a full document reload.
-    // Calling event.preventDefault() would ask Firefox to restore the context
-    // without any webglcontextrestored handler to rebuild GPU textures, causing
-    // textures already uploaded to PIXI's cache to silently render as blank
-    // pixels — the "ghost game" failure seen on Firefox F5 reload.
+    // Calling stopImmediatePropagation() prevents PIXI's own canvas listener from
+    // calling event.preventDefault(), keeping the context loss permanent and clean.
+    // Without this, PIXI asks Firefox to restore the context without any
+    // webglcontextrestored handler in MZ to rebuild GPU textures, causing
+    // textures already uploaded to silently render as blank pixels — the "ghost game".
     try {
-      document.addEventListener("webglcontextlost", function () {
+      document.addEventListener("webglcontextlost", function (event) {
+        try {
+          if (event && typeof event.stopImmediatePropagation === "function") {
+            event.stopImmediatePropagation();
+          }
+        } catch (_) {}
         reportBootFailure("renderer_init_failed", "WebGL context was lost.", webglProbeDetail);
       }, true);
     } catch (error) {

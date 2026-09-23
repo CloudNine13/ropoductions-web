@@ -358,7 +358,12 @@ export function GameViewport({
     bootReadyRef.current = true;
     loadInFlightRef.current = false;
     clearWatchdog();
-    setBootFailure(null);
+    setBootFailure((current) =>
+      current?.failureClass === "renderer_init_failed" ||
+      current?.failureClass === "webgl_unavailable"
+        ? current
+        : null
+    );
     setLoadProgress(100);
     setIsEngineReady(true);
   }, [clearWatchdog]);
