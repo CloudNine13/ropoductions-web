@@ -337,6 +337,30 @@ describe("engine release addressing", () => {
       );
     });
 
+    it("addresses a document reference with whitespace around the equals sign", () => {
+      const sources = stagedSources();
+      sources.set("index.html", INDEX_HTML.replace('src="js/main.js"', 'src = "js/main.js"'));
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      assert.match(
+        sources.get("index.html") as string,
+        new RegExp(`src="js/main\\.js\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}"`)
+      );
+    });
+
+    it("ignores an identifier-shaped literal inside a comment when checking for double addressing", () => {
+      const sources = stagedSources();
+      sources.set("js/main.js", `// probed ?${ENGINE_RELEASE_PARAM}=${RELEASE_ID} before\n${MAIN_JS}`);
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      assert.match(
+        sources.get("js/main.js") as string,
+        new RegExp(`script\\.src = url \\+ "\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}";`)
+      );
+    });
+
     it("rejects a publish when a shell source is missing entirely", () => {
       const sources = stagedSources();
       sources.delete("js/rmmz_managers.js");

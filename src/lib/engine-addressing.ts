@@ -341,13 +341,14 @@ function maskHtmlComments(source: string): string {
 /**
  * Matches a document attribute that points at a shell-relative path. A bare value ends
  * at whitespace or the tag close, so `src=js/main.js` is addressed rather than only
- * hinted. Attribute names are matched case-insensitively because browsers fold them:
+ * hinted. Whitespace around `=` is valid HTML and is fetched, so it is matched too.
+ * Attribute names are matched case-insensitively because browsers fold them:
  * `SRC=` is fetched, so it must be addressed too.
  */
-const DOCUMENT_REFERENCE_PATTERN = /(src|href)=(["']?)((?:js|css|fonts|icon)\/[^"'\s<>]*)\2/gi;
+const DOCUMENT_REFERENCE_PATTERN = /(src|href)\s*=\s*(["']?)((?:js|css|fonts|icon)\/[^"'\s<>]*)\2/gi;
 
 /** Lenient detector used only to prove the strict rewrite left nothing behind. */
-const DOCUMENT_REFERENCE_HINT = /(?:src|href)=["']?(?:js|css|fonts|icon)\//gi;
+const DOCUMENT_REFERENCE_HINT = /(?:src|href)\s*=\s*["']?(?:js|css|fonts|icon)\//gi;
 
 /** Media literals must never carry the identifier: media keeps its moderate cache. */
 const ADDRESSED_MEDIA_PATTERN = /"(?:data|img|audio|effects|movies)\/[^"]*[?&]v=/;
@@ -441,16 +442,19 @@ function assertAddressed(sources: Map<string, string>, releaseId: string): void 
   ]);
   for (const file of SHELL_ADDRESSED_SOURCES) {
     const source = sources.get(file) ?? "";
+    // Comments are not code: an identifier-shaped literal in one is neither an
+    // addressed reference nor a media violation.
+    const code = maskComments(source);
     const expected = expectedPerFile.get(file);
     if (expected !== undefined) {
-      const found = source.match(addressedReferencePattern(releaseId))?.length ?? 0;
+      const found = code.match(addressedReferencePattern(releaseId))?.length ?? 0;
       if (found !== expected) {
         throw new Error(
           `Shell addressing: ${file} carries ${found} release-addressed references, expected exactly ${expected}.`
         );
       }
     }
-    if (ADDRESSED_MEDIA_PATTERN.test(source)) {
+    if (ADDRESSED_MEDIA_PATTERN.test(code)) {
       throw new Error(
         `Shell addressing: ${file} addresses a media URL. Media keeps its moderate cache and must never be release-addressed.`
       );
@@ -475,7 +479,7 @@ export function addressShellReferences(
     if (source === undefined) {
       throw new Error(`Shell addressing: ${file} is missing from the staged shell`);
     }
-    if (new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=`).test(source)) {
+    if (new RegExp(`[?&]${ENGINE_RELEASE_PARAM}=`).test(maskComments(source))) {
       throw new Error(`Shell addressing: ${file} is already addressed`);
     }
   }

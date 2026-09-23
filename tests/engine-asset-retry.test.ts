@@ -49,6 +49,7 @@ interface FakeXhr {
   removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
   abort?: () => void;
   fireTimeout?: () => void;
+  silentAbort?: boolean;
   requestHeaders?: Array<[string, string]>;
   mimeType?: string;
 }
@@ -178,8 +179,13 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
       }
 
       // Native semantics: abort and timeout each dispatch only their own event
-      // type, never an error one, and the response stays unavailable.
+      // type, never an error one, and the response stays unavailable. A finished
+      // attempt leaves nothing on the wire, so a silent abort models the real
+      // browser: abort() on a DONE request dispatches nothing at all.
+      silentAbort = false;
+
       abort() {
+        if (this.silentAbort) return;
         this.status = 0;
         this.dispatchTerminal("abort");
       }
@@ -877,8 +883,7 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
     assert.equal(failure?.raw, "engine handler exploded");
   });
 
-  it("contains a throwing engine handler replayed from the retry timer", () => {
-    setupEnvironment({ sceneManager: true });
+  it("contains a throwing engine handler replayed from the retry timer", () => {    setupEnvironment({ sceneManager: true });
     queueXhrOutcomes([
       { kind: "error", status: 0 },
       { kind: "response", status: 200 },
@@ -908,5 +913,153 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
     );
     assert.deepEqual(outcomes, ["throwing-handler", "listener"]);
     assert.deepEqual(xhrRequestUrls(), ["data/System.json"], "the retry was dropped, not re-issued");
+  });
+
+  it("settles an abort the native dispatch never delivers while a retry waits on backoff", () => {
+    queueXhrOutcomes([{ kind: "error", status: 0 }]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {
+      outcomes.push("load");
+    };
+    xhr.onerror = function () {
+      outcomes.push("error");
+    };
+    xhr.onabort = function () {
+      outcomes.push("abort");
+    };
+    xhr.send();
+    assert.equal(timers.length, 1, "the network failure scheduled a retry");
+
+    // The failed attempt is DONE: a real browser dispatches nothing for this abort.
+    xhr.silentAbort = true;
+    xhr.abort?.();
+
+    assert.deepEqual(outcomes, ["abort"], "the override settles what native never dispatches");
+    assert.equal(postedMessages.length, 0, "an engine-initiated abort is not a boot failure");
+
+    runTimers();
+
+    assert.deepEqual(xhrRequestUrls(), ["data/System.json"], "the cancelled request is not re-issued");
+    assert.deepEqual(outcomes, ["abort"], "the dropped retry adds nothing");
+  });
+
+  it("replays error to load/error-only callers when a timeout has no timeout handling", () => {
+    queueXhrOutcomes([{ kind: "error", status: 0 }]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/Actors.json");
+    xhr.timeout = 500;
+    xhr.onload = function () {
+      outcomes.push("load");
+    };
+    xhr.onerror = function () {
+      outcomes.push("error");
+    };
+    xhr.send();
+    assert.equal(timers.length, 1);
+
+    xhr.fireTimeout?.();
+
+    assert.deepEqual(
+      outcomes,
+      ["error"],
+      "a caller that never listened for timeout still learns the request died"
+    );
+    assert.equal(postedMessages.length, 1, "a timeout during boot reaches the host once");
+    assert.equal(postedMessages[0].message.diagnostics?.networkError, "request timed out");
+
+    runTimers();
+
+    assert.deepEqual(xhrRequestUrls(), ["data/Actors.json"], "a timed-out request is not re-issued");
+    assert.deepEqual(outcomes, ["error"], "the error is replayed exactly once");
+  });
+
+  it("restores the engine's handler properties when a request settles so XHR reuse is clean", () => {
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    const onLoad = function () {
+      outcomes.push("load");
+    };
+    xhr.open("GET", "data/System.json");
+    xhr.onload = onLoad;
+    xhr.send();
+    runTimers();
+
+    assert.deepEqual(outcomes, ["load"]);
+    assert.equal(
+      xhr.onload,
+      onLoad,
+      "settle hands the properties back instead of leaking retry closures"
+    );
+
+    queueXhrOutcomes([{ kind: "response", status: 200 }]);
+    xhr.open("GET", "data/Actors.json");
+    xhr.send();
+
+    assert.deepEqual(outcomes, ["load", "load"], "the reused XHR answers its own handlers once");
+    assert.deepEqual(xhrRequestUrls(), ["data/System.json", "data/System.json", "data/Actors.json"]);
+    assert.equal(postedMessages.length, 0);
+  });
+
+  it("reports a throwing tracked listener instead of swallowing it", () => {
+    queueXhrOutcomes([{ kind: "response", status: 200 }]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {
+      outcomes.push("handler");
+    };
+    xhr.addEventListener?.("load", () => {
+      outcomes.push("throwing-listener");
+      throw new Error("engine listener exploded");
+    });
+    xhr.addEventListener?.("load", () => {
+      outcomes.push("second-listener");
+    });
+
+    assert.doesNotThrow(() => xhr.send());
+
+    assert.deepEqual(outcomes, ["handler", "throwing-listener", "second-listener"]);
+    const failure = postedMessages
+      .map((entry) => entry.message as { type?: string; failureClass?: string; raw?: string })
+      .find((message) => message.raw === "engine listener exploded");
+    assert.equal(failure?.failureClass, "boot_request_failed");
+  });
+
+  it("replays completion notifications once no matter how many attempts ran", () => {
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const completions: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {};
+    (xhr as unknown as Record<string, unknown>).onloadend = () => {
+      completions.push("property");
+    };
+    xhr.addEventListener?.("loadend", () => {
+      completions.push("listener");
+    });
+    xhr.send();
+    runTimers();
+
+    assert.deepEqual(completions, ["property", "listener"]);
   });
 });

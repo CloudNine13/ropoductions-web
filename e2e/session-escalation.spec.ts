@@ -73,8 +73,14 @@ test.describe("session-rejected asset escalation (Epic 7)", () => {
 
     await reportFromEngineFrame(page, PLAIN_ASSET_FAILURE_REPORT);
     // Nothing-happened assertion: the escalation is the only reload this document may
-    // take, so give it the window it would have used before reading the counter.
-    await page.waitForTimeout(750);
+    // take, so hold the one-load reading for a full window — and fail fast the moment
+    // a reload lands instead of sleeping blindly and reading once.
+    const started = Date.now();
+    await expect
+      .poll(async () => ((await readDocumentLoads(page)) === 1 ? Date.now() - started : -1), {
+        timeout: 3000,
+      })
+      .toBeGreaterThan(1000);
 
     expect(await readDocumentLoads(page)).toBe(1);
   });
