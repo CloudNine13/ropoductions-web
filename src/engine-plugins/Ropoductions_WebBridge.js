@@ -589,12 +589,40 @@
       return;
     }
     Utils.canUseWebGL = function () {
+      if (webglProbeDetail && webglProbeDetail.probeSupported) {
+        return true;
+      }
       const detail = runWebglProbe();
       if (detail && (!webglProbeDetail || !detail.probeSupported)) {
         webglProbeDetail = detail;
       }
       return Boolean(detail && detail.probeSupported);
     };
+  }
+
+  function releaseWebglContexts(root) {
+    try {
+      const canvases = (root || document).querySelectorAll
+        ? (root || document).querySelectorAll("canvas")
+        : [];
+      for (let i = 0; i < canvases.length; i += 1) {
+        try {
+          const gl =
+            canvases[i].getContext("webgl") || canvases[i].getContext("webgl2");
+          const lose = gl && gl.getExtension ? gl.getExtension("WEBGL_lose_context") : null;
+          if (lose) lose.loseContext();
+        } catch (error) {
+        }
+      }
+    } catch (error) {
+    }
+  }
+
+  try {
+    window.addEventListener("pagehide", function () {
+      releaseWebglContexts(document);
+    });
+  } catch (error) {
   }
 
   function finishBitmapFailure(bitmap, url, diagnostics) {

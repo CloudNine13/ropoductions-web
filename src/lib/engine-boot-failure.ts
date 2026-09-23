@@ -233,6 +233,8 @@ export interface WebglProbeResult {
   vendor?: string;
 }
 
+let cachedProbeResult: WebglProbeResult | null = null;
+
 /**
  * Probes WebGL the way MZ's `Utils.canUseWebGL` does, but keeps the browser's own
  * `webglcontextcreationerror.statusMessage` and the renderer/vendor strings, and
@@ -243,6 +245,9 @@ export function runWebglProbe(
 ): WebglProbeResult {
   if (!doc || typeof doc.createElement !== "function") {
     return { supported: false, statusMessage: "no document available to probe WebGL" };
+  }
+  if (cachedProbeResult?.supported) {
+    return { ...cachedProbeResult };
   }
 
   const canvas = doc.createElement("canvas");
@@ -292,7 +297,9 @@ export function runWebglProbe(
     // Releasing is best effort: the probe already produced its answer.
   }
 
-  return { supported: true, statusMessage, renderer, vendor };
+  const result: WebglProbeResult = { supported: true, statusMessage, renderer, vendor };
+  cachedProbeResult = { ...result };
+  return result;
 }
 
 /** Turns a probe outcome into report diagnostics. */

@@ -493,6 +493,26 @@ export function GameViewport({
     };
   }, [clearWatchdog]);
 
+  useEffect(() => {
+    const releaseEngineContexts = () => {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        const canvases = doc ? doc.querySelectorAll("canvas") : [];
+        for (let i = 0; i < canvases.length; i += 1) {
+          try {
+            const gl =
+              canvases[i].getContext("webgl") || canvases[i].getContext("webgl2");
+            gl?.getExtension("WEBGL_lose_context")?.loseContext();
+          } catch {
+          }
+        }
+      } catch {
+      }
+    };
+    window.addEventListener("pagehide", releaseEngineContexts);
+    return () => window.removeEventListener("pagehide", releaseEngineContexts);
+  }, []);
+
   const handleIframeLoad = useCallback(() => {
     frameLoadedRef.current = true;
     loadInFlightRef.current = false;
