@@ -589,12 +589,59 @@
       return;
     }
     Utils.canUseWebGL = function () {
+      if (webglProbeDetail && webglProbeDetail.probeSupported) {
+        return true;
+      }
       const detail = runWebglProbe();
       if (detail && (!webglProbeDetail || !detail.probeSupported)) {
         webglProbeDetail = detail;
       }
       return Boolean(detail && detail.probeSupported);
     };
+  }
+
+  function releaseWebglContexts(root) {
+    try {
+      const canvases = (root || document).querySelectorAll
+        ? (root || document).querySelectorAll("canvas")
+        : [];
+      for (let i = 0; i < canvases.length; i += 1) {
+        try {
+          const gl =
+            canvases[i].getContext("webgl") || canvases[i].getContext("webgl2");
+          const lose = gl && gl.getExtension ? gl.getExtension("WEBGL_lose_context") : null;
+          if (lose) lose.loseContext();
+        } catch (error) {
+        }
+      }
+    } catch (error) {
+    }
+  }
+
+  try {
+    window.addEventListener("pagehide", function () {
+      releaseWebglContexts(document);
+    });
+  } catch (error) {
+  }
+
+  function installContextLossHook() {
+    // A lost context leaves textures black with no load signal, so the loss
+    // itself is the report. Capture phase reaches canvases created after this
+    // runs, and no canvas is touched, so the hook allocates no probe context.
+    // Delivery stays inside the boot window through reportBootFailure.
+    try {
+      document.addEventListener("webglcontextlost", function (event) {
+        try {
+          if (event && typeof event.preventDefault === "function") {
+            event.preventDefault();
+          }
+        } catch (error) {
+        }
+        reportBootFailure("renderer_init_failed", "WebGL context was lost.", webglProbeDetail);
+      }, true);
+    } catch (error) {
+    }
   }
 
   function finishBitmapFailure(bitmap, url, diagnostics) {
@@ -1308,6 +1355,7 @@
   installCapabilityHook(!sceneReadyInstalled);
   installPrintErrorHook();
   installResourceErrorHook();
+  installContextLossHook();
 
   if (!hasMzRuntime) {
     // The website-owned mock harness has no MZ runtime to gate on, so the document

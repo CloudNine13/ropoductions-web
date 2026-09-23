@@ -218,4 +218,18 @@ describe("game viewport and engine container contract", () => {
     assert.ok(src.includes("motion-reduce:animate-none"), "Loading pulse must stop under reduced-motion");
     assert.ok(src.includes("onError={handleIframeError}"), "Iframe must surface load errors");
   });
+
+  it("reboots the full document on renderer_init_failed retry instead of reloading only the frame", () => {
+    const src = readSource(gameViewportPath);
+    const branch = 'bootFailure?.failureClass === "renderer_init_failed"';
+
+    assert.ok(src.includes(branch), "Retry must branch on the renderer_init_failed class");
+    const branchAt = src.indexOf(branch);
+    const reloadAt = src.indexOf("window.location.reload()", branchAt);
+    const iframeReloadAt = src.indexOf("contentWindow?.location.reload()", branchAt);
+    assert.ok(
+      reloadAt !== -1 && (iframeReloadAt === -1 || reloadAt < iframeReloadAt),
+      "A context-loss retry must reboot the document before any iframe-only reload"
+    );
+  });
 });

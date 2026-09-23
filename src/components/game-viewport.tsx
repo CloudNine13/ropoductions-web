@@ -493,6 +493,26 @@ export function GameViewport({
     };
   }, [clearWatchdog]);
 
+  useEffect(() => {
+    const releaseEngineContexts = () => {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        const canvases = doc ? doc.querySelectorAll("canvas") : [];
+        for (let i = 0; i < canvases.length; i += 1) {
+          try {
+            const gl =
+              canvases[i].getContext("webgl") || canvases[i].getContext("webgl2");
+            gl?.getExtension("WEBGL_lose_context")?.loseContext();
+          } catch {
+          }
+        }
+      } catch {
+      }
+    };
+    window.addEventListener("pagehide", releaseEngineContexts);
+    return () => window.removeEventListener("pagehide", releaseEngineContexts);
+  }, []);
+
   const handleIframeLoad = useCallback(() => {
     frameLoadedRef.current = true;
     loadInFlightRef.current = false;
@@ -525,6 +545,12 @@ export function GameViewport({
   }, [inspectEngineDocument]);
 
   const handleRetryLoad = useCallback(() => {
+    if (bootFailure?.failureClass === "renderer_init_failed") {
+      // A lost graphics context can poison GPU state an iframe navigation keeps:
+      // reboot the document, never just the frame.
+      window.location.reload();
+      return;
+    }
     // One engine load at a time: a retry while a navigation is in flight is a no-op.
     if (loadInFlightRef.current) {
       return;
@@ -579,7 +605,7 @@ export function GameViewport({
       }
     }
     armWatchdog(BOOT_LOAD_TIMEOUT_MS);
-  }, [applyFailure, armWatchdog, engineSrc]);
+  }, [applyFailure, armWatchdog, bootFailure, engineSrc]);
 
   const handleExport = useCallback(async () => {
     if (onExport) {

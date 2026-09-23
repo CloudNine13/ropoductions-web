@@ -145,6 +145,21 @@ async function handleEngineRequest(
   isHead: boolean
 ): Promise<Response> {
   const { path } = await paramsPromise;
+  if (path?.length === 1) {
+    try {
+      if (decodeURIComponent(path[0]).toLowerCase() === "cordova.js") {
+        return new Response(isHead ? null : "/* cordova is not part of the web shell */\n", {
+          status: 200,
+          headers: {
+            "Cache-Control": "private, max-age=86400",
+            "Content-Type": "text/javascript",
+            "Cross-Origin-Resource-Policy": CORP,
+          },
+        });
+      }
+    } catch {
+    }
+  }
   const pathResult = sanitizeAssetPath(path, SHELL_TOP_LEVEL);
   if (pathResult.error || !pathResult.key) {
     return NextResponse.json(
