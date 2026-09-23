@@ -142,8 +142,8 @@ _bmad-output/party-mode/memories/
 .stylelintcache
 .turbo
 .agents
-.github
-!.github/workflows/*
+.github/*
+!.github/workflows/
 .opencode
 .pi
 .agent
