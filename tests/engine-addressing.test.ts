@@ -193,6 +193,150 @@ describe("engine release addressing", () => {
       );
     });
 
+    it("rejects a shell whose executable URL site moved while a comment keeps the old literal", () => {
+      const sources = stagedSources();
+      sources.set(
+        "js/main.js",
+        MAIN_JS.replace(
+          "script.src = url;",
+          "// script.src = url;\n            script.src = this.resolve(url);"
+        )
+      );
+
+      assert.throws(
+        () => addressShellReferences(sources, RELEASE_ID),
+        /Main\.loadMainScripts script source/
+      );
+    });
+
+    it("rewrites the executable anchor and leaves an identical literal inside a comment untouched", () => {
+      const sources = stagedSources();
+      sources.set("js/main.js", `// script.src = url;\n${MAIN_JS}`);
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      const main = sources.get("js/main.js") as string;
+      assert.ok(main.startsWith("// script.src = url;\n"));
+      assert.match(
+        main,
+        new RegExp(`script\\.src = url \\+ "\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}";`)
+      );
+      assert.equal(main.includes(`// script.src = url + "?`), false);
+    });
+
+    it("rejects a document whose only shell-relative reference is commented out", () => {
+      const sources = stagedSources();
+      sources.set(
+        "index.html",
+        `<!DOCTYPE html>
+<html>
+    <body>
+        <!-- <script type="text/javascript" src="js/main.js"></script> -->
+    </body>
+</html>
+`
+      );
+
+      assert.throws(
+        () => addressShellReferences(sources, RELEASE_ID),
+        /0 shell-relative references/
+      );
+    });
+
+    it("addresses the live document reference and leaves a commented duplicate untouched", () => {
+      const sources = stagedSources();
+      sources.set(
+        "index.html",
+        INDEX_HTML.replace(
+          '<script type="text/javascript" src="js/main.js"></script>',
+          '<!-- <script type="text/javascript" src="js/main.js"></script> -->\n        <script type="text/javascript" src="js/main.js"></script>'
+        )
+      );
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      const document = sources.get("index.html") as string;
+      assert.ok(
+        document.includes(
+          '<!-- <script type="text/javascript" src="js/main.js"></script> -->'
+        )
+      );
+      assert.match(
+        document,
+        new RegExp(`src="js/main\\.js\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}"`)
+      );
+    });
+
+    it("addresses an unquoted document reference the strict and lenient scans both see", () => {
+      const sources = stagedSources();
+      sources.set("index.html", INDEX_HTML.replace('src="js/main.js"', "src=js/main.js"));
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      assert.match(
+        sources.get("index.html") as string,
+        new RegExp(`src=js/main\\.js\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}`)
+      );
+    });
+
+    it("rejects a shell whose executable URL site survives only inside a regular expression", () => {
+      const sources = stagedSources();
+      sources.set(
+        "js/main.js",
+        MAIN_JS.replace(
+          "script.src = url;",
+          "const anchorPattern = /script.src = url;/;\n            script.src = this.resolve(url);"
+        )
+      );
+
+      assert.throws(
+        () => addressShellReferences(sources, RELEASE_ID),
+        /Main\.loadMainScripts script source/
+      );
+    });
+
+    it("leaves a regular expression holding the anchor literal untouched", () => {
+      const sources = stagedSources();
+      sources.set("js/main.js", `const anchorPattern = /script.src = url;/;\n${MAIN_JS}`);
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      const main = sources.get("js/main.js") as string;
+      assert.ok(main.startsWith("const anchorPattern = /script.src = url;/;\n"));
+      assert.match(
+        main,
+        new RegExp(`script\\.src = url \\+ "\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}";`)
+      );
+    });
+
+    it("rejects a shell whose anchor literal only survives inside a regex after a control-flow condition", () => {
+      const sources = stagedSources();
+      sources.set(
+        "js/main.js",
+        MAIN_JS.replace(
+          "script.src = url;",
+          "if (ready) /script.src = url;/.test(source);\n            script.src = this.resolve(url);"
+        )
+      );
+
+      assert.throws(
+        () => addressShellReferences(sources, RELEASE_ID),
+        /Main\.loadMainScripts script source/
+      );
+    });
+
+    it("addresses a shell reference whose attribute name is upper case", () => {
+      const sources = stagedSources();
+      sources.set("index.html", INDEX_HTML.replace('src="js/main.js"', 'SRC="js/main.js"'));
+
+      addressShellReferences(sources, RELEASE_ID);
+
+      assert.match(
+        sources.get("index.html") as string,
+        new RegExp(`SRC="js/main\\.js\\?${ENGINE_RELEASE_PARAM}=${RELEASE_ID}"`)
+      );
+    });
+
     it("rejects a publish when a shell source is missing entirely", () => {
       const sources = stagedSources();
       sources.delete("js/rmmz_managers.js");
