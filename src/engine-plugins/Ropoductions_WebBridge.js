@@ -600,49 +600,23 @@
     };
   }
 
-  function releaseWebglContexts(root) {
-    try {
-      const canvases = (root || document).querySelectorAll
-        ? (root || document).querySelectorAll("canvas")
-        : [];
-      for (let i = 0; i < canvases.length; i += 1) {
-        try {
-          const gl =
-            canvases[i].getContext("webgl") || canvases[i].getContext("webgl2");
-          const lose = gl && gl.getExtension ? gl.getExtension("WEBGL_lose_context") : null;
-          if (lose) lose.loseContext();
-        } catch (error) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-
-  try {
-    window.addEventListener("pagehide", function () {
-      releaseWebglContexts(document);
-    });
-  } catch (error) {
-  }
 
   function installContextLossHook() {
-    // A lost context leaves textures black with no load signal, so the loss
-    // itself is the report. Capture phase reaches canvases created after this
-    // runs, and no canvas is touched, so the hook allocates no probe context.
-    // Delivery stays inside the boot window through reportBootFailure.
+    // A lost context during the boot window means the game cannot render.
+    // Letting the loss be permanent surfaces the renderer_init_failed panel,
+    // which gives the player a retry button backed by a full document reload.
+    // Calling event.preventDefault() would ask Firefox to restore the context
+    // without any webglcontextrestored handler to rebuild GPU textures, causing
+    // textures already uploaded to PIXI's cache to silently render as blank
+    // pixels — the "ghost game" failure seen on Firefox F5 reload.
     try {
-      document.addEventListener("webglcontextlost", function (event) {
-        try {
-          if (event && typeof event.preventDefault === "function") {
-            event.preventDefault();
-          }
-        } catch (error) {
-        }
+      document.addEventListener("webglcontextlost", function () {
         reportBootFailure("renderer_init_failed", "WebGL context was lost.", webglProbeDetail);
       }, true);
     } catch (error) {
     }
   }
+
 
   function finishBitmapFailure(bitmap, url, diagnostics) {
     // MZ's own failure contract is the loading state; the game-owned alert that

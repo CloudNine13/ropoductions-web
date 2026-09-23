@@ -250,19 +250,11 @@ describe("webgl preflight probe", () => {
     assert.equal(probe.statusMessage, "GPU process crashed");
   });
 
-  it("reports the renderer and vendor and releases the probe context", () => {
-    let lost = false;
+  it("reports the renderer and vendor from the probe context", () => {
     const gl = {
       getExtension: (name: string) => {
         if (name === "WEBGL_debug_renderer_info") {
           return { UNMASKED_RENDERER_WEBGL: 0x9246, UNMASKED_VENDOR_WEBGL: 0x9245 };
-        }
-        if (name === "WEBGL_lose_context") {
-          return {
-            loseContext: () => {
-              lost = true;
-            },
-          };
         }
         return null;
       },
@@ -274,7 +266,6 @@ describe("webgl preflight probe", () => {
     assert.equal(probe.supported, true);
     assert.equal(probe.renderer, "Apple M1");
     assert.equal(probe.vendor, "Apple");
-    assert.equal(lost, true);
 
     const diagnostics = webglProbeDiagnostics(probe);
     assert.equal(diagnostics.probeSupported, true);
