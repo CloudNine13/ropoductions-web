@@ -527,17 +527,41 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
   it("reports a boot-window context loss as renderer_init_failed and lets the loss be permanent", () => {
     loadPlugin();
     let prevented = false;
+    let stopped = false;
     fireDocumentEvent("webglcontextlost", {
       preventDefault: () => {
         prevented = true;
       },
+      stopImmediatePropagation: () => {
+        stopped = true;
+      },
     });
 
+    assert.equal(stopped, true, "the loss must stop propagation to prevent PixiJS from requesting context restoration");
     assert.equal(prevented, false, "the loss must not request restoration — no webglcontextrestored handler exists to rebuild GPU textures");
     assert.equal(postedMessages.length, 1);
     const report = postedMessages[0].message as BootReportMessage;
     assert.equal(report.type, "ROPODUCTIONS_ENGINE_BOOT_FAILURE");
     assert.equal(report.failureClass, "renderer_init_failed");
+  });
+
+  it("does not post engine readiness if a fatal renderer_init_failed was already reported", () => {
+    sandbox.SceneManager = {
+      checkBrowser: () => true,
+      goto: () => {},
+    };
+    sandbox.Graphics = { printError: () => {} };
+    loadPlugin();
+
+    fireDocumentEvent("webglcontextlost");
+    assert.equal(postedMessages.length, 1);
+    assert.equal((postedMessages[0].message as BootReportMessage).failureClass, "renderer_init_failed");
+
+    class SceneMapForTest {}
+    Object.defineProperty(SceneMapForTest, "name", { value: "Scene_Map" });
+    (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneMapForTest);
+
+    assert.equal(postedMessages.length, 1, "ENGINE_READY must not be posted after fatal renderer_init_failed");
   });
 
   it("reports a boot-window context loss only once per boot", () => {
