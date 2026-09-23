@@ -34,6 +34,8 @@ interface BitmapInstance {
 interface FakeXhr {
   onload: ((event: unknown) => void) | null;
   onerror: ((event: unknown) => void) | null;
+  onabort: ((event: unknown) => void) | null;
+  ontimeout: ((event: unknown) => void) | null;
   onreadystatechange: ((event: unknown) => void) | null;
   status: number;
   responseType: string;
@@ -45,6 +47,8 @@ interface FakeXhr {
   overrideMimeType?: (mime: string) => void;
   addEventListener?: (type: string, listener: (event: unknown) => void) => void;
   removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
+  abort?: () => void;
+  fireTimeout?: () => void;
   requestHeaders?: Array<[string, string]>;
   mimeType?: string;
 }
@@ -132,6 +136,8 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
     class XmlHttpRequest {
       onload: ((event: unknown) => void) | null = null;
       onerror: ((event: unknown) => void) | null = null;
+      onabort: ((event: unknown) => void) | null = null;
+      ontimeout: ((event: unknown) => void) | null = null;
       onreadystatechange: ((event: unknown) => void) | null = null;
       status = 0;
       responseType = "";
@@ -169,6 +175,24 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
 
       removeEventListener(type: string, listener: (event: unknown) => void) {
         this.listeners[type] = (this.listeners[type] ?? []).filter((entry) => entry !== listener);
+      }
+
+      // Native semantics: abort and timeout each dispatch only their own event
+      // type, never an error one, and the response stays unavailable.
+      abort() {
+        this.status = 0;
+        this.dispatchTerminal("abort");
+      }
+
+      fireTimeout() {
+        this.status = 0;
+        this.dispatchTerminal("timeout");
+      }
+
+      dispatchTerminal(type: "abort" | "timeout") {
+        const property = type === "abort" ? this.onabort : this.ontimeout;
+        if (typeof property === "function") property({ type });
+        for (const listener of this.listeners[type] ?? []) listener({ type });
       }
 
       send() {
@@ -721,5 +745,168 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
     );
     assert.deepEqual(failureReports, [], "the closed boot window suppresses the asset report");
     assert.equal(postedMessages.length, 1, "readiness stays the only message the host received");
+  });
+
+  it("drops a pending retry and replays the abort when the engine aborts the request", () => {
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {
+      outcomes.push("load");
+    };
+    xhr.onerror = function () {
+      outcomes.push("error");
+    };
+    xhr.onabort = function () {
+      outcomes.push("abort");
+    };
+    xhr.addEventListener?.("abort", () => {
+      outcomes.push("abort-listener");
+    });
+    xhr.send();
+    assert.equal(timers.length, 1, "the network failure scheduled a retry");
+
+    xhr.abort?.();
+
+    assert.deepEqual(
+      outcomes,
+      ["abort", "abort-listener"],
+      "the engine's own abort handling runs once and no other outcome is replayed"
+    );
+    assert.equal(postedMessages.length, 0, "an engine-initiated abort is not a boot failure");
+
+    runTimers();
+
+    assert.deepEqual(
+      xhrRequestUrls(),
+      ["data/System.json"],
+      "the cancelled request is not re-issued after the abort"
+    );
+    assert.deepEqual(outcomes, ["abort", "abort-listener"], "the dropped retry adds nothing");
+  });
+
+  it("replays a timeout to the engine, drops the pending retry and reports it once", () => {
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/Actors.json");
+    xhr.timeout = 500;
+    xhr.onload = function () {
+      outcomes.push("load");
+    };
+    xhr.onerror = function () {
+      outcomes.push("error");
+    };
+    xhr.ontimeout = function () {
+      outcomes.push("timeout");
+    };
+    xhr.addEventListener?.("timeout", () => {
+      outcomes.push("timeout-listener");
+    });
+    xhr.send();
+    assert.equal(timers.length, 1, "the network failure scheduled a retry");
+
+    xhr.fireTimeout?.();
+
+    assert.deepEqual(
+      outcomes,
+      ["timeout", "timeout-listener"],
+      "a timed-out request reaches the engine's timeout handling instead of silence"
+    );
+
+    runTimers();
+
+    assert.deepEqual(
+      xhrRequestUrls(),
+      ["data/Actors.json"],
+      "a timed-out request is not re-issued"
+    );
+    assert.equal(postedMessages.length, 1, "a timeout during boot reaches the host once");
+    const report = postedMessages[0].message;
+    assert.equal(report.failureClass, "asset_load_failed");
+    assert.equal(report.diagnostics?.url, `${ORIGIN}/engine/data/Actors.json`);
+    assert.equal(report.diagnostics?.networkError, "request timed out");
+    assert.equal(report.diagnostics?.retries, 1, "the dropped retry still consumed the URL budget");
+  });
+
+  it("contains a throwing engine handler so the remaining listeners still run", () => {
+    queueXhrOutcomes([{ kind: "response", status: 200 }]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onload = function () {
+      outcomes.push("throwing-handler");
+      throw new Error("engine handler exploded");
+    };
+    xhr.addEventListener?.("load", () => {
+      outcomes.push("listener");
+    });
+
+    assert.doesNotThrow(
+      () => xhr.send(),
+      "a throwing engine handler must not escape into the native dispatch"
+    );
+
+    assert.deepEqual(
+      outcomes,
+      ["throwing-handler", "listener"],
+      "one handler must not silence the rest"
+    );
+
+    const failure = postedMessages
+      .map((entry) => entry.message as { type?: string; failureClass?: string; raw?: string })
+      .find((message) => message.type === "ROPODUCTIONS_ENGINE_BOOT_FAILURE");
+    assert.equal(
+      failure?.failureClass,
+      "boot_request_failed",
+      "a contained engine handler throw is still reported to the host"
+    );
+    assert.equal(failure?.raw, "engine handler exploded");
+  });
+
+  it("contains a throwing engine handler replayed from the retry timer", () => {
+    setupEnvironment({ sceneManager: true });
+    queueXhrOutcomes([
+      { kind: "error", status: 0 },
+      { kind: "response", status: 200 },
+    ]);
+    loadPlugin();
+
+    const xhr = makeXhr();
+    const outcomes: string[] = [];
+    xhr.open("GET", "data/System.json");
+    xhr.onerror = function () {
+      outcomes.push("throwing-handler");
+      throw new Error("engine handler exploded");
+    };
+    xhr.addEventListener?.("error", () => {
+      outcomes.push("listener");
+    });
+    xhr.send();
+    assert.equal(timers.length, 1);
+
+    const sceneManager = sandbox.SceneManager as { goto: (scene: unknown) => void };
+    sceneManager.goto({ name: "Scene_Boot" });
+    sceneManager.goto({ name: "Scene_Title" });
+
+    assert.doesNotThrow(
+      () => runTimers(),
+      "a throwing engine handler must not escape the scheduled retry callback"
+    );
+    assert.deepEqual(outcomes, ["throwing-handler", "listener"]);
+    assert.deepEqual(xhrRequestUrls(), ["data/System.json"], "the retry was dropped, not re-issued");
   });
 });
