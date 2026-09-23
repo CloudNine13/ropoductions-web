@@ -9,6 +9,8 @@ import { resolveAdminAccess } from "@/lib/admin";
 import { AGE_VERIFIED_COOKIE_NAME, SESSION_COOKIE_NAME, unquoteCookieValue } from "@/lib/cookies";
 import { validateSessionAccess } from "@/lib/auth";
 import { mapSessionStatusToPaywall, sessionClearHref } from "@/lib/paywall";
+// [CLEANUP_TAG: CF_DIAGNOSTIC]
+import { logCloudflareDiagnostic } from "@/lib/cloudflare-diagnostic";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +20,14 @@ export default async function PlayPage() {
   const sessionCookie = unquoteCookieValue(cookieStore.get(SESSION_COOKIE_NAME)?.value);
 
   if (ageCookie !== "true") {
+    // [CLEANUP_TAG: CF_DIAGNOSTIC]
+    logCloudflareDiagnostic("play_page_age_unverified", { hasAgeCookie: false }, "warn");
     redirect("/?auth_required=true");
   }
 
   if (!sessionCookie) {
+    // [CLEANUP_TAG: CF_DIAGNOSTIC]
+    logCloudflareDiagnostic("play_page_no_session", { hasSessionCookie: false }, "warn");
     redirect(sessionClearHref("required"));
   }
 
@@ -48,12 +54,19 @@ export default async function PlayPage() {
   }
 
   if (result.status !== "authorized") {
+    // [CLEANUP_TAG: CF_DIAGNOSTIC]
+    logCloudflareDiagnostic("play_page_session_rejected", { status: result.status }, "warn");
     redirect(sessionClearHref(mapSessionStatusToPaywall(result.status) ?? "required"));
   }
 
   const { session } = result;
   const isAdminSession = (await resolveAdminAccess()) === "admin";
   const t = await getTranslations("game");
+  // [CLEANUP_TAG: CF_DIAGNOSTIC]
+  logCloudflareDiagnostic("play_page_authorized", {
+    isAdminSession,
+    tierName: session.tier_name,
+  });
 
   return (
     <div className="w-full h-[100dvh] flex flex-col bg-[#090A0F] text-foreground overflow-hidden">

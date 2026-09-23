@@ -460,19 +460,40 @@
   }
 
   function postEngineReady() {
+    if (bootReady) {
+      return;
+    }
     if (
-      bootReady ||
       reportedFailureKeys["renderer_init_failed"] ||
       reportedFailureKeys["webgl_unavailable"]
     ) {
+      // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
+      try {
+        console.warn(
+          "[Ropoductions_WebBridge] Engine ready suppressed after fatal boot failure."
+        );
+      } catch (_) {}
       return;
     }
     bootReady = true;
+    // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
+    try {
+      console.info("[Ropoductions_WebBridge] Engine ready.");
+    } catch (_) {}
     postToHost({ type: ENGINE_READY_MESSAGE_TYPE });
   }
 
   function reportBootFailure(failureClass, raw, diagnostics) {
-    if (bootReady) return;
+    if (bootReady) {
+      // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
+      try {
+        console.warn(
+          "[Ropoductions_WebBridge] Boot failure dropped after readiness:",
+          failureClass
+        );
+      } catch (_) {}
+      return;
+    }
 
     const merged = {};
     if (diagnostics) {
@@ -505,7 +526,16 @@
         ? "retries:" + merged.retries
         : "";
     const previous = reportedFailureKeys[key];
-    if (previous && (!carriesRetryOutcome || previous === outcomeSignature)) return;
+    if (previous && (!carriesRetryOutcome || previous === outcomeSignature)) {
+      // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
+      try {
+        console.warn(
+          "[Ropoductions_WebBridge] Duplicate boot failure dropped:",
+          failureClass
+        );
+      } catch (_) {}
+      return;
+    }
     reportedFailureKeys[key] = carriesRetryOutcome ? outcomeSignature : "reported";
 
     const payload = { type: BOOT_FAILURE_MESSAGE_TYPE, failureClass: failureClass };
@@ -522,6 +552,15 @@
 
     postToHost(payload);
     hideErrorPrinter();
+    // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
+    try {
+      console.error(
+        "[Ropoductions_WebBridge] Boot failure:",
+        failureClass,
+        typeof raw === "string" ? raw : "",
+        merged.url || ""
+      );
+    } catch (_) {}
   }
 
   /**
@@ -618,10 +657,21 @@
     // textures already uploaded to silently render as blank pixels — the "ghost game".
     try {
       document.addEventListener("webglcontextlost", function (event) {
+        let stopped = false;
         try {
           if (event && typeof event.stopImmediatePropagation === "function") {
             event.stopImmediatePropagation();
+            stopped = true;
           }
+        } catch (_) {}
+        // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
+        try {
+          console.error(
+            "[Ropoductions_WebBridge] WebGL context lost; propagation stopped:",
+            stopped,
+            "bootReady:",
+            bootReady
+          );
         } catch (_) {}
         reportBootFailure("renderer_init_failed", "WebGL context was lost.", webglProbeDetail);
       }, true);

@@ -153,6 +153,8 @@ export function GameViewport({
       return;
     }
     sessionEscalatedRef.current = true;
+    // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
+    console.warn("[GameViewport] Session rejected; escalating to revalidation.");
     window.location.reload();
   }, []);
 
@@ -161,10 +163,22 @@ export function GameViewport({
       // A failure reported after readiness belongs to a running game, not to its
       // boot: the recovery surface never replaces a live session.
       if (bootReadyRef.current) {
+        // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
+        console.warn(
+          "[GameViewport] Boot failure dropped after readiness:",
+          failure.failureClass
+        );
         return;
       }
       clearWatchdog();
       loadInFlightRef.current = false;
+      // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
+      console.error(
+        "[GameViewport] Boot failure:",
+        failure.failureClass,
+        failure.raw ?? "",
+        failure.diagnostics?.url ?? ""
+      );
       setBootFailure({
         type: ENGINE_BOOT_FAILURE_MESSAGE_TYPE,
         failureClass: failure.failureClass,
@@ -358,12 +372,21 @@ export function GameViewport({
     bootReadyRef.current = true;
     loadInFlightRef.current = false;
     clearWatchdog();
-    setBootFailure((current) =>
-      current?.failureClass === "renderer_init_failed" ||
-      current?.failureClass === "webgl_unavailable"
-        ? current
-        : null
-    );
+    // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
+    console.info("[GameViewport] Engine ready.");
+    setBootFailure((current) => {
+      if (
+        current?.failureClass === "renderer_init_failed" ||
+        current?.failureClass === "webgl_unavailable"
+      ) {
+        // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
+        console.warn(
+          "[GameViewport] Engine ready; preserving fatal failure:",
+          current.failureClass
+        );
+      }
+      return null;
+    });
     setLoadProgress(100);
     setIsEngineReady(true);
   }, [clearWatchdog]);
