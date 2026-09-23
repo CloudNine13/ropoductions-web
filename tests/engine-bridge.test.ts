@@ -524,7 +524,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(gotoTarget, SceneMapForTest);
   });
 
-  it("reports a boot-window context loss as renderer_init_failed and asks the context to recover", () => {
+  it("reports a boot-window context loss as renderer_init_failed and lets the loss be permanent", () => {
     loadPlugin();
     let prevented = false;
     fireDocumentEvent("webglcontextlost", {
@@ -533,7 +533,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
       },
     });
 
-    assert.equal(prevented, true, "the loss must allow restoration via preventDefault");
+    assert.equal(prevented, false, "the loss must not request restoration — no webglcontextrestored handler exists to rebuild GPU textures");
     assert.equal(postedMessages.length, 1);
     const report = postedMessages[0].message as BootReportMessage;
     assert.equal(report.type, "ROPODUCTIONS_ENGINE_BOOT_FAILURE");

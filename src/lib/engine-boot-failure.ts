@@ -291,12 +291,6 @@ export function runWebglProbe(
     vendor = undefined;
   }
 
-  try {
-    context.getExtension("WEBGL_lose_context")?.loseContext();
-  } catch {
-    // Releasing is best effort: the probe already produced its answer.
-  }
-
   const result: WebglProbeResult = { supported: true, statusMessage, renderer, vendor };
   cachedProbeResult = { ...result };
   return result;
