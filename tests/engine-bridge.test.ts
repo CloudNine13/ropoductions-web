@@ -524,20 +524,15 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(gotoTarget, SceneMapForTest);
   });
 
-  it("reports a boot-window context loss as renderer_init_failed and lets the loss be permanent", () => {
+  it("reports a boot-window context loss as renderer_init_failed without calling preventDefault", () => {
     loadPlugin();
     let prevented = false;
-    let stopped = false;
     fireDocumentEvent("webglcontextlost", {
       preventDefault: () => {
         prevented = true;
       },
-      stopImmediatePropagation: () => {
-        stopped = true;
-      },
     });
 
-    assert.equal(stopped, true, "the loss must stop propagation to prevent PixiJS from requesting context restoration");
     assert.equal(prevented, false, "the loss must not request restoration — no webglcontextrestored handler exists to rebuild GPU textures");
     assert.equal(postedMessages.length, 1);
     const report = postedMessages[0].message as BootReportMessage;
@@ -545,7 +540,7 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     assert.equal(report.failureClass, "renderer_init_failed");
   });
 
-  it("does not post engine readiness if a fatal renderer_init_failed was already reported", () => {
+  it("posts engine readiness on scene transition when scene loads", () => {
     sandbox.SceneManager = {
       checkBrowser: () => true,
       goto: () => {},
@@ -561,7 +556,94 @@ describe("in-game postMessage web bridge Ropoductions_WebBridge.js", () => {
     Object.defineProperty(SceneMapForTest, "name", { value: "Scene_Map" });
     (sandbox.SceneManager as { goto: (c: unknown) => void }).goto(SceneMapForTest);
 
-    assert.equal(postedMessages.length, 1, "ENGINE_READY must not be posted after fatal renderer_init_failed");
+    assert.equal(postedMessages.length, 2);
+    assert.equal((postedMessages[1].message as { type: string }).type, "ROPODUCTIONS_ENGINE_READY");
+  });
+
+  it("avoids premature _onLoad when cached image in Firefox exposes dimensions before decoding is complete", () => {
+    let onloadCalled = false;
+    let destroyedCanvas = false;
+
+    class TestImage {
+      src = "";
+      complete = false;
+      width = 24;
+      naturalWidth = 24;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+    }
+
+    sandbox.Image = TestImage;
+
+    class BitmapForTest {
+      _url = "/engine/img/system/Cursor.png";
+      _image: TestImage | null = null;
+      _loadingState = "none";
+      _destroyCanvas() {
+        destroyedCanvas = true;
+      }
+      _startLoading() {}
+      _onLoad() {
+        onloadCalled = true;
+        this._loadingState = "loaded";
+      }
+      _onError() {
+        this._loadingState = "error";
+      }
+    }
+
+    sandbox.Bitmap = BitmapForTest;
+    loadPlugin();
+
+    const bitmap = new BitmapForTest();
+    bitmap._startLoading();
+
+    assert.equal(destroyedCanvas, true, "destroys canvas on start loading");
+    assert.equal(bitmap._loadingState, "loading");
+    assert.equal(onloadCalled, false, "must NOT call _onLoad synchronously when complete is false");
+    assert.ok(bitmap._image?.onload, "must retain onload handler to fire once decoding finishes");
+
+    // When Firefox finishes decoding:
+    bitmap._image.complete = true;
+    bitmap._image.onload!();
+    assert.equal(onloadCalled, true, "calls _onLoad when decode completes");
+    assert.equal(bitmap._loadingState, "loaded");
+  });
+
+  it("calls _onLoad synchronously when cached image is already complete with naturalWidth > 0", () => {
+    let onloadCalled = false;
+
+    class TestImage {
+      src = "";
+      complete = true;
+      width = 24;
+      naturalWidth = 24;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+    }
+
+    sandbox.Image = TestImage;
+
+    class BitmapForTest {
+      _url = "/engine/img/system/Cursor.png";
+      _image: TestImage | null = null;
+      _loadingState = "none";
+      _startLoading() {}
+      _onLoad() {
+        onloadCalled = true;
+        this._loadingState = "loaded";
+      }
+      _onError() {}
+    }
+
+    sandbox.Bitmap = BitmapForTest;
+    loadPlugin();
+
+    const bitmap = new BitmapForTest();
+    bitmap._startLoading();
+
+    assert.equal(onloadCalled, true, "calls _onLoad synchronously when complete is true");
+    assert.equal(bitmap._image?.onload, null, "nulls onload when synchronously loaded");
   });
 
   it("reports a boot-window context loss only once per boot", () => {

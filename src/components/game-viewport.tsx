@@ -374,19 +374,7 @@ export function GameViewport({
     clearWatchdog();
     // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
     console.info("[GameViewport] Engine ready.");
-    setBootFailure((current) => {
-      if (
-        current?.failureClass === "renderer_init_failed" ||
-        current?.failureClass === "webgl_unavailable"
-      ) {
-        // [CLEANUP_TAG: CLIENT_DIAGNOSTIC]
-        console.warn(
-          "[GameViewport] Engine ready; preserving fatal failure:",
-          current.failureClass
-        );
-      }
-      return null;
-    });
+    setBootFailure(null);
     setLoadProgress(100);
     setIsEngineReady(true);
   }, [clearWatchdog]);
