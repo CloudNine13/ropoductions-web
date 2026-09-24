@@ -11,11 +11,6 @@ import {
   parseByteRange,
   sanitizeAssetPath,
 } from "@/lib/r2-http";
-// [CLEANUP_TAG: CF_DIAGNOSTIC]
-import {
-  extractCloudflareContext,
-  logCloudflareDiagnostic,
-} from "@/lib/cloudflare-diagnostic";
 
 export const dynamic = "force-dynamic";
 
@@ -32,26 +27,10 @@ async function handleAssetRequest(
   paramsPromise: Promise<{ asset?: string[] }>,
   isHead: boolean
 ): Promise<Response> {
-  // [CLEANUP_TAG: CF_DIAGNOSTIC]
-  const startMs = Date.now();
-  const cfContext = extractCloudflareContext(request);
-
   const ageVerified = unquoteCookieValue(request.cookies.get(AGE_VERIFIED_COOKIE_NAME)?.value) === "true";
   const sessionCookie = unquoteCookieValue(request.cookies.get(SESSION_COOKIE_NAME)?.value);
 
   if (!ageVerified || !sessionCookie) {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_unauthorized",
-      {
-        ...cfContext,
-        reason: "missing_cookies",
-        hasAgeCookie: ageVerified,
-        hasSessionCookie: Boolean(sessionCookie),
-        durationMs: Date.now() - startMs,
-      },
-      "warn"
-    );
     return NextResponse.json(
       {
         error: {
@@ -75,12 +54,6 @@ async function handleAssetRequest(
     db = await getDatabase();
     authEnv = await getAuthEnv();
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_infra_error",
-      { ...cfContext, reason: "database_or_auth_env_failed", durationMs: Date.now() - startMs },
-      "error"
-    );
     return NextResponse.json(
       {
         error: {
@@ -107,12 +80,6 @@ async function handleAssetRequest(
     });
 
     if (validation.status !== "authorized") {
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "game_asset_session_rejected",
-        { ...cfContext, validationStatus: validation.status, durationMs: Date.now() - startMs },
-        "warn"
-      );
       return NextResponse.json(
         {
           error: {
@@ -130,12 +97,6 @@ async function handleAssetRequest(
       );
     }
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_validation_error",
-      { ...cfContext, reason: "resolveSessionValidation_threw", durationMs: Date.now() - startMs },
-      "error"
-    );
     return NextResponse.json(
       {
         error: {
@@ -178,12 +139,6 @@ async function handleAssetRequest(
   try {
     bucket = await getGameAssetsBucket();
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_bucket_error",
-      { ...cfContext, key, reason: "getGameAssetsBucket_threw", durationMs: Date.now() - startMs },
-      "error"
-    );
     return NextResponse.json(
       {
         error: {
@@ -210,12 +165,6 @@ async function handleAssetRequest(
     try {
       headOrObject = await bucket.head(key);
     } catch {
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "game_asset_head_error",
-        { ...cfContext, key, durationMs: Date.now() - startMs },
-        "error"
-      );
       return NextResponse.json(
         {
           error: {
@@ -240,12 +189,6 @@ async function handleAssetRequest(
         objectBody = obj.body as ReadableStream;
       }
     } catch {
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "game_asset_read_error",
-        { ...cfContext, key, durationMs: Date.now() - startMs },
-        "error"
-      );
       return NextResponse.json(
         {
           error: {
@@ -265,12 +208,6 @@ async function handleAssetRequest(
   }
 
   if (!headOrObject) {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_not_found",
-      { ...cfContext, key, durationMs: Date.now() - startMs },
-      "warn"
-    );
     return NextResponse.json(
       {
         error: {
@@ -330,12 +267,6 @@ async function handleAssetRequest(
       if (head.httpEtag) {
         headers.set("ETag", head.httpEtag);
       }
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "game_asset_304",
-        { ...cfContext, key, etag: head.httpEtag, durationMs: Date.now() - startMs },
-        "info"
-      );
       return new Response(null, {
         status: 304,
         headers,
@@ -385,12 +316,6 @@ async function handleAssetRequest(
       try {
         rangeObject = await bucket.get(key, { range: parsedRange.r2Range });
       } catch {
-        // [CLEANUP_TAG: CF_DIAGNOSTIC]
-        logCloudflareDiagnostic(
-          "game_asset_range_read_error",
-          { ...cfContext, key, range: rangeHeader, durationMs: Date.now() - startMs },
-          "error"
-        );
         return NextResponse.json(
           {
             error: {
@@ -426,19 +351,6 @@ async function handleAssetRequest(
         );
       }
 
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "game_asset_206",
-        {
-          ...cfContext,
-          key,
-          range: rangeHeader,
-          contentLength: parsedRange.length,
-          totalSize: head.size,
-          durationMs: Date.now() - startMs,
-        },
-        "info"
-      );
       return new Response(rangeObject.body, {
         status: 206,
         headers,
@@ -459,7 +371,6 @@ async function handleAssetRequest(
     try {
       object = await bucket.get(key);
     } catch {
-      console.error("[GAME_ASSET] Asset reread failed.", key);
       return NextResponse.json(
         {
           error: {
@@ -478,7 +389,6 @@ async function handleAssetRequest(
     }
 
     if (!object || !object.body) {
-      console.warn("[GAME_ASSET] Asset vanished on reread.", key);
       return NextResponse.json(
         {
           error: {
@@ -500,20 +410,6 @@ async function handleAssetRequest(
 
   headers.set("Content-Length", head.size.toString());
 
-  // [CLEANUP_TAG: CF_DIAGNOSTIC]
-  logCloudflareDiagnostic(
-    "game_asset_200",
-    {
-      ...cfContext,
-      key,
-      size: head.size,
-      contentType,
-      etag: head.httpEtag,
-      isHead,
-      durationMs: Date.now() - startMs,
-    },
-    "info"
-  );
   return new Response(objectBody, {
     status: 200,
     headers,
@@ -527,12 +423,6 @@ export async function GET(
   try {
     return await handleAssetRequest(request, params, false);
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_unhandled_get_error",
-      { path: request.nextUrl.pathname, rayId: request.headers.get("cf-ray") },
-      "error"
-    );
     return NextResponse.json(
       {
         error: {
@@ -558,12 +448,6 @@ export async function HEAD(
   try {
     return await handleAssetRequest(request, params, true);
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "game_asset_unhandled_head_error",
-      { path: request.nextUrl.pathname, rayId: request.headers.get("cf-ray") },
-      "error"
-    );
     return NextResponse.json(
       {
         error: {
