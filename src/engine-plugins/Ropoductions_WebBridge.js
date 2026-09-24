@@ -463,18 +463,6 @@
     if (bootReady) {
       return;
     }
-    if (
-      reportedFailureKeys["renderer_init_failed"] ||
-      reportedFailureKeys["webgl_unavailable"]
-    ) {
-      // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
-      try {
-        console.warn(
-          "[Ropoductions_WebBridge] Engine ready suppressed after fatal boot failure."
-        );
-      } catch (_) {}
-      return;
-    }
     bootReady = true;
     // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
     try {
@@ -608,14 +596,6 @@
           vendor = null;
         }
       }
-      if (context && typeof context.getExtension === "function") {
-        try {
-          const loseContext = context.getExtension("WEBGL_lose_context");
-          if (loseContext) loseContext.loseContext();
-        } catch (error) {
-          // Releasing is best effort: the probe already produced its answer.
-        }
-      }
 
 
       return {
@@ -650,25 +630,12 @@
     // A lost context during the boot window means the game cannot render.
     // Letting the loss be permanent surfaces the renderer_init_failed panel,
     // which gives the player a retry button backed by a full document reload.
-    // Calling stopImmediatePropagation() prevents PIXI's own canvas listener from
-    // calling event.preventDefault(), keeping the context loss permanent and clean.
-    // Without this, PIXI asks Firefox to restore the context without any
-    // webglcontextrestored handler in MZ to rebuild GPU textures, causing
-    // textures already uploaded to silently render as blank pixels — the "ghost game".
     try {
-      document.addEventListener("webglcontextlost", function (event) {
-        let stopped = false;
-        try {
-          if (event && typeof event.stopImmediatePropagation === "function") {
-            event.stopImmediatePropagation();
-            stopped = true;
-          }
-        } catch (_) {}
+      document.addEventListener("webglcontextlost", function () {
         // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
         try {
           console.error(
-            "[Ropoductions_WebBridge] WebGL context lost; propagation stopped:",
-            stopped,
+            "[Ropoductions_WebBridge] WebGL context lost;",
             "bootReady:",
             bootReady
           );
@@ -708,9 +675,37 @@
     if (typeof Bitmap.prototype._startLoading === "function") {
       const originalStartLoading = Bitmap.prototype._startLoading;
       Bitmap.prototype._startLoading = function () {
-        const result = originalStartLoading.apply(this, arguments);
+        if (typeof Image === "undefined") {
+          const result = originalStartLoading.apply(this, arguments);
+          ownImageElement(this._image);
+          return result;
+        }
+        this._image = new Image();
+        this._image.onload = this._onLoad.bind(this);
+        this._image.onerror = this._onError.bind(this);
+        if (typeof this._destroyCanvas === "function") {
+          this._destroyCanvas();
+        }
+        this._loadingState = "loading";
         ownImageElement(this._image);
-        return result;
+        if (
+          typeof Utils !== "undefined" &&
+          typeof Utils.hasEncryptedImages === "function" &&
+          Utils.hasEncryptedImages()
+        ) {
+          this._startDecrypting();
+        } else {
+          this._image.src = this._url;
+          // In Firefox, cached images expose dimension headers synchronously (width > 0)
+          // while ImageLib is still decoding pixel data (complete === false). Calling _onLoad
+          // prematurely draws transparent pixels to 2D canvas and WebGL, and nulling onload
+          // permanently stops textures from updating once decoding finishes.
+          // Only bypass asynchronous onload if the image is genuinely complete!
+          if (this._image.complete && this._image.naturalWidth > 0) {
+            this._image.onload = null;
+            this._onLoad();
+          }
+        }
       };
     }
     if (typeof Bitmap.prototype._onError !== "function") {

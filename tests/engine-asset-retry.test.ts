@@ -406,13 +406,13 @@ describe("engine asset load retry in Ropoductions_WebBridge.js", () => {
     assert.equal(bitmap._loadingState, "error", "the engine's own failure handling runs");
   });
 
-  it("answers MZ's capability check with a probe that releases its context", () => {
+  it("answers MZ's capability check with a probe without releasing via loseContext", () => {
     sandbox.Utils = { canUseWebGL: () => false };
     loadPlugin();
 
     const utils = sandbox.Utils as { canUseWebGL: () => boolean };
     assert.equal(utils.canUseWebGL(), true);
-    assert.equal(lostContexts, 1, "the probe context is released through WEBGL_lose_context");
+    assert.equal(lostContexts, 0, "the probe context is not released through WEBGL_lose_context to avoid spurious warnings in Firefox");
     assert.equal(contextRequests.length, 1, "one context per capability check");
   });
 
