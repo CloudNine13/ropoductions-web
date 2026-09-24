@@ -15,11 +15,6 @@ import {
   isAddressedShellRequest,
   resolveShellCacheControl,
 } from "@/lib/engine-addressing";
-// [CLEANUP_TAG: CF_DIAGNOSTIC]
-import {
-  extractCloudflareContext,
-  logCloudflareDiagnostic,
-} from "@/lib/cloudflare-diagnostic";
 import {
   MOCK_ENGINE_HTML,
   WEB_BRIDGE_SOURCE,
@@ -149,9 +144,6 @@ async function handleEngineRequest(
   paramsPromise: Promise<{ path?: string[] }>,
   isHead: boolean
 ): Promise<Response> {
-  // [CLEANUP_TAG: CF_DIAGNOSTIC]
-  const startMs = Date.now();
-  const cfContext = extractCloudflareContext(request);
   const { path } = await paramsPromise;
   if (path?.length === 1) {
     try {
@@ -202,19 +194,6 @@ async function handleEngineRequest(
   // independently of whether an R2 shell exists. No R2 read and no D1 read,
   // so this path discloses nothing about release state and costs nothing.
   if (!ageVerified || !sessionCookie) {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_unauthorized",
-      {
-        ...cfContext,
-        key,
-        isAddressed,
-        hasAgeCookie: ageVerified,
-        hasSessionCookie: Boolean(sessionCookie),
-        durationMs: Date.now() - startMs,
-      },
-      "warn"
-    );
     return mockOrNotFound(key, isHead);
   }
 
@@ -225,12 +204,6 @@ async function handleEngineRequest(
     db = await getDatabase();
     authEnv = await getAuthEnv();
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_infra_error",
-      { ...cfContext, key, durationMs: Date.now() - startMs },
-      "error"
-    );
     return infraFailure(key, isHead);
   }
 
@@ -243,21 +216,9 @@ async function handleEngineRequest(
       initialAdminIds: authEnv.initialAdminPatreonIds,
     });
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_validation_error",
-      { ...cfContext, key, durationMs: Date.now() - startMs },
-      "error"
-    );
     return infraFailure(key, isHead);
   }
   if (validation.status !== "authorized") {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_session_rejected",
-      { ...cfContext, key, validationStatus: validation.status, durationMs: Date.now() - startMs },
-      "warn"
-    );
     return unauthorized();
   }
 
@@ -267,12 +228,6 @@ async function handleEngineRequest(
   try {
     bucket = await getGameAssetsBucket();
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_bucket_error",
-      { ...cfContext, key, durationMs: Date.now() - startMs },
-      "error"
-    );
     return infraFailure(key, isHead);
   }
 
@@ -281,12 +236,6 @@ async function handleEngineRequest(
 
   // No published shell yet: authorized patrons see the placeholder harness.
   if (!head) {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_shell_missing_mock",
-      { ...cfContext, key, objectKey, isAddressed, durationMs: Date.now() - startMs },
-      "warn"
-    );
     return mockOrNotFound(key, isHead);
   }
 
@@ -315,12 +264,6 @@ async function handleEngineRequest(
         return normalized === normalizedHeadEtag;
       });
     if (isMatch) {
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "engine_304",
-        { ...cfContext, key, isAddressed, etag: head.httpEtag, durationMs: Date.now() - startMs },
-        "info"
-      );
       return new Response(null, { status: 304, headers });
     }
   }
@@ -349,12 +292,6 @@ async function handleEngineRequest(
       try {
         rangeObject = await bucket.get(objectKey, { range: parsedRange.r2Range });
       } catch {
-        // [CLEANUP_TAG: CF_DIAGNOSTIC]
-        logCloudflareDiagnostic(
-          "engine_range_read_error",
-          { ...cfContext, objectKey, durationMs: Date.now() - startMs },
-          "error"
-        );
         return internalError();
       }
       if (!rangeObject || !rangeObject.body) {
@@ -371,20 +308,6 @@ async function handleEngineRequest(
           }
         );
       }
-      // [CLEANUP_TAG: CF_DIAGNOSTIC]
-      logCloudflareDiagnostic(
-        "engine_206",
-        {
-          ...cfContext,
-          key,
-          isAddressed,
-          range: rangeHeader,
-          contentLength: parsedRange.length,
-          totalSize: head.size,
-          durationMs: Date.now() - startMs,
-        },
-        "info"
-      );
       return new Response(rangeObject.body, { status: 206, headers });
     }
   }
@@ -398,12 +321,6 @@ async function handleEngineRequest(
   try {
     object = await bucket.get(objectKey);
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_read_error",
-      { ...cfContext, objectKey, durationMs: Date.now() - startMs },
-      "error"
-    );
     return internalError();
   }
   if (!object || !object.body) {
@@ -421,19 +338,6 @@ async function handleEngineRequest(
     );
   }
   headers.set("Content-Length", head.size.toString());
-  // [CLEANUP_TAG: CF_DIAGNOSTIC]
-  logCloudflareDiagnostic(
-    "engine_200",
-    {
-      ...cfContext,
-      key,
-      isAddressed,
-      size: head.size,
-      isHead,
-      durationMs: Date.now() - startMs,
-    },
-    "info"
-  );
   return new Response(object.body as ReadableStream, { status: 200, headers });
 }
 
@@ -444,12 +348,6 @@ export async function GET(
   try {
     return await handleEngineRequest(request, params, false);
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_unhandled_get_error",
-      { path: request.nextUrl.pathname, rayId: request.headers.get("cf-ray") },
-      "error"
-    );
     return internalError();
   }
 }
@@ -461,12 +359,6 @@ export async function HEAD(
   try {
     return await handleEngineRequest(request, params, true);
   } catch {
-    // [CLEANUP_TAG: CF_DIAGNOSTIC]
-    logCloudflareDiagnostic(
-      "engine_unhandled_head_error",
-      { path: request.nextUrl.pathname, rayId: request.headers.get("cf-ray") },
-      "error"
-    );
     return internalError();
   }
 }

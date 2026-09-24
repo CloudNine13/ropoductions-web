@@ -1,7 +1,5 @@
 import { validateSessionAccess, type SessionValidationResult } from "./auth";
 import { hashValue } from "./crypto";
-// [CLEANUP_TAG: CF_DIAGNOSTIC]
-import { logCloudflareDiagnostic } from "./cloudflare-diagnostic";
 
 /**
  * Amortisation window for a successfully validated session, per
@@ -161,11 +159,6 @@ export function createSessionValidationMemo(
           return verdictFrom(await retained.promise, wallNow());
         }
         if (retained.expiresAtMs > monotonicNow && retained.sessionExpiresAtSec > wallNow()) {
-          // [CLEANUP_TAG: CF_DIAGNOSTIC]
-          logCloudflareDiagnostic("session_memo_hit", {
-            entriesCount: entries.size,
-            remainingTtlMs: Math.round(retained.expiresAtMs - monotonicNow),
-          });
           return { status: "authorized" };
         }
         entries.delete(key);
@@ -174,20 +167,12 @@ export function createSessionValidationMemo(
       const pendingGeneration = requestGeneration;
       const pending = (async (): Promise<Resolution> => {
         try {
-          // [CLEANUP_TAG: CF_DIAGNOSTIC]
-          const d1Start = Date.now();
           const result = await validateSessionAccess({
             db,
             sessionCookie,
             sessionSecret,
             initialAdminIds,
             nowSec: validationNowSec,
-          });
-          // [CLEANUP_TAG: CF_DIAGNOSTIC]
-          logCloudflareDiagnostic("session_memo_miss_d1_validated", {
-            status: result.status,
-            durationMs: Date.now() - d1Start,
-            entriesCount: entries.size,
           });
           if (result.status !== "authorized") {
             if (pendingGeneration === generation) {

@@ -464,22 +464,11 @@
       return;
     }
     bootReady = true;
-    // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
-    try {
-      console.info("[Ropoductions_WebBridge] Engine ready.");
-    } catch (_) {}
     postToHost({ type: ENGINE_READY_MESSAGE_TYPE });
   }
 
   function reportBootFailure(failureClass, raw, diagnostics) {
     if (bootReady) {
-      // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
-      try {
-        console.warn(
-          "[Ropoductions_WebBridge] Boot failure dropped after readiness:",
-          failureClass
-        );
-      } catch (_) {}
       return;
     }
 
@@ -515,13 +504,6 @@
         : "";
     const previous = reportedFailureKeys[key];
     if (previous && (!carriesRetryOutcome || previous === outcomeSignature)) {
-      // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
-      try {
-        console.warn(
-          "[Ropoductions_WebBridge] Duplicate boot failure dropped:",
-          failureClass
-        );
-      } catch (_) {}
       return;
     }
     reportedFailureKeys[key] = carriesRetryOutcome ? outcomeSignature : "reported";
@@ -540,15 +522,6 @@
 
     postToHost(payload);
     hideErrorPrinter();
-    // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
-    try {
-      console.error(
-        "[Ropoductions_WebBridge] Boot failure:",
-        failureClass,
-        typeof raw === "string" ? raw : "",
-        merged.url || ""
-      );
-    } catch (_) {}
   }
 
   /**
@@ -632,14 +605,6 @@
     // which gives the player a retry button backed by a full document reload.
     try {
       document.addEventListener("webglcontextlost", function () {
-        // [CLEANUP_TAG: BRIDGE_DIAGNOSTIC]
-        try {
-          console.error(
-            "[Ropoductions_WebBridge] WebGL context lost;",
-            "bootReady:",
-            bootReady
-          );
-        } catch (_) {}
         reportBootFailure("renderer_init_failed", "WebGL context was lost.", webglProbeDetail);
       }, true);
     } catch (error) {
@@ -675,37 +640,9 @@
     if (typeof Bitmap.prototype._startLoading === "function") {
       const originalStartLoading = Bitmap.prototype._startLoading;
       Bitmap.prototype._startLoading = function () {
-        if (typeof Image === "undefined") {
-          const result = originalStartLoading.apply(this, arguments);
-          ownImageElement(this._image);
-          return result;
-        }
-        this._image = new Image();
-        this._image.onload = this._onLoad.bind(this);
-        this._image.onerror = this._onError.bind(this);
-        if (typeof this._destroyCanvas === "function") {
-          this._destroyCanvas();
-        }
-        this._loadingState = "loading";
+        const result = originalStartLoading.apply(this, arguments);
         ownImageElement(this._image);
-        if (
-          typeof Utils !== "undefined" &&
-          typeof Utils.hasEncryptedImages === "function" &&
-          Utils.hasEncryptedImages()
-        ) {
-          this._startDecrypting();
-        } else {
-          this._image.src = this._url;
-          // In Firefox, cached images expose dimension headers synchronously (width > 0)
-          // while ImageLib is still decoding pixel data (complete === false). Calling _onLoad
-          // prematurely draws transparent pixels to 2D canvas and WebGL, and nulling onload
-          // permanently stops textures from updating once decoding finishes.
-          // Only bypass asynchronous onload if the image is genuinely complete!
-          if (this._image.complete && this._image.naturalWidth > 0) {
-            this._image.onload = null;
-            this._onLoad();
-          }
-        }
+        return result;
       };
     }
     if (typeof Bitmap.prototype._onError !== "function") {
